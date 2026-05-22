@@ -21,7 +21,78 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#080B12;--surf:#0E1420;--card:#131B2E;--card2:#192035;--bd:#1E2D4A;--acc:#3B7FFF;--grn:#00D4AA;--warn:#FFB020;--red:#FF4560;--txt:#E8EEFF;--txt2:#7A8DB0;--txt3:#3A4E6E}
-html.light{--bg:#F0F2F7;--surf:#FFFFFF;--card:#FFFFFF;--card2:#F5F7FB;--bd:#D8DCE8;--acc:#2563EB;--grn:#059669;--warn:#D97706;--red:#DC2626;--txt:#0F1523;--txt2:#4B5680;--txt3:#9BA3BF}
+html.light{--bg:#F0F2F7;--surf:#FFFFFF;--card:#FFFFFF;--card2:#F5F7FB;--bd:#C8CEDF;--acc:#2563EB;--grn:#059669;--warn:#D97706;--red:#DC2626;--txt:#0F1523;--txt2:#374160;--txt3:#6B7494}
+
+/* Light theme overrides for elements with hardcoded dark colors */
+html.light header{background:#FFFFFF;border-bottom-color:#C8CEDF}
+html.light .btn{color:#0F1523;border-color:#C8CEDF;background:#F5F7FB}
+html.light .btn:hover{background:#E8EBF4}
+html.light .brand{color:#0F1523}
+html.light .pill{color:#374160;background:#F0F2F7;border-color:#C8CEDF}
+html.light .theme-btn{color:#374160;border-color:#C8CEDF;background:#F5F7FB}
+html.light .theme-btn:hover{border-color:var(--acc);color:#0F1523}
+html.light .status{background:#FFFFFF;border-color:#C8CEDF}
+html.light .si{background:#FFFFFF;border-color:#C8CEDF;color:#0F1523}
+html.light .si::placeholder{color:#9BA3BF}
+html.light .fbtn{color:#374160;border-color:#C8CEDF;background:#FFFFFF}
+html.light .fbtn:hover,.fbtn.act{background:var(--acc);color:#fff;border-color:var(--acc)}
+html.light .wh-card{background:#FFFFFF;border-color:#C8CEDF}
+html.light .wh-card:hover{border-color:var(--acc);box-shadow:0 8px 24px rgba(37,99,235,.08)}
+html.light .cn{color:#0F1523}
+html.light .cm{color:#374160}
+html.light .cin{color:#374160}
+html.light .cic{color:#0F1523}
+html.light .ciq{color:#6B7494}
+html.light .wi-name{color:#374160}
+html.light .wi-cost{color:#0F1523}
+html.light .wi-qty{color:#6B7494}
+html.light .kpi{background:#FFFFFF;border-color:#C8CEDF}
+html.light .kl{color:#6B7494}
+html.light .kv{color:#0F1523}
+html.light .ks{color:#6B7494}
+html.light .modal{background:#FFFFFF;border-color:#C8CEDF}
+html.light .mk{background:#F5F7FB;border-color:#C8CEDF}
+html.light .mkv{color:#0F1523}
+html.light .mkl{color:#6B7494}
+html.light .tr{background:#F5F7FB}
+html.light .tr:hover{background:#E8EBF4}
+html.light .tr.t1{background:rgba(217,119,6,.06);border-color:rgba(217,119,6,.2)}
+html.light .tname{color:#0F1523}
+html.light .tpct{color:#6B7494}
+html.light .cr{background:#F5F7FB}
+html.light .cname{color:#374160}
+html.light .cpct{color:#0F1523}
+html.light .hs{border-top-color:#C8CEDF}
+html.light .hr{border-bottom-color:#C8CEDF}
+html.light .hp{color:#6B7494}
+html.light .hv{color:#0F1523}
+html.light .ptab{background:#F5F7FB;border-color:#C8CEDF;color:#374160}
+html.light .ptab:hover{border-color:var(--acc);color:#0F1523}
+html.light .ptab.act{background:var(--acc);color:#fff;border-color:var(--acc)}
+html.light .cc{color:#374160}
+html.light .aw{background:#F5F7FB;border-color:#C8CEDF}
+html.light .ai{background:#FFFFFF;border-color:#C8CEDF;color:#0F1523}
+html.light .uz{border-color:#C8CEDF;color:#374160}
+html.light .uz:hover{border-color:var(--acc);background:#F5F7FB}
+html.light .pi{background:#F5F7FB}
+html.light .pp{color:#0F1523}
+html.light .ps{color:#374160}
+html.light .pb{color:#374160;border-color:#C8CEDF}
+html.light .pb:hover{background:#E8EBF4}
+html.light .cmprow{background:#F5F7FB}
+html.light .cmpc{background:#FFFFFF;border-color:#C8CEDF}
+html.light .cmpn{color:#6B7494}
+html.light .login-box{background:#FFFFFF;border-color:#C8CEDF}
+html.light .login-title{color:#0F1523}
+html.light .login-sub{color:#374160}
+html.light .login-inp{background:#F5F7FB;border-color:#C8CEDF;color:#0F1523}
+html.light .login-hint{color:#6B7494}
+html.light .st{color:#6B7494}
+html.light .mx{background:#F5F7FB;border-color:#C8CEDF;color:#374160}
+html.light .mx:hover{border-color:var(--acc);color:#0F1523}
+html.light .mh .mt{color:#0F1523}
+html.light .bb{background:#E8EBF4}
+html.light footer{border-top-color:#C8CEDF;color:#6B7494}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font-family:'Manrope',sans-serif;min-height:100vh;transition:background .25s,color .25s}
 
