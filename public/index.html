@@ -1,0 +1,633 @@
+
+<div id="login-screen" class="login-screen">
+  <div class="login-box">
+    <div class="login-logo">📊</div>
+    <div class="login-title">Аналитика списаний</div>
+    <div class="login-sub">Введите пароль для доступа к дашборду</div>
+    <input class="login-inp" id="lpw" type="password" placeholder="••••••••"
+      onkeydown="if(event.key==='Enter')doLogin()" autofocus autocomplete="current-password">
+    <button class="login-btn" id="lbtn" onclick="doLogin()">Войти →</button>
+    <div class="login-err" id="lerr"></div>
+    <div class="login-hint">Для получения пароля обратитесь к администратору</div>
+  </div>
+</div>
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Аналитика списаний</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080B12;--surf:#0E1420;--card:#131B2E;--card2:#192035;--bd:#1E2D4A;--acc:#3B7FFF;--grn:#00D4AA;--warn:#FFB020;--red:#FF4560;--txt:#E8EEFF;--txt2:#7A8DB0;--txt3:#3A4E6E}
+html.light{--bg:#F0F2F7;--surf:#FFFFFF;--card:#FFFFFF;--card2:#F5F7FB;--bd:#D8DCE8;--acc:#2563EB;--grn:#059669;--warn:#D97706;--red:#DC2626;--txt:#0F1523;--txt2:#4B5680;--txt3:#9BA3BF}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Manrope',sans-serif;min-height:100vh;transition:background .25s,color .25s}
+
+
+/* LOGIN */
+.login-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;transition:background .3s}
+.login-box{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:40px 36px;width:92%;max-width:380px;text-align:center}
+.login-logo{width:48px;height:48px;border-radius:50%;background:rgba(59,127,255,.15);border:1px solid rgba(59,127,255,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:22px}
+.login-title{font-size:20px;font-weight:800;margin-bottom:6px}
+.login-sub{font-size:12px;color:var(--txt2);margin-bottom:28px}
+.login-inp{width:100%;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;color:var(--txt);font-size:14px;font-family:'Manrope',sans-serif;outline:none;text-align:center;letter-spacing:.08em;margin-bottom:12px;transition:border-color .2s}
+.login-inp:focus{border-color:var(--acc)}
+.login-btn{width:100%;background:var(--acc);border:none;border-radius:10px;padding:13px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Manrope',sans-serif;transition:all .2s}
+.login-btn:hover{opacity:.9;transform:translateY(-1px)}
+.login-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.login-err{color:var(--red);font-size:12px;margin-top:10px;min-height:18px}
+.login-hint{font-size:11px;color:var(--txt3);margin-top:16px}
+
+/* HEADER */
+header{background:#0A0F1E;border-bottom:1px solid var(--bd);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.brand{font-size:14px;font-weight:800}
+.pill{font-size:11px;color:var(--txt2);background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:4px 12px;font-family:'JetBrains Mono',monospace}
+.hbtns{display:flex;gap:8px;align-items:center}
+.btn{font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--txt);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Manrope',sans-serif}
+.btn:hover{background:var(--card)}
+.btn-acc{background:var(--acc);border-color:var(--acc);color:#fff}.btn-acc:hover{opacity:.9}
+.btn-warn{background:var(--warn);border-color:var(--warn);color:#1a1000}.btn-warn:hover{opacity:.9}
+.btn-red{background:var(--red);border-color:var(--red);color:#fff}.btn-red:hover{opacity:.9}
+.btn-grn{background:var(--grn);border-color:var(--grn);color:#001a14}.btn-grn:hover{opacity:.9}
+
+
+/* THEME TOGGLE */
+.theme-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
+.theme-btn:hover{border-color:var(--acc);color:var(--txt)}
+
+/* MAIN */
+.wrap{max-width:1400px;margin:0 auto;padding:24px 20px}
+
+/* STATUS */
+.status{display:flex;align-items:center;gap:8px;font-size:12px;padding:8px 14px;border-radius:8px;background:var(--card);border:1px solid var(--bd);margin-bottom:24px}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sdot.ok{background:var(--grn)}.sdot.warn{background:var(--warn)}.sdot.err{background:var(--red)}
+.sdot.spin{background:var(--acc);animation:pulse 1s infinite}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--acc),transparent)}
+.kpi.g::before{background:linear-gradient(90deg,transparent,var(--grn),transparent)}
+.kpi.w::before{background:linear-gradient(90deg,transparent,var(--warn),transparent)}
+.kpi.r::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.kl{font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.kv{font-size:22px;font-weight:800;line-height:1;margin-bottom:4px}
+.ks{font-size:11px;color:var(--txt3)}
+.kd{font-size:11px;font-weight:700;margin-top:4px}
+.kd.up{color:var(--red)}.kd.dn{color:var(--grn)}.kd.fl{color:var(--txt3)}
+
+/* PERIODS */
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.ptab{font-size:11px;padding:5px 14px;border-radius:20px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;transition:all .15s;font-family:'JetBrains Mono',monospace}
+.ptab:hover{border-color:var(--acc);color:var(--txt)}
+.ptab.act{background:var(--acc);color:#fff;border-color:var(--acc)}
+
+/* SEARCH + FILTERS */
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.fbtn{font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--txt2);cursor:pointer;transition:all .15s;font-family:'Manrope',sans-serif}
+.fbtn:hover,.fbtn.act{background:var(--acc);color:#fff;border-color:var(--acc)}
+.sw{position:relative;flex:1;min-width:200px}
+.si{width:100%;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px 12px 8px 34px;color:var(--txt);font-size:13px;font-family:'Manrope',sans-serif;outline:none;transition:border-color .2s}
+.si:focus{border-color:var(--acc)}
+.sic{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:14px;pointer-events:none}
+.cc{font-size:13px;color:var(--txt2);margin-bottom:12px}
+
+/* CARDS */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:32px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s,background .25s}
+.card:hover{border-color:var(--acc);transform:translateY(-2px);box-shadow:0 8px 24px rgba(59,127,255,.1)}
+.card.ld{border-left:3px solid var(--red)}.card.lw{border-left:3px solid var(--warn)}
+.ch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.cn{font-size:13px;font-weight:700}
+.ct{font-size:16px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.ct.r{color:var(--red)}.ct.w{color:var(--warn)}.ct.a{color:var(--acc)}
+.cm{font-size:11px;color:var(--txt2);margin-bottom:8px}
+.bb{height:3px;background:var(--bd);border-radius:2px;margin-bottom:8px}
+.bf{height:3px;border-radius:2px;transition:width .5s}
+.cits{display:flex;flex-direction:column;gap:3px}
+.ci{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cin{font-size:11px;color:var(--txt2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cir{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0}
+.cic{font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--txt)}
+.ciq{font-size:10px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+.ci:first-child .cin{color:var(--warn)}.ci:first-child .cic{color:var(--warn)}
+
+/* OVERLAY */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.ov.open{display:flex}
+.modal{background:var(--surf);border:1px solid var(--bd);border-radius:16px;width:92%;max-width:640px;max-height:90vh;overflow-y:auto;padding:24px;animation:su .2s ease}
+@keyframes su{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.mt{font-size:17px;font-weight:800}
+.mx{background:var(--card);border:1px solid var(--bd);border-radius:8px;width:32px;height:32px;cursor:pointer;color:var(--txt2);font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.mx:hover{border-color:var(--acc);color:var(--txt)}
+.mkpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.mk{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;text-align:center}
+.mkv{font-size:18px;font-weight:800;margin-bottom:3px}
+.mkl{font-size:10px;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em}
+.st{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.tlist{display:flex;flex-direction:column;gap:5px;margin-bottom:16px}
+.tr{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:8px;padding:8px 12px}
+.tr:hover{background:var(--card2)}
+.tr.t1{background:rgba(255,176,32,.07);border:1px solid rgba(255,176,32,.15)}
+.tn{font-size:10px;color:var(--txt3);width:14px;text-align:right;font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.mb{width:40px;height:3px;background:var(--bd);border-radius:2px;flex-shrink:0}
+.mf{height:3px;border-radius:2px}
+.tname{flex:1;font-size:12px;line-height:1.35}
+.tright{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0}
+.tcost{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--warn)}
+.tqty{font-size:10px;color:var(--txt2);font-family:'JetBrains Mono',monospace}
+.tpct{font-size:10px;color:var(--txt3)}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:16px}
+.cr{display:flex;align-items:center;gap:6px;background:var(--card);border-radius:6px;padding:6px 10px}
+.cdot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.cname{font-size:11px;color:var(--txt2);flex:1}
+.cpct{font-size:11px;font-weight:700;color:var(--txt);font-family:'JetBrains Mono',monospace}
+.hs{border-top:1px solid var(--bd);padding-top:14px;margin-top:4px}
+.hr{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px}
+.hp{color:var(--txt3);font-family:'JetBrains Mono',monospace;font-size:11px}
+.hv{font-weight:700;font-family:'JetBrains Mono',monospace}
+.hd{font-size:11px;margin-left:6px}
+
+/* ADMIN */
+.aw{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:14px}
+.ai{width:100%;background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:8px 12px;color:var(--txt);font-size:13px;font-family:'Manrope',sans-serif;outline:none;margin-bottom:8px}
+.ai:focus{border-color:var(--acc)}
+.uz{border:1px dashed var(--bd);border-radius:10px;padding:20px;text-align:center;color:var(--txt2);font-size:13px;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.uz:hover{border-color:var(--acc);background:var(--card)}
+.pl{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;margin-bottom:14px}
+.pi{display:flex;justify-content:space-between;align-items:center;background:var(--card);border-radius:8px;padding:8px 12px;font-size:12px}
+.pp{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt)}
+.ps{color:var(--txt2);font-size:10px;margin-top:1px}
+.pbs{display:flex;gap:4px}
+.pb{background:transparent;border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--txt2);transition:all .15s;font-family:'Manrope',sans-serif}
+.pb:hover{background:var(--card2)}
+.pb.del:hover{color:var(--red);border-color:var(--red)}
+.success{background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--grn);margin-bottom:10px}
+.errmsg{color:var(--red);font-size:12px;margin-top:6px}
+
+/* COMPARE */
+.cmprow{background:var(--card);border-radius:10px;padding:14px;margin-bottom:10px}
+.cmphead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cmpg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}
+.cmpc{background:var(--surf);border:1px solid var(--bd);border-radius:6px;padding:7px 9px}
+.cmpn{font-size:10px;color:var(--txt3);margin-bottom:2px}
+.cmpd{font-size:12px;font-weight:700}
+
+.hidden{display:none}
+footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-top:1px solid var(--bd);margin-top:24px}
+
+@media(max-width:640px){
+  .hbtns .btn span{display:none}
+  .kpis{grid-template-columns:1fr 1fr}
+  .wrap{padding:16px 12px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="dot"></div>
+    <div>
+      <div class="brand">Аналитика списаний</div>
+    </div>
+    <div class="pill" id="plabel">—</div>
+  </div>
+  <div class="hbtns">
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Переключить тему">🌙</button>
+    <button class="btn" onclick="loadData()">↺ <span>Обновить</span></button>
+    <button class="btn" onclick="openCmp()">⇄ <span>Сравнить</span></button>
+    <button class="btn btn-warn" onclick="openAdmin()">🔒 <span>Управление</span></button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="status">
+    <div class="sdot spin" id="sdot"></div>
+    <span id="stxt">Загрузка...</span>
+  </div>
+
+  <div id="krow" class="kpis"></div>
+
+  <div id="ptabs-wrap" class="hidden">
+    <div style="font-size:11px;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Периоды</div>
+    <div class="ptabs" id="ptabs"></div>
+  </div>
+
+  <div class="frow">
+    <button class="fbtn act" onclick="setF('all',this)">Все</button>
+    <button class="fbtn" onclick="setF('danger',this)">🔴 &gt;100k</button>
+    <button class="fbtn" onclick="setF('warn',this)">🟡 45–100k</button>
+    <button class="fbtn" onclick="setF('ok',this)">🟢 &lt;45k</button>
+    <div class="sw">
+      <span class="sic">🔍</span>
+      <input class="si" id="si" type="text" placeholder="Поиск по складу или позиции..." oninput="renderCards()">
+    </div>
+  </div>
+
+  <div class="cc" id="cc"></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- Warehouse modal -->
+<div class="ov" id="wm" onclick="if(event.target===this)cl('wm')">
+  <div class="modal">
+    <div class="mh"><div class="mt" id="wmt"></div><button class="mx" onclick="cl('wm')">✕</button></div>
+    <div class="mkpis" id="wmk"></div>
+    <div class="st">Топ-10 позиций</div>
+    <div class="tlist" id="wmt10"></div>
+    <div class="st">Категории</div>
+    <div class="cg" id="wmcats"></div>
+    <div id="wmhist"></div>
+  </div>
+</div>
+
+<!-- Compare modal -->
+<div class="ov" id="cm" onclick="if(event.target===this)cl('cm')">
+  <div class="modal">
+    <div class="mh"><div class="mt">Сравнение периодов</div><button class="mx" onclick="cl('cm')">✕</button></div>
+    <div id="cmc"></div>
+  </div>
+</div>
+
+<!-- Admin modal -->
+<div class="ov" id="am" onclick="if(event.target===this)cl('am')">
+  <div class="modal">
+    <div class="mh"><div class="mt">🔒 Управление данными</div><button class="mx" onclick="cl('am')">✕</button></div>
+    <div id="apw">
+      <div class="aw">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">Пароль администратора</div>
+        <input class="ai" id="pwi" type="password" placeholder="Введите пароль..." onkeydown="if(event.key==='Enter')auth()">
+        <button class="btn btn-acc" onclick="auth()" style="width:100%;justify-content:center">Войти →</button>
+        <div class="errmsg hidden" id="pwerr">Неверный пароль</div>
+      </div>
+    </div>
+    <div id="apc" class="hidden">
+      <div class="uz" onclick="document.getElementById('jfu').click()">
+        <div style="font-size:28px;margin-bottom:8px">⬆</div>
+        <b>Загрузить новый JSON-файл</b><br>
+        <span style="font-size:11px;color:var(--txt3);margin-top:4px;display:block">Все пользователи увидят обновление мгновенно</span>
+      </div>
+      <input type="file" id="jfu" accept=".json" style="display:none" onchange="upload(event)">
+      <div id="upmsg"></div>
+      <div class="st" style="margin-bottom:8px">Сохранённые периоды</div>
+      <div class="pl" id="apl"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="expAll()" style="flex:1;justify-content:center">⬇ Экспорт</button>
+        <button class="btn btn-red" onclick="clearAll()" style="flex:1;justify-content:center">🗑 Очистить всё</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Аналитика списаний · Данные обновляются администратором</footer>
+
+<script>
+// ── THEME ────────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('dash_theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-btn').textContent = isLight ? '☀️' : '🌙';
+  // Rebuild charts with new colors
+  if (typeof overviewChart !== 'undefined' && overviewChart) { overviewChart.destroy(); overviewChart = null; }
+  if (typeof catChart !== 'undefined' && catChart) { catChart.destroy(); catChart = null; }
+  if (typeof modalChartInst !== 'undefined' && modalChartInst) { modalChartInst.destroy(); modalChartInst = null; }
+  if (periods.length) render();
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('dash_theme');
+  if (saved === 'light') {
+    document.documentElement.classList.add('light');
+    const btn = document.getElementById('theme-btn');
+    if (btn) btn.textContent = '☀️';
+  }
+}
+
+const CAT = {'Напитки/Бар':'#3B7FFF','Мясо/Птица':'#00D4AA','Овощи/Фрукты':'#22C55E','Выпечка/Хлеб':'#FFB020','Соусы':'#FF4560','Упаковка/Расходники':'#A78BFA','Десерты':'#FB7185','Полуфабрикаты':'#38BDF8','Прочее/Хоз':'#94A3B8','Прочее':'#475569'};
+
+let periods=[], cur=0, flt='all', adminPw='';
+const API = '';  // same origin
+const fmt  = v => v>=1e6?(v/1e6).toFixed(1)+'М':v>=1e3?Math.round(v/1e3)+'k':v;
+const fmtR = v => v.toLocaleString('ru-RU')+' ₽';
+const lvl  = t => t>100000?'danger':t>45000?'warn':'ok';
+const d    = () => periods[cur]||periods[0];
+
+function ss(type,msg){
+  document.getElementById('sdot').className='sdot '+type;
+  document.getElementById('stxt').textContent=msg;
+}
+
+async function loadData(){
+  ss('spin','Загрузка...');
+  try{
+    const r=await fetch(API+'/api/periods',{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    periods=await r.json();
+    ss('ok','Синхронизировано · '+periods.length+' '+(periods.length===1?'период':'периодов')+' · '+new Date().toLocaleTimeString('ru-RU'));
+  }catch(e){
+    ss('err','Ошибка: '+e.message);
+  }
+  render();
+}
+
+function render(){
+  const p=d();
+  if(!p){
+    document.getElementById('krow').innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0;grid-column:1/-1">Нет данных. Администратор ещё не загрузил периоды.</div>';
+    document.getElementById('grid').innerHTML='';
+    document.getElementById('ptabs-wrap').classList.add('hidden');
+    document.getElementById('plabel').textContent='—';
+    return;
+  }
+  document.getElementById('plabel').textContent=p.period;
+  renderKPIs(p); renderPeriods(); renderCards();
+}
+
+function renderKPIs(p){
+  const prev=periods[cur+1];
+  const dt=prev?Math.round((p.grand_total-prev.grand_total)/prev.grand_total*100):null;
+  const crit=p.warehouses.filter(w=>w.total>100000).length;
+  const avg=Math.round(p.grand_total/p.warehouses.length);
+  const dh=dt!==null
+    ?`<div class="kd ${dt>0?'up':'dn'}">${dt>0?'↑':'↓'}${Math.abs(dt)}% vs прошлый</div>`
+    :`<div class="kd fl">${periods.length>1?'—':'Загрузите ещё период'}</div>`;
+  document.getElementById('krow').innerHTML=`
+    <div class="kpi"><div class="kl">Общие списания</div><div class="kv">${fmtR(p.grand_total)}</div><div class="ks">${p.period}</div>${dh}</div>
+    <div class="kpi g"><div class="kl">Складов</div><div class="kv">${p.warehouses.length}</div><div class="ks">в периоде</div></div>
+    <div class="kpi r"><div class="kl">Критичных</div><div class="kv" style="color:var(--red)">${crit}</div><div class="ks">&gt;100k руб</div></div>
+    <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
+}
+
+function renderPeriods(){
+  const w=document.getElementById('ptabs-wrap');
+  if(periods.length<2){w.classList.add('hidden');return;}
+  w.classList.remove('hidden');
+  document.getElementById('ptabs').innerHTML=periods.map((p,i)=>
+    `<button class="ptab ${i===cur?'act':''}" onclick="cur=${i};render()">${p.period}</button>`).join('');
+}
+
+function renderCards(){
+  const p=d(); if(!p) return;
+  const q=document.getElementById('si').value.toLowerCase();
+  const whs=p.warehouses.filter(w=>{
+    const mf=flt==='all'||lvl(w.total)===flt;
+    const ms=!q||w.name.toLowerCase().includes(q)||(w.top3||[]).some(t=>t.name.toLowerCase().includes(q));
+    return mf&&ms;
+  });
+  const mx=p.warehouses[0]?.total||1;
+  document.getElementById('cc').textContent=`Показано ${whs.length} из ${p.warehouses.length} складов`;
+  document.getElementById('grid').innerHTML=whs.map(w=>{
+    const lv=lvl(w.total),bw=Math.round(w.total/mx*100);
+    const bc=lv==='danger'?'var(--red)':lv==='warn'?'var(--warn)':'var(--acc)';
+    const i=p.warehouses.indexOf(w);
+    return `<div class="card l${lv[0]}" onclick="openWh(${i})">
+      <div class="ch"><div class="cn">${w.name}</div><div class="ct ${lv[0]}">${fmt(w.total)} ₽</div></div>
+      <div class="cm">${w.pct}% от сети · ${w.n_items} позиций</div>
+      <div class="bb"><div class="bf" style="width:${bw}%;background:${bc}"></div></div>
+      <div class="cits">${(w.top3||[]).map(t=>{
+        const qs=t.qty>0?`${t.qty%1===0?t.qty.toFixed(0):t.qty} ${t.unit}`:'';
+        return `<div class="ci">
+          <span class="cin">${t.name.length>40?t.name.substring(0,39)+'…':t.name}</span>
+          <div class="cir"><span class="cic">${t.cost.toLocaleString('ru-RU')} ₽</span>${qs?`<span class="ciq">${qs}</span>`:''}</div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function setF(f,btn){
+  flt=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  renderCards();
+}
+
+function openWh(idx){
+  const p=d(),w=p.warehouses[idx];
+  const lv=lvl(w.total),clr=lv==='danger'?'var(--red)':lv==='warn'?'var(--warn)':'var(--acc)';
+  document.getElementById('wmt').textContent=w.name;
+  document.getElementById('wmk').innerHTML=`
+    <div class="mk"><div class="mkv" style="color:${clr}">${fmtR(w.total)}</div><div class="mkl">Списания</div></div>
+    <div class="mk"><div class="mkv">${w.pct}%</div><div class="mkl">От сети</div></div>
+    <div class="mk"><div class="mkv">${w.n_items}</div><div class="mkl">Позиций</div></div>`;
+  const items=w.top10||w.top3||[],mx=items[0]?.cost||1;
+  document.getElementById('wmt10').innerHTML=items.map((t,i)=>{
+    const pct=(t.cost/w.total*100).toFixed(1),bw=Math.round(t.cost/mx*100);
+    const bc=i===0?'var(--warn)':i<3?'var(--acc)':'var(--txt3)';
+    const qs=t.qty>0?`${t.qty%1===0?t.qty.toFixed(0):t.qty} ${t.unit}`:'';
+    return `<div class="tr ${i===0?'t1':''}">
+      <span class="tn">${i+1}</span>
+      <div class="mb"><div class="mf" style="width:${bw}%;background:${bc}"></div></div>
+      <span class="tname">${t.name}</span>
+      <div class="tright">
+        <span class="tcost">${fmtR(t.cost)}</span>
+        ${qs?`<span class="tqty">${qs}</span>`:''}
+        <span class="tpct">${pct}% склада</span>
+      </div>
+    </div>`;
+  }).join('');
+  const cats=Object.entries(w.cats||{}).sort((a,b)=>b[1]-a[1]);
+  const ct=cats.reduce((s,c)=>s+c[1],0);
+  document.getElementById('wmcats').innerHTML=cats.slice(0,8).map(([k,v])=>
+    `<div class="cr"><div class="cdot" style="background:${CAT[k]||'#888'}"></div>
+     <div class="cname">${k}</div><div class="cpct">${Math.round(v/ct*100)}%</div></div>`).join('');
+  const he=document.getElementById('wmhist');
+  if(periods.length>1){
+    const rows=periods.map((pp,pi)=>{
+      const wh=pp.warehouses.find(x=>x.name===w.name); if(!wh) return '';
+      const pv=pi<periods.length-1?periods[pi+1].warehouses.find(x=>x.name===w.name):null;
+      const dt=pv?Math.round((wh.total-pv.total)/pv.total*100):null;
+      return `<div class="hr" ${pi===cur?'style="font-weight:800"':''}>
+        <span class="hp">${pp.period}</span>
+        <span style="display:flex;align-items:center;gap:6px">
+          ${dt!==null?`<span class="hd" style="color:${dt>0?'var(--red)':'var(--grn)'}">${dt>0?'↑':'↓'}${Math.abs(dt)}%</span>`:''}
+          <span class="hv">${fmtR(wh.total)}</span>
+        </span>
+      </div>`;
+    }).filter(Boolean).join('');
+    he.innerHTML=rows?`<div class="hs"><div class="st">Динамика по периодам</div>${rows}</div>`:'';
+  } else he.innerHTML='';
+  op('wm');
+}
+
+function openCmp(){
+  if(periods.length<2){alert('Загрузите 2+ периодов');return;}
+  let html='';
+  for(let i=0;i<periods.length-1;i++){
+    const a=periods[i],b=periods[i+1];
+    const dt=Math.round((a.grand_total-b.grand_total)/b.grand_total*100);
+    html+=`<div class="cmprow">
+      <div class="cmphead">
+        <div><div style="font-size:13px;font-weight:700">${a.period}</div><div style="font-size:11px;color:var(--txt3)">vs ${b.period}</div></div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:800;color:${dt>0?'var(--red)':'var(--grn)'}">${dt>0?'↑':'↓'}${Math.abs(dt)}%</div>
+          <div style="font-size:11px;color:var(--txt3)">${fmtR(a.grand_total)} → ${fmtR(b.grand_total)}</div>
+        </div>
+      </div>
+      <div class="cmpg">${a.warehouses.slice(0,8).map(w=>{
+        const wb=b.warehouses.find(x=>x.name===w.name); if(!wb) return '';
+        const d2=Math.round((w.total-wb.total)/wb.total*100);
+        return `<div class="cmpc">
+          <div class="cmpn">${w.name.length>16?w.name.substring(0,15)+'…':w.name}</div>
+          <div class="cmpd" style="color:${d2>0?'var(--red)':'var(--grn)'}">${d2>0?'↑':'↓'}${Math.abs(d2)}%</div>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  }
+  document.getElementById('cmc').innerHTML=html;
+  op('cm');
+}
+
+// ADMIN
+async function auth(){
+  const pw=document.getElementById('pwi').value;
+  const r=await fetch(API+'/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Password':pw},body:'{}'});
+  const j=await r.json();
+  if(j.ok){
+    adminPw=pw;
+    document.getElementById('apw').classList.add('hidden');
+    document.getElementById('apc').classList.remove('hidden');
+    document.getElementById('pwerr').classList.add('hidden');
+    renderAdminList();
+  } else {
+    document.getElementById('pwerr').classList.remove('hidden');
+  }
+}
+
+// Login screen
+let sessionPassword = sessionStorage.getItem('dash_pw') || '';
+
+async function doLogin(){
+  const pw = document.getElementById('lpw').value.trim();
+  if (!pw) return;
+  const btn = document.getElementById('lbtn');
+  const err = document.getElementById('lerr');
+  btn.disabled = true; btn.textContent = 'Проверка...'; err.textContent = '';
+  try {
+    const r = await fetch(API+'/api/auth', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-View-Password':pw},
+      body:'{}'
+    });
+    const j = await r.json();
+    if (j.ok) {
+      sessionPassword = pw;
+      sessionStorage.setItem('dash_pw', pw);
+      document.getElementById('login-screen').style.display = 'none';
+      loadData();
+    } else {
+      err.textContent = '❌ Неверный пароль';
+      btn.disabled = false; btn.textContent = 'Войти →';
+      document.getElementById('lpw').value = '';
+      document.getElementById('lpw').focus();
+    }
+  } catch(e) {
+    err.textContent = '❌ Ошибка соединения';
+    btn.disabled = false; btn.textContent = 'Войти →';
+  }
+}
+
+function openAdmin(){
+  if(adminPw){
+    document.getElementById('apw').classList.add('hidden');
+    document.getElementById('apc').classList.remove('hidden');
+    renderAdminList();
+  } else {
+    document.getElementById('apw').classList.remove('hidden');
+    document.getElementById('apc').classList.add('hidden');
+    document.getElementById('pwi').value='';
+    document.getElementById('pwerr').classList.add('hidden');
+  }
+  op('am');
+}
+
+async function upload(e){
+  const file=e.target.files[0]; if(!file) return;
+  const fd=new FormData(); fd.append('file',file);
+  const msg=document.getElementById('upmsg');
+  msg.innerHTML='<div style="color:var(--txt2);font-size:12px">Загрузка...</div>';
+  try{
+    const r=await fetch(API+'/api/periods',{method:'POST',headers:{'X-Admin-Password':adminPw},body:fd});
+    const j=await r.json();
+    if(j.ok){
+      msg.innerHTML=`<div class="success">✅ Период "${j.period}" загружен. Всего периодов: ${j.total}</div>`;
+      await loadData();
+      renderAdminList();
+    } else {
+      msg.innerHTML=`<div class="errmsg">❌ ${j.error}</div>`;
+    }
+  }catch(err){
+    msg.innerHTML=`<div class="errmsg">❌ ${err.message}</div>`;
+  }
+  e.target.value='';
+}
+
+function renderAdminList(){
+  const el=document.getElementById('apl');
+  if(!periods.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--txt3);font-size:12px">Нет периодов</div>';return;}
+  el.innerHTML=periods.map((p,i)=>`
+    <div class="pi">
+      <div><div class="pp">${p.period}</div><div class="ps">${fmtR(p.grand_total)} · ${p.warehouses.length} складов</div></div>
+      <div class="pbs">
+        <button class="pb" onclick="cur=${i};render();cl('am')">Открыть</button>
+        <button class="pb del" onclick="delP(${i})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function delP(i){
+  if(!confirm(`Удалить "${periods[i].period}"?`)) return;
+  const r=await fetch(API+'/api/periods/'+i,{method:'DELETE',headers:{'X-Admin-Password':adminPw}});
+  const j=await r.json();
+  if(j.ok){await loadData();renderAdminList();}
+  else alert('Ошибка: '+j.error);
+}
+
+function expAll(){
+  const b=new Blob([JSON.stringify(periods,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='all_periods.json';a.click();
+}
+
+async function clearAll(){
+  if(!confirm('Удалить ВСЕ периоды?')) return;
+  for(let i=periods.length-1;i>=0;i--)
+    await fetch(API+'/api/periods/'+i,{method:'DELETE',headers:{'X-Admin-Password':adminPw}});
+  await loadData(); renderAdminList();
+}
+
+function op(id){document.getElementById(id).classList.add('open')}
+function cl(id){document.getElementById(id).classList.remove('open')}
+
+// Init theme before anything else
+initTheme();
+
+// Check session — if already logged in, skip login screen
+if (sessionPassword) {
+  fetch(API+'/api/auth', {
+    method:'POST', headers:{'Content-Type':'application/json','X-View-Password':sessionPassword}, body:'{}'
+  }).then(r=>r.json()).then(j=>{
+    if (j.ok) {
+      document.getElementById('login-screen').style.display = 'none';
+      loadData();
+      setInterval(loadData, 30000);
+    } else {
+      sessionStorage.removeItem('dash_pw');
+      sessionPassword = '';
+    }
+  }).catch(()=>{
+    // server unreachable — show login
+  });
+} else {
+  // Show login screen, wait for user
+}
+</script>
+</body>
+</html>
