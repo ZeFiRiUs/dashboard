@@ -131,6 +131,61 @@ header{background:#0A0F1E;border-bottom:1px solid var(--bd);padding:0 24px;displ
 .theme-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s;flex-shrink:0}
 .theme-btn:hover{border-color:var(--acc);color:var(--txt)}
 
+
+/* ── TABS ── */
+.page{display:none}.page.active{display:block}
+.tab-nav{display:flex;gap:2px;background:var(--surf);border-bottom:1px solid var(--bd);padding:0 24px;position:sticky;top:60px;z-index:90}
+.tab-nav-btn{padding:14px 20px;font-size:13px;font-weight:600;color:var(--txt2);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Manrope',sans-serif;white-space:nowrap}
+.tab-nav-btn:hover{color:var(--txt)}
+.tab-nav-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
+
+/* ── STOPS PAGE ── */
+.stops-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:24px}
+.stop-card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s}
+.stop-card:hover{border-color:var(--warn);transform:translateY(-2px)}
+.stop-card.high{border-left:3px solid var(--red)}
+.stop-card.med{border-left:3px solid var(--warn)}
+.sc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.sc-name{font-size:13px;font-weight:700;color:var(--txt)}
+.sc-count{font-size:18px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.sc-count.high{color:var(--red)}.sc-count.med{color:var(--warn)}.sc-count.ok{color:var(--grn)}
+.sc-meta{font-size:11px;color:var(--txt2);margin-bottom:10px}
+.sc-products{display:flex;flex-direction:column;gap:3px}
+.sc-prod{font-size:11px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 0;border-bottom:1px solid var(--bd)}
+.sc-prod:last-child{border:none}
+.sc-prod::before{content:'▸ ';color:var(--warn);font-size:10px}
+
+.stops-table-wrap{background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px}
+.stops-table{width:100%;border-collapse:collapse;font-size:12px}
+.stops-table th{background:var(--surf);padding:10px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--bd)}
+.stops-table td{padding:10px 14px;border-bottom:1px solid var(--bd);color:var(--txt2);vertical-align:middle}
+.stops-table tr:last-child td{border:none}
+.stops-table tr:hover td{background:var(--card2)}
+.prod-name{font-size:12px;color:var(--txt);font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dur-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.dur-long{background:rgba(255,69,96,.12);color:var(--red)}
+.dur-med{background:rgba(255,176,32,.12);color:var(--warn)}
+.dur-ok{background:rgba(0,212,170,.12);color:var(--grn)}
+.dow-row{display:flex;gap:6px;align-items:flex-end;height:70px;margin-bottom:8px}
+.dow-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.dow-bar{width:100%;border-radius:4px 4px 0 0;background:var(--acc);min-height:4px;transition:height .5s}
+.dow-label{font-size:10px;color:var(--txt2);font-weight:600}
+.dow-val{font-size:10px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+.active-badge{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;margin-right:5px}
+
+html.light .tab-nav{background:#F5F7FB;border-bottom-color:#C8CEDF}
+html.light .tab-nav-btn{color:#374160}
+html.light .tab-nav-btn:hover{color:#0F1523}
+html.light .stop-card{background:#FFFFFF;border-color:#C8CEDF}
+html.light .sc-name{color:#0F1523}
+html.light .sc-meta{color:#374160}
+html.light .sc-prod{color:#374160;border-bottom-color:#E8EBF4}
+html.light .stops-table-wrap{background:#FFFFFF;border-color:#C8CEDF}
+html.light .stops-table th{background:#F5F7FB;color:#6B7494}
+html.light .stops-table td{color:#374160;border-bottom-color:#E8EBF4}
+html.light .stops-table tr:hover td{background:#F0F2F7}
+html.light .prod-name{color:#0F1523}
+
 /* MAIN */
 .wrap{max-width:1400px;margin:0 auto;padding:24px 20px}
 
@@ -279,8 +334,13 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
 </header>
 
+<nav class="tab-nav">
+  <button class="tab-nav-btn active" onclick="switchTab('writeoffs',this)">📊 Аналитика списаний</button>
+  <button class="tab-nav-btn" onclick="switchTab('stops',this)">🚫 Стоп листы</button>
+</nav>
+
 <div class="wrap">
-  <div class="status">
+  <div id="page-writeoffs" class="page active"><div class="status">
     <div class="sdot spin" id="sdot"></div>
     <span id="stxt">Загрузка...</span>
   </div>
@@ -358,7 +418,62 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
 </div>
 
-<footer>Аналитика списаний · Данные обновляются администратором</footer>
+</div><!-- /page-writeoffs -->
+
+<!-- STOPS PAGE -->
+<div id="page-stops" class="page">
+  <div class="wrap">
+    <div class="status">
+      <div class="sdot ok" id="stops-sdot"></div>
+      <span id="stops-stxt">Данные стоп листов за <span id="stops-period"></span></span>
+    </div>
+
+    <div id="stops-kpis" class="kpis"></div>
+
+    <!-- Day of week chart + top products -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="stops-charts-row">
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px">Стопы по дням недели</div>
+        <div class="dow-row" id="dow-row"></div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Топ-10 продуктов в стопе</div>
+        <div id="top-products-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </div>
+
+    <!-- Point cards -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700">По точкам</div>
+      <div style="display:flex;gap:8px">
+        <button class="fbtn act" id="sf-all" onclick="setSFilter('all',this)">Все</button>
+        <button class="fbtn" id="sf-high" onclick="setSFilter('high',this)">🔴 Много</button>
+        <button class="fbtn" id="sf-long" onclick="setSFilter('long',this)">⏱ Долгие</button>
+      </div>
+    </div>
+    <div class="stops-grid" id="stops-grid"></div>
+
+    <!-- Active stops table -->
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px">
+      <span class="active-badge"></span>Активные стопы прямо сейчас
+    </div>
+    <div class="stops-table-wrap">
+      <table class="stops-table">
+        <thead>
+          <tr>
+            <th>Точка</th>
+            <th>Продукт</th>
+            <th>В стопе с</th>
+            <th>Длительность</th>
+          </tr>
+        </thead>
+        <tbody id="active-stops-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- /page-stops -->
+
+<footer>Аналитика списаний · Стоп листы · Данные обновляются администратором</footer>
 
 <script>
 // ── THEME ────────────────────────────────────────────────────────────────────
@@ -676,6 +791,130 @@ async function clearAll(){
 
 function op(id){document.getElementById(id).classList.add('open')}
 function cl(id){document.getElementById(id).classList.remove('open')}
+
+
+// ── STOPS DATA ────────────────────────────────────────────────────────────────
+const STOPS = {"period":"01.05.2026 — 22.05.2026","total_stops":2193,"total_points":27,"total_products":222,"avg_duration":183,"by_dow":{"Пн":126,"Вт":211,"Ср":259,"Чт":372,"Пт":337,"Сб":511,"Вс":377},"active":[{"point":"Вилкова","product":"смузи ВИНОГРАД-АЛОЭ","since":"01.05 16:34","dur":0},{"point":"Дальхимпром","product":"ХОККАЙДО [вишневый молочный коктейль]","since":"02.05 07:50","dur":0},{"point":"Игорная 1","product":"АЙС ТИ ЙОГУРТ ЧЕРНИКА","since":"01.05 11:58","dur":0},{"point":"Игорная 1","product":"смузи ЧЕРНИКА-БАНАН","since":"01.05 10:57","dur":0},{"point":"Игорная 2","product":"НАРА [тирамису с томленой вишней]","since":"01.05 15:36","dur":0},{"point":"Катерная","product":"ФРИ БОКС говяжья сосиска с горячим сыром.","since":"02.05 06:11","dur":0},{"point":"Катерная","product":"Колбаска говяжья 1шт","since":"02.05 06:11","dur":0},{"point":"Катерная","product":"ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","since":"02.05 06:11","dur":0},{"point":"Катерная","product":"ЛОНГ-ДОГ СЫРНЫЙ","since":"02.05 06:11","dur":0},{"point":"Катерная","product":"ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","since":"02.05 06:11","dur":0},{"point":"Катерная","product":"ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","since":"02.05 06:11","dur":0},{"point":"Луговая","product":"смузи ВИНОГРАД-АЛОЭ","since":"01.05 12:19","dur":0},{"point":"Пожарная академия","product":"смузи ЧЕРНИКА-БАНАН","since":"01.05 22:19","dur":0},{"point":"Пожарная академия","product":"ЛАТТЕ черничный чизкейк с сырной пеной 0.3","since":"01.05 20:52","dur":0},{"point":"Пожарная академия","product":"АЙС ТИ ЙОГУРТ ЧЕРНИКА","since":"01.05 15:28","dur":0},{"point":"Сафари Парк","product":"АМЕРИКАНЕРЫ лимонные","since":"01.05 20:18","dur":0},{"point":"Сафари Парк","product":"ЛАТТЕ черничный чизкейк с сырной пеной 0.3","since":"01.05 20:18","dur":0},{"point":"Сафари Парк","product":"НАРА [тирамису с томленой вишней]","since":"01.05 15:49","dur":0},{"point":"Седанка","product":"смузи ВИНОГРАД-АЛОЭ","since":"01.05 20:42","dur":0},{"point":"Семеновская","product":"МИЛК ТИ БАБЛ ГАМ с тапиокой","since":"02.05 15:29","dur":0},{"point":"Семеновская","product":"БАМБЛ АПЕЛЬСИН с тапиокой","since":"02.05 15:29","dur":0},{"point":"Семеновская","product":"АЙС ЛАТТЕ КЛУБНИКА с тапиокой","since":"02.05 15:29","dur":0},{"point":"Семеновская","product":"АЙС ТИ БРАУН ШУГА с тапиокой","since":"02.05 15:29","dur":0},{"point":"Семеновская","product":"СЫРНИКИ [с солёной карамелью и кокосовыми чипсами]","since":"02.05 10:01","dur":0},{"point":"Семеновская","product":"ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","since":"02.05 20:24","dur":0},{"point":"Семеновская","product":"ЛОНГ-ДОГ СЫРНЫЙ","since":"02.05 20:24","dur":0},{"point":"Семеновская","product":"ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","since":"02.05 20:24","dur":0},{"point":"Семеновская","product":"ФРИ БОКС говяжья сосиска с горячим сыром.","since":"02.05 20:24","dur":0},{"point":"Семеновская","product":"ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","since":"02.05 20:24","dur":0},{"point":"Семеновская","product":"ЛАТТЕ черничный чизкейк с сырной пеной 0.3","since":"02.05 10:44","dur":0},{"point":"Семеновская","product":"ЛАТТЕ черничный чизкейк с сырной пеной 0.3","since":"02.05 18:53","dur":0},{"point":"Семеновская","product":"СЫРНИКИ [с солёной карамелью и кокосовыми чипсами]","since":"02.05 09:53","dur":0},{"point":"Семеновская","product":"АЙС ТИ ЙОГУРТ ЧЕРНИКА","since":"02.05 18:53","dur":0},{"point":"Семеновская","product":"смузи ЧЕРНИКА-БАНАН","since":"02.05 18:53","dur":0},{"point":"Семеновская","product":"АЙС ЛАТТЕ КЛУБНИКА с тапиокой","since":"02.05 20:25","dur":0},{"point":"Семеновская","product":"смузи ВИНОГРАД-АЛОЭ","since":"02.05 09:26","dur":0},{"point":"Семеновская","product":"ЛОНГ ДОГ ЧЕДДЕР с жареным луком","since":"02.05 22:55","dur":0},{"point":"Семеновская","product":"БАМБЛ с тапиокой","since":"02.05 14:10","dur":0},{"point":"Семеновская","product":"КРУАССАН ГРИЛЬ с утиным филе","since":"02.05 22:50","dur":0},{"point":"Семеновская","product":"КРУАССАН ГРИЛЬ с курицей терияки","since":"02.05 22:50","dur":0},{"point":"Семеновская","product":"БАМБЛ АПЕЛЬСИН с тапиокой","since":"02.05 09:13","dur":0},{"point":"Семеновская","product":"АЙС ЛАТТЕ КЛУБНИКА с тапиокой","since":"02.05 09:13","dur":0},{"point":"Семеновская","product":"МИЛК ТИ БАБЛ ГАМ с тапиокой","since":"02.05 09:13","dur":0},{"point":"Семеновская","product":"АЙС ТИ БРАУН ШУГА с тапиокой","since":"02.05 09:13","dur":0},{"point":"Семеновская","product":"ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","since":"03.05 00:37","dur":0},{"point":"Семеновская","product":"ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","since":"03.05 00:37","dur":0},{"point":"Семеновская","product":"ЛОНГ-ДОГ СЫРНЫЙ","since":"03.05 00:37","dur":0},{"point":"Семеновская","product":"ФРИ БОКС говяжья сосиска с горячим сыром.","since":"03.05 00:37","dur":0},{"point":"Семеновская","product":"ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","since":"03.05 00:37","dur":0},{"point":"Семеновская","product":"смузи ЧЕРНИКА-БАНАН","since":"02.05 20:01","dur":0}],"by_point":[{"name":"Седанка","count":656,"avg_dur":194,"total_dur":127312,"top_products":["ФРИ БОКС говяжья сосиска с горячим сыром.","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","ЛОНГ-ДОГ СЫРНЫЙ"]},{"name":"Третья рабочая","count":376,"avg_dur":160,"total_dur":60042,"top_products":["ЛАТТЕ черничный чизкейк с сырной пеной 0.3","МАТЧА КЛУБНИКА 0.3","смузи ЧЕРНИКА-БАНАН","шаурма С РВАНОЙ СВИНИНОЙ И СЫРНЫМ СОУСОМ.","СЕУЛ [вишневый латте с сырной пеной]"]},{"name":"Семеновская","count":290,"avg_dur":120,"total_dur":34722,"top_products":["ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","ФРИ БОКС говяжья сосиска с горячим сыром.","ЛОНГ-ДОГ СЫРНЫЙ"]},{"name":"Катерная","count":246,"avg_dur":224,"total_dur":55080,"top_products":["ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ СЫРНЫЙ","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","ФРИ БОКС говяжья сосиска с горячим сыром."]},{"name":"Юбилейный","count":191,"avg_dur":279,"total_dur":53314,"top_products":["ХОККАЙДО [вишневый молочный коктейль]","ТОКИО [айс латте с вишневым желе и джус боллами, сырной пеной и клубникой]⁣⁣","милкшейк ПЕКАН С СОЛЕНОЙ КАРАМЕЛЬЮ","милкшейк АБРИКОСОВЫЙ","милкшейк БРАУНИ"]},{"name":"Луговая","count":63,"avg_dur":84,"total_dur":5274,"top_products":["смузи ВИНОГРАД-АЛОЭ","шаурма С РВАНОЙ СВИНИНОЙ И СЫРНЫМ СОУСОМ.","НАРА [тирамису с томленой вишней]","ФАЛАФЕЛЬ со сладким чили и свежими овощами","шаурма СУПЕР СЫР с куриной грудкой."]},{"name":"Красота-2","count":47,"avg_dur":644,"total_dur":30276,"top_products":["рис wok С МОРЕПРОДУКТАМИ И ОВОЩАМИ","удон С УТИНЫМ ФИЛЕ","ЦЫПЛЁНОК с красным перцем и стрелками чеснока","ЦЫПЛЁНОК УНАГИ с фасолью","БОН-БОН с утиным филе, курицей и свининой"]},{"name":"Пожарная академия","count":40,"avg_dur":164,"total_dur":6565,"top_products":["БИГ-ДОГ С КАРТОФЕЛЕМ ФРИ","шаурма СУПЕР СЫР с куриной грудкой.","EGG-ДОГ КРЕВЕТКА С СОУСОМ ТОМ-ЯМ","БИГ-ДОГ КЛАССИЧЕСКИЙ с жаренным луком","EGG -ДОГ ЯЙЦО-БЕКОН."]},{"name":"Маяк","count":39,"avg_dur":57,"total_dur":2218,"top_products":["ФРИ БОКС [говяжья колбаска с горячим сыром]","ЛОНГ-ДОГ [классический с жареным луком]","ЛОНГ-ДОГ [сырный]","шаурма АЗИАТСКАЯ СО СВИНИНОЙ CHAR SIU [*чар сиу]","ФРИ БОКС [курочка по-корейски]"]},{"name":"Игорная 1","count":38,"avg_dur":184,"total_dur":7000,"top_products":["ОСАКА [айс ти йогурт с желе и джус боллами] ⁣⁣","КАПУЧИНО вишня-кола 0.3","КАПУЧИНО джолли понг 0.3","ЛАТТЕ смоки ванила 0.3","АМЕРИКАНО абрикосовый 0.3"]},{"name":"Красота","count":28,"avg_dur":22,"total_dur":620,"top_products":["ЛОНГ-ДОГ СЫРНЫЙ","шаурма С РВАНОЙ СВИНИНОЙ И СЫРНЫМ СОУСОМ.","БИГ-ДОГ С ГОРЯЧИМ СЫРОМ","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо"]},{"name":"Таксопарк","count":26,"avg_dur":73,"total_dur":1887,"top_products":["ЛОНГ-ДОГ СЫРНЫЙ","ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","смузи ЧЕРНИКА-БАНАН"]},{"name":"Сафари Парк","count":25,"avg_dur":199,"total_dur":4984,"top_products":["ЛАТТЕ черничный чизкейк с сырной пеной 0.3","МИЛК ТИ БАБЛ ГАМ с тапиокой","АМЕРИКАНЕРЫ лимонные","НАРА [тирамису с томленой вишней]","смузи ВИНОГРАД-АЛОЭ"]},{"name":"Дальхимпром","count":23,"avg_dur":105,"total_dur":2414,"top_products":["ХОККАЙДО [вишневый молочный коктейль]","милкшейк КЛУБНИЧНЫЙ","милкшейк АБРИКОСОВЫЙ","милкшейк БРАУНИ","милкшейк ПЕКАН С СОЛЕНОЙ КАРАМЕЛЬЮ"]},{"name":"Мерседес (ВЛ)","count":16,"avg_dur":82,"total_dur":1308,"top_products":["ФРИ БОКС говяжья сосиска с горячим сыром.","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ СЫРНЫЙ","ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком."]},{"name":"Патрокл","count":14,"avg_dur":0,"total_dur":0,"top_products":["АЙС ТИ БРАУН ШУГА с тапиокой","АЙС ЛАТТЕ КЛУБНИКА с тапиокой","БАМБЛ АПЕЛЬСИН с тапиокой","МИЛК ТИ БАБЛ ГАМ с тапиокой","милкшейк АБРИКОСОВЫЙ"]},{"name":"Вилкова","count":13,"avg_dur":40,"total_dur":521,"top_products":["смузи ВИНОГРАД-АЛОЭ","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ФРИ БОКС говяжья сосиска с горячим сыром.","ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо"]},{"name":"Мерседес (Артем)","count":11,"avg_dur":119,"total_dur":1308,"top_products":["ФРИ БОКС говяжья сосиска с горячим сыром.","ЛИМОНАД КЛАССИЧЕСКИЙ..","ЛИМОНАД КЛУБНИКА-МЯТА С ЧИА","ФРИ БОКС рваная свинина с сырным соусом.","ФРИ БОКС митболы с беконовым майо"]},{"name":"Фокина","count":9,"avg_dur":58,"total_dur":524,"top_products":["ХОККАЙДО [вишневый молочный коктейль]","смузи КЛУБНИКА-МЯТА С ЧИА","смузи ЧЕРНИКА-БАНАН","смузи ВИНОГРАД-АЛОЭ","милкшейк БРАУНИ"]},{"name":"Фрунзе","count":8,"avg_dur":244,"total_dur":1950,"top_products":["ЛАТТЕ черничный чизкейк с сырной пеной 0.3","смузи ЧЕРНИКА-БАНАН","АЙС ТИ БРАУН ШУГА с тапиокой","БАМБЛ АПЕЛЬСИН с тапиокой","БУРГЕР с вишневым барбекю и беконовым майо"]},{"name":"Ахлёстышева","count":7,"avg_dur":98,"total_dur":687,"top_products":["РОЖОК МОРОЖЕНОГО [ванильное]","ЧУРРОС [солёная карамель]","ЧУРРОС [с зефирками]","ЧУРРОС [орео]","шаурма АЗИАТСКАЯ СО СВИНИНОЙ CHAR SIU [*чар сиу]"]},{"name":"Сотка","count":7,"avg_dur":0,"total_dur":0,"top_products":["ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ СЫРНЫЙ","ФРИ БОКС говяжья сосиска с горячим сыром.","ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо"]},{"name":"Бам","count":7,"avg_dur":198,"total_dur":1388,"top_products":["милкшейк КЛУБНИЧНЫЙ","милкшейк БРАУНИ","ХОККАЙДО [вишневый молочный коктейль]","милкшейк АБРИКОСОВЫЙ","милкшейк ПЕКАН С СОЛЕНОЙ КАРАМЕЛЬЮ"]},{"name":"Руднева","count":6,"avg_dur":0,"total_dur":0,"top_products":["ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","ФРИ БОКС говяжья сосиска с горячим сыром.","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ СЫРНЫЙ"]},{"name":"Де-Фриз","count":5,"avg_dur":469,"total_dur":2344,"top_products":["смузи ВИНОГРАД-АЛОЭ","ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","ЛОНГ-ДОГ СЫРНЫЙ","ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо"]},{"name":"Игорная 2","count":1,"avg_dur":0,"total_dur":0,"top_products":["НАРА [тирамису с томленой вишней]"]},{"name":"Басаргина","count":1,"avg_dur":341,"total_dur":341,"top_products":["НАРА [тирамису с томленой вишней]"]}],"top_products":[{"name":"ЛОНГ-ДОГ ТОМ ЯМ с картофелем пай","count":62,"avg_dur":62,"points":["Катерная","Семеновская","Вилкова","Дальхимпром","Красота"]},{"name":"ЛОНГ-ДОГ ВИШНЕВЫЙ BBQ с беконовым майо","count":61,"avg_dur":73,"points":["Катерная","Семеновская","Вилкова","Дальхимпром","Красота"]},{"name":"ЛОНГ-ДОГ СЫРНЫЙ","count":60,"avg_dur":70,"points":["Катерная","Семеновская","Вилкова","Дальхимпром","Красота"]},{"name":"ЛОНГ-ДОГ КЛАССИЧЕСКИЙ с жареным луком.","count":59,"avg_dur":60,"points":["Катерная","Пожарная академия","Семеновская","Вилкова","Дальхимпром"]},{"name":"ФРИ БОКС говяжья сосиска с горячим сыром.","count":56,"avg_dur":43,"points":["Катерная","Мерседес (Артем)","Мерседес (ВЛ)","Семеновская","Вилкова"]},{"name":"ЛАТТЕ черничный чизкейк с сырной пеной 0.3","count":31,"avg_dur":84,"points":["Игорная 1","Пожарная академия","Сафари Парк","Семеновская","Дальхимпром"]},{"name":"милкшейк АБРИКОСОВЫЙ","count":31,"avg_dur":165,"points":["Бам","Дальхимпром","Игорная 1","Седанка","Семеновская"]},{"name":"смузи ВИНОГРАД-АЛОЭ","count":31,"avg_dur":138,"points":["Вилкова","Игорная 1","Луговая","Сафари Парк","Седанка"]},{"name":"ХОККАЙДО [вишневый молочный коктейль]","count":30,"avg_dur":171,"points":["Бам","Дальхимпром","Игорная 1","Маяк","Седанка"]},{"name":"милкшейк ПЕКАН С СОЛЕНОЙ КАРАМЕЛЬЮ","count":29,"avg_dur":174,"points":["Бам","Дальхимпром","Игорная 1","Седанка","Семеновская"]},{"name":"милкшейк БРАУНИ","count":29,"avg_dur":174,"points":["Бам","Дальхимпром","Игорная 1","Пожарная академия","Седанка"]},{"name":"милкшейк КЛУБНИЧНЫЙ","count":29,"avg_dur":170,"points":["Бам","Дальхимпром","Игорная 1","Седанка","Семеновская"]},{"name":"смузи ЧЕРНИКА-БАНАН","count":28,"avg_dur":117,"points":["Игорная 1","Пожарная академия","Семеновская","Таксопарк","Фрунзе"]},{"name":"БИГ-ДОГ С КАРТОФЕЛЕМ ФРИ","count":25,"avg_dur":90,"points":["Пожарная академия","Семеновская","Третья рабочая","Луговая","Красота"]},{"name":"БИГ-ДОГ С ГОРЯЧИМ СЫРОМ","count":25,"avg_dur":97,"points":["Семеновская","Красота","Третья рабочая","Луговая","Таксопарк"]},{"name":"ТОКИО [айс латте с вишневым желе и джус боллами, сырной пеной и клубникой]⁣⁣","count":24,"avg_dur":183,"points":["Игорная 1","Маяк","Сафари Парк","Семеновская","Третья рабочая"]},{"name":"БИГ-ДОГ КЛАССИЧЕСКИЙ с жаренным луком","count":23,"avg_dur":84,"points":["Пожарная академия","Семеновская","Третья рабочая","Луговая","Красота"]},{"name":"БИГ-ДОГ С ЛУКОВЫМИ КОЛЬЦАМИ и беконовым майо","count":23,"avg_dur":114,"points":["Семеновская","Третья рабочая","Луговая","Красота","Пожарная академия"]},{"name":"ЭСПРЕССО ТОНИК.","count":22,"avg_dur":189,"points":["Игорная 1","Семеновская","Третья рабочая","Юбилейный","Катерная"]},{"name":"смузи КЛУБНИКА-МЯТА С ЧИА","count":21,"avg_dur":170,"points":["Игорная 1","Семеновская","Третья рабочая","Фокина","Юбилейный"]}]};
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  btn.classList.add('active');
+  if (tab === 'stops') renderStops();
+}
+
+// ── STOPS RENDER ─────────────────────────────────────────────────────────────
+let stopsFilter = 'all';
+let stopsRendered = false;
+
+function renderStops() {
+  if (stopsRendered) return;
+  stopsRendered = true;
+  const s = STOPS;
+  document.getElementById('stops-period').textContent = s.period;
+
+  // KPIs
+  const maxDow = Math.max(...Object.values(s.by_dow));
+  document.getElementById('stops-kpis').innerHTML = `
+    <div class="kpi r"><div class="kl">Всего стопов</div><div class="kv">${s.total_stops.toLocaleString('ru-RU')}</div><div class="ks">${s.period}</div></div>
+    <div class="kpi"><div class="kl">Точек</div><div class="kv">${s.total_points}</div><div class="ks">в анализе</div></div>
+    <div class="kpi w"><div class="kl">Продуктов</div><div class="kv">${s.total_products}</div><div class="ks">попадало в стоп</div></div>
+    <div class="kpi"><div class="kl">Ср. длительность</div><div class="kv">${Math.floor(s.avg_duration/60)}ч ${s.avg_duration%60}м</div><div class="ks">на один стоп</div></div>`;
+
+  // Day of week chart
+  const dow = s.by_dow;
+  const maxV = Math.max(...Object.values(dow));
+  document.getElementById('dow-row').innerHTML = Object.entries(dow).map(([d,v]) =>
+    `<div class="dow-col">
+      <div class="dow-val">${v}</div>
+      <div class="dow-bar" style="height:${Math.max(4,Math.round(v/maxV*50))}px;background:${v===maxV?'var(--warn)':'var(--acc)'}"></div>
+      <div class="dow-label">${d}</div>
+    </div>`).join('');
+
+  // Top products
+  document.getElementById('top-products-list').innerHTML = s.top_products.slice(0,10).map((p,i) => `
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:10px;color:var(--txt3);width:16px;text-align:right;font-family:'JetBrains Mono',monospace">${i+1}</span>
+      <div style="flex:1;background:var(--bd);border-radius:2px;height:4px">
+        <div style="height:4px;border-radius:2px;background:${i===0?'var(--red)':i<3?'var(--warn)':'var(--acc)'};width:${Math.round(p.count/s.top_products[0].count*100)}%"></div>
+      </div>
+      <span style="font-size:11px;flex:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)">${p.name.length>35?p.name.substring(0,34)+'…':p.name}</span>
+      <span style="font-size:11px;font-weight:700;color:var(--warn);font-family:'JetBrains Mono',monospace;white-space:nowrap">${p.count}×</span>
+      <span style="font-size:10px;color:var(--txt3);white-space:nowrap">${Math.floor(p.avg_dur/60)}ч ${p.avg_dur%60}м</span>
+    </div>`).join('');
+
+  renderStopCards();
+  renderActiveStops();
+}
+
+function renderStopCards() {
+  const s = STOPS;
+  let pts = s.by_point;
+  if (stopsFilter === 'high') pts = [...pts].sort((a,b) => b.count - a.count);
+  else if (stopsFilter === 'long') pts = [...pts].sort((a,b) => b.avg_dur - a.avg_dur);
+
+  const maxC = Math.max(...pts.map(p=>p.count));
+  document.getElementById('stops-grid').innerHTML = pts.map(p => {
+    const lv = p.count > 200 ? 'high' : p.count > 80 ? 'med' : 'ok';
+    const avgH = Math.floor(p.avg_dur/60), avgM = p.avg_dur%60;
+    return `<div class="stop-card ${lv}" onclick="openStopModal('${p.name}')">
+      <div class="sc-head">
+        <div class="sc-name">${p.name}</div>
+        <div class="sc-count ${lv}">${p.count}</div>
+      </div>
+      <div class="sc-meta">Ср. ${avgH}ч ${avgM}м · Итого ${Math.floor(p.total_dur/60)}ч в стопе</div>
+      <div class="bar-bg"><div class="bf" style="width:${Math.round(p.count/maxC*100)}%;background:${lv==='high'?'var(--red)':lv==='med'?'var(--warn)':'var(--acc)'}"></div></div>
+      <div class="sc-products">${(p.top_products||[]).slice(0,4).map(pr=>
+        `<div class="sc-prod">${pr.length>45?pr.substring(0,44)+'…':pr}</div>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderActiveStops() {
+  const active = STOPS.active;
+  document.getElementById('active-stops-tbody').innerHTML = active.length
+    ? active.map(a => {
+        const lv = a.dur > 240 ? 'long' : a.dur > 60 ? 'med' : 'ok';
+        const dStr = a.dur > 0 ? `${Math.floor(a.dur/60)}ч ${a.dur%60}м` : '—';
+        return `<tr>
+          <td style="font-weight:600;color:var(--txt)">${a.point}</td>
+          <td><div class="prod-name">${a.product}</div></td>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${a.since}</td>
+          <td><span class="dur-badge dur-${lv}">${dStr}</span></td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--txt3)">Нет активных стопов</td></tr>';
+}
+
+function setSFilter(f, btn) {
+  stopsFilter = f;
+  document.querySelectorAll('#sf-all,#sf-high,#sf-long').forEach(b=>b.classList.remove('act'));
+  btn.classList.add('act');
+  renderStopCards();
+}
+
+function openStopModal(name) {
+  const p = STOPS.by_point.find(x=>x.name===name);
+  if (!p) return;
+  const avgH=Math.floor(p.avg_dur/60), avgM=p.avg_dur%60;
+  document.getElementById('wmt').textContent = '🚫 ' + name;
+  document.getElementById('wmk').innerHTML = `
+    <div class="mk"><div class="mkv" style="color:var(--red)">${p.count}</div><div class="mkl">Стопов</div></div>
+    <div class="mk"><div class="mkv">${avgH}ч ${avgM}м</div><div class="mkl">Ср. длительность</div></div>
+    <div class="mk"><div class="mkv">${Math.floor(p.total_dur/60)}ч</div><div class="mkl">Итого в стопе</div></div>`;
+  const prods = p.top_products || [];
+  document.getElementById('wmt10').innerHTML = prods.map((pr,i) => `
+    <div class="tr ${i===0?'t1':''}">
+      <span class="tn">${i+1}</span>
+      <div class="mb"><div class="mf" style="width:100%;background:${i===0?'var(--warn)':i<3?'var(--acc)':'var(--txt3)'}"></div></div>
+      <span class="tname">${pr}</span>
+    </div>`).join('') || '<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
+  document.getElementById('wmcats').innerHTML = '';
+  document.getElementById('wmhist').innerHTML = '';
+  op('wm');
+}
 
 // Init theme before anything else
 initTheme();
