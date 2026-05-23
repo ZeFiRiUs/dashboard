@@ -667,6 +667,16 @@ function renderStops(){
   }
   if(empty) empty.style.display='none';
   if(wrap)  wrap.style.display='block';
+  // Populate day picker if we have full data
+  const dayPickerWrap = document.getElementById('day-picker-wrap');
+  const daySelect     = document.getElementById('day-select');
+  if(STOPS_DATA && daySelect){
+    dayPickerWrap.style.display='flex';
+    daySelect.innerHTML='<option value="">— выберите день —</option>'+
+      STOPS_DATA.meta.all_dates.map(d=>
+        `<option value="${d.iso}">${d.d} (${d.dow}) — ${d.n} ст.</option>`
+      ).join('');
+  }
   renderStopsPTabs();
   renderStopsContent();
 }
@@ -776,24 +786,69 @@ function openStopModal(name){
   document.getElementById('wmhist').innerHTML='';
   op('wm');
 }
+// Global stops data store
+let STOPS_DATA = null; // full JSON with meta/days/periods
+
 function uploadStopsJson(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=ev=>{
     try{
       const data=JSON.parse(ev.target.result);
-      const arr=Array.isArray(data)?data:[data];
-      if(!arr[0].total_stops||!arr[0].by_point)throw new Error('Неверный формат');
-      arr.forEach(p=>{const idx=STOPS_PERIODS.findIndex(x=>x.period===p.period);if(idx>=0)STOPS_PERIODS[idx]=p;else STOPS_PERIODS.push(p);});
-      STOPS_PERIODS.sort((a,b)=>a.period.localeCompare(b.period));
-      stopsIdx=STOPS_PERIODS.length-1;
-      document.getElementById('stops-sdot').className='sdot ok';
-      renderStops();
-      document.getElementById('stops-upload-msg').textContent=`✅ Загружено ${arr.length} период(ов)`;
-      setTimeout(()=>document.getElementById('stops-upload-msg').textContent='',3000);
+      // New format: {meta, days, periods}
+      if(data.meta && data.days && data.periods){
+        STOPS_DATA = data;
+        // Populate STOPS_PERIODS from periods array (map compact keys)
+        STOPS_PERIODS = data.periods.map(expandPeriod);
+        stopsIdx = STOPS_PERIODS.length-1;
+        document.getElementById('stops-sdot').className='sdot ok';
+        renderStops();
+        const msg=`✅ Загружено: ${data.meta.all_dates.length} дней, ${data.periods.length} периодов`;
+        document.getElementById('stops-upload-msg').textContent=msg;
+        setTimeout(()=>document.getElementById('stops-upload-msg').textContent='',4000);
+      }
+      // Old format: array of periods
+      else if(Array.isArray(data)||data.total_stops){
+        const arr=Array.isArray(data)?data:[data];
+        if(!arr[0].total_stops||!arr[0].by_point)throw new Error('Неверный формат');
+        arr.forEach(p=>{const idx=STOPS_PERIODS.findIndex(x=>x.period===p.period);if(idx>=0)STOPS_PERIODS[idx]=p;else STOPS_PERIODS.push(p);});
+        STOPS_PERIODS.sort((a,b)=>a.period.localeCompare(b.period));
+        stopsIdx=STOPS_PERIODS.length-1;
+        document.getElementById('stops-sdot').className='sdot ok';
+        renderStops();
+        document.getElementById('stops-upload-msg').textContent=`✅ Загружено ${arr.length} периодов`;
+        setTimeout(()=>document.getElementById('stops-upload-msg').textContent='',3000);
+      } else throw new Error('Неверный формат файла');
     }catch(err){alert('❌ '+err.message);}
   };
   reader.readAsText(file);e.target.value='';
+}
+
+// Expand compact period format to full format
+function expandPeriod(p){
+  return {
+    period: p.p,
+    total_stops: p.n, total_points: p.pts,
+    total_products: p.prods, avg_duration: p.avg,
+    by_date: (p.dates||[]).map(d=>({date:d.d, dow:d.dow, count:d.n})),
+    all_points: p.all_pts||[],
+    active: (p.active||[]).map(a=>({point:a.pt,product:a.pr,since:a.s,dur:a.d})),
+    by_point: (p.by_pt||[]).map(pt=>({name:pt.name,count:pt.n,avg_dur:pt.avg,total_dur:pt.tot,top_products:pt.top})),
+    top_products: (p.top||[]).map(t=>({name:t.name,count:t.n,avg_dur:t.avg,points:t.pts}))
+  };
+}
+
+// Load a specific day from STOPS_DATA
+function loadStopsDay(isoDate){
+  if(!STOPS_DATA||!STOPS_DATA.days[isoDate]) return;
+  const dayData = expandPeriod(STOPS_DATA.days[isoDate]);
+  // Add as a temporary period or find existing
+  const idx = STOPS_PERIODS.findIndex(p=>p.period===dayData.period);
+  if(idx>=0) STOPS_PERIODS[idx]=dayData;
+  else STOPS_PERIODS.unshift(dayData);
+  stopsIdx=0;
+  renderStopsPTabs();
+  renderStopsContent();
 }
 
 // LOGIN
