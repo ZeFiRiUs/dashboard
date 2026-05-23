@@ -228,6 +228,52 @@ app.post('/api/stops', upload.single('file'), async (req, res) => {
 });
 
 // ── Frontend ──────────────────────────────────────────────────────────────────
+
+// ── Deliveries ────────────────────────────────────────────────────────────────
+const DEL_FILE_PATH  = 'data/deliveries.json';
+const LOCAL_DEL_FILE = path.join(LOCAL_DATA_DIR, 'deliveries.json');
+if (!fs.existsSync(LOCAL_DEL_FILE)) fs.writeFileSync(LOCAL_DEL_FILE, JSON.stringify(null));
+
+async function readDeliveries() {
+  if (GH_TOKEN && GH_OWNER) {
+    try {
+      const r = await ghRead(DEL_FILE_PATH);
+      if (r) { fs.writeFileSync(LOCAL_DEL_FILE, JSON.stringify(r.content)); return { data: r.content, sha: r.sha }; }
+    } catch(e) { console.error('Del GitHub read:', e.message); }
+  }
+  try { return { data: JSON.parse(fs.readFileSync(LOCAL_DEL_FILE, 'utf8')), sha: null }; }
+  catch { return { data: null, sha: null }; }
+}
+
+async function writeDeliveries(data, sha) {
+  fs.writeFileSync(LOCAL_DEL_FILE, JSON.stringify(data));
+  if (GH_TOKEN && GH_OWNER) {
+    try {
+      let s = sha; if (!s) { const r = await ghRead(DEL_FILE_PATH); s = r?.sha; }
+      await ghWrite(DEL_FILE_PATH, data, s, 'Update deliveries');
+      return 'github';
+    } catch(e) { console.error('Del GitHub write:', e.message); }
+  }
+  return 'local';
+}
+
+app.get('/api/deliveries', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const { data } = await readDeliveries();
+  res.json(data);
+});
+
+app.post('/api/deliveries', upload.single('file'), async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
+    if (!data.meta || !data.rows) return res.status(400).json({ error: 'Неверный формат' });
+    const { sha } = await readDeliveries();
+    const dest = await writeDeliveries(data, sha);
+    res.json({ ok: true, rows: data.rows.length, saved_to: dest });
+  } catch(e) { res.status(400).json({ error: e.message }); }
+});
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
