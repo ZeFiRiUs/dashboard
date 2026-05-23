@@ -354,6 +354,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <div class="ptabs" id="ptabs"></div>
   </div>
   <div class="frow">
+    <select id="wo-period-filter" onchange="applyWoPeriodFilter()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:180px">
+      <option value="">Все периоды</option>
+    </select>
     <button class="fbtn act" onclick="setF('all',this)">Все</button>
     <button class="fbtn" onclick="setF('danger',this)">🔴 &gt;100k</button>
     <button class="fbtn" onclick="setF('warn',this)">🟡 45–100k</button>
@@ -475,16 +479,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <button class="fbtn act" onclick="resetDelFilters()">✕ Сбросить</button>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="del-charts-row">
-      <!-- По датам -->
+    <div style="margin-bottom:24px">
       <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
         <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Довозы по датам</div>
         <div class="dow-row" id="del-by-date" style="height:80px"></div>
-      </div>
-      <!-- По подразделениям -->
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">По подразделениям</div>
-        <div id="del-by-dept" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
     </div>
 
@@ -501,8 +499,14 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     </div>
 
     <!-- Таблица всех записей -->
-    <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">
-      Все записи <span id="del-rows-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700;color:var(--txt)">
+        Все записи <span id="del-rows-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
+      </div>
+      <div class="sw" style="max-width:280px">
+        <span class="sic">🔍</span>
+        <input class="si" id="del-search" type="text" placeholder="Поиск по точке или виновному..." oninput="applyDelFilter()">
+      </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
       <table class="stops-tbl" id="del-table">
@@ -608,6 +612,9 @@ function applyDeliveriesData(data) {
   DEL_DATA = data;
   const sdot = document.getElementById('del-sdot');
   if(sdot) sdot.className='sdot ok';
+  // Update status text
+  const lbl = document.getElementById('del-period-label');
+  if(lbl) lbl.innerHTML = ' · <b style="color:var(--txt)">Синхронизировано</b>';
   renderDeliveries();
 }
 
@@ -653,9 +660,7 @@ function renderDeliveries() {
       DEL_DATA.meta.all_points.map(p=>`<option value="${p}">${p}</option>`).join('');
   }
 
-  // Period label
-  const lbl = document.getElementById('del-period-label');
-  if(lbl) lbl.innerHTML=` · <b style="color:var(--txt)">${DEL_DATA.meta.min.substring(0,10).split('-').reverse().slice(0,2).join('.')} — ${DEL_DATA.meta.max.substring(0,10).split('-').reverse().slice(0,2).join('.')}</b>`;
+  // Period label — set once in applyDeliveriesData
 
   applyDelFilter();
 }
@@ -666,10 +671,13 @@ function applyDelFilter() {
   const pointVal = document.getElementById('del-point-filter')?.value || '';
   const typeVal  = document.getElementById('del-type-filter')?.value  || '';
 
+  const searchVal = (document.getElementById('del-search')?.value || '').toLowerCase().trim();
   const rows = DEL_DATA.rows.filter(r =>
     (!dayVal   || r.iso   === dayVal) &&
     (!pointVal || r.point === pointVal) &&
-    (!typeVal  || r.type  === typeVal)
+    (!typeVal  || r.type  === typeVal) &&
+    (!searchVal || r.point.toLowerCase().includes(searchVal) ||
+      (r.guilty||[]).join(' ').toLowerCase().includes(searchVal))
   );
 
   const totalCost = rows.reduce((s,r)=>s+r.cost,0);
@@ -775,6 +783,7 @@ function resetDelFilters() {
   document.getElementById('del-day-filter').value='';
   document.getElementById('del-point-filter').value='';
   document.getElementById('del-type-filter').value='';
+  const s = document.getElementById('del-search'); if(s) s.value='';
   applyDelFilter();
 }
 
@@ -862,9 +871,36 @@ function renderKPIs(p){
 
 function renderPTabs(){
   const w=document.getElementById('ptabs-wrap');
-  if(periods.length<2){w.style.display='none';return;}
-  w.style.display='block';
-  document.getElementById('ptabs').innerHTML=periods.map((p,i)=>`<button class="ptab ${i===cur?'act':''}" onclick="cur=${i};render()">${p.period}</button>`).join('');
+  if(periods.length<2){w.style.display='none';}
+  else{
+    w.style.display='block';
+    document.getElementById('ptabs').innerHTML=periods.map((p,i)=>`<button class="ptab ${i===cur?'act':''}" onclick="cur=${i};render()">${p.period}</button>`).join('');
+  }
+  // Sync period filter select
+  initWoPeriodFilter();
+}
+
+
+// ── WRITEOFFS PERIOD FILTER ───────────────────────────────────────────────────
+function initWoPeriodFilter() {
+  const sel = document.getElementById('wo-period-filter');
+  if (!sel || !periods.length) return;
+  sel.innerHTML = '<option value="">Все периоды</option>' +
+    periods.map((p,i) => `<option value="${i}">${p.period}</option>`).join('');
+  sel.value = String(cur);
+}
+
+function applyWoPeriodFilter() {
+  const sel = document.getElementById('wo-period-filter');
+  if (!sel) return;
+  const val = sel.value;
+  if (val === '') {
+    // Показать все — cur остаётся, просто сбрасываем фильтр
+    renderCards();
+  } else {
+    cur = parseInt(val);
+    render();
+  }
 }
 
 function renderCards(){
