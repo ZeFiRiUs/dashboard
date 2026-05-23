@@ -409,12 +409,20 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </div>
     </div>
     <div id="apc" style="display:none">
-      <div class="uz" onclick="document.getElementById('jfu').click()">
-        <div style="font-size:28px;margin-bottom:8px">⬆</div>
-        <b>Загрузить JSON со списаниями</b><br>
-        <span style="font-size:11px;color:var(--txt3);margin-top:4px;display:block">Все пользователи увидят обновление</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="uz" onclick="document.getElementById('jfu').click()" style="margin-bottom:0">
+          <div style="font-size:22px;margin-bottom:6px">📊</div>
+          <b>Списания</b><br>
+          <span style="font-size:11px;color:var(--txt3)">period_*.json</span>
+        </div>
+        <div class="uz" onclick="document.getElementById('stops-jfu').click()" style="margin-bottom:0">
+          <div style="font-size:22px;margin-bottom:6px">🚫</div>
+          <b>Стоп листы</b><br>
+          <span style="font-size:11px;color:var(--txt3)">stops_full.json</span>
+        </div>
       </div>
       <input type="file" id="jfu" accept=".json" style="display:none" onchange="upload(event)">
+      <input type="file" id="stops-jfu" accept=".json" style="display:none" onchange="uploadStopsJson(event)">
       <div id="upmsg"></div>
       <div class="st" style="margin-bottom:8px">Загруженные периоды</div>
       <div class="pl" id="apl"></div>
@@ -458,7 +466,14 @@ function switchTab(tab,btn){
   document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+tab).classList.add('active');
   btn.classList.add('active');
-  if(tab==='stops') renderStops();
+  if(tab==='stops'){
+    if(!STOPS_DATA){
+      // Try to load from server first
+      loadStopsFromServer().then(ok => { if(!ok) renderStops(); });
+    } else {
+      renderStops();
+    }
+  }
 }
 
 // STATUS
@@ -787,41 +802,63 @@ function openStopModal(name){
   op('wm');
 }
 // Global stops data store
-let STOPS_DATA = null; // full JSON with meta/days/periods
+let STOPS_DATA = null;
 
-function uploadStopsJson(e){
-  const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const data=JSON.parse(ev.target.result);
-      // New format: {meta, days, periods}
-      if(data.meta && data.days && data.periods){
-        STOPS_DATA = data;
-        // Populate STOPS_PERIODS from periods array (map compact keys)
-        STOPS_PERIODS = data.periods.map(expandPeriod);
-        stopsIdx = STOPS_PERIODS.length-1;
-        document.getElementById('stops-sdot').className='sdot ok';
-        renderStops();
-        const msg=`✅ Загружено: ${data.meta.all_dates.length} дней, ${data.periods.length} периодов`;
-        document.getElementById('stops-upload-msg').textContent=msg;
-        setTimeout(()=>document.getElementById('stops-upload-msg').textContent='',4000);
+// Load stops from server (called when switching to stops tab)
+async function loadStopsFromServer() {
+  const sdot = document.getElementById('stops-sdot');
+  if(sdot) sdot.className='sdot spin';
+  try {
+    const r = await fetch('/api/stops', { headers: {'X-View-Password': sessionPassword} });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.json();
+    if (data && data.meta && data.days && data.periods) {
+      applyStopsData(data);
+      return true;
+    }
+  } catch(e) { console.log('No stops on server:', e.message); }
+  if(sdot) sdot.className='sdot warn';
+  return false;
+}
+
+function applyStopsData(data) {
+  STOPS_DATA = data;
+  STOPS_PERIODS = data.periods.map(expandPeriod);
+  stopsIdx = STOPS_PERIODS.length - 1;
+  const sdot = document.getElementById('stops-sdot');
+  if(sdot) sdot.className='sdot ok';
+  renderStops();
+}
+
+// Upload new stops JSON — saves to server (admin only)
+async function uploadStopsJson(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.meta || !data.days || !data.periods)
+        throw new Error('Неверный формат. Используйте stops_full.json');
+      const msg = document.getElementById('stops-upload-msg');
+      msg.textContent = 'Загрузка на сервер...';
+      // Upload to server
+      const fd = new FormData(); fd.append('file', file);
+      const r = await fetch('/api/stops', {
+        method: 'POST',
+        headers: { 'X-Admin-Password': adminPw },
+        body: fd
+      });
+      const j = await r.json();
+      if (j.ok) {
+        applyStopsData(data);
+        msg.textContent = `✅ Сохранено: ${j.days} дней, ${j.periods} периодов`;
+        setTimeout(() => msg.textContent = '', 4000);
+      } else {
+        throw new Error(j.error);
       }
-      // Old format: array of periods
-      else if(Array.isArray(data)||data.total_stops){
-        const arr=Array.isArray(data)?data:[data];
-        if(!arr[0].total_stops||!arr[0].by_point)throw new Error('Неверный формат');
-        arr.forEach(p=>{const idx=STOPS_PERIODS.findIndex(x=>x.period===p.period);if(idx>=0)STOPS_PERIODS[idx]=p;else STOPS_PERIODS.push(p);});
-        STOPS_PERIODS.sort((a,b)=>a.period.localeCompare(b.period));
-        stopsIdx=STOPS_PERIODS.length-1;
-        document.getElementById('stops-sdot').className='sdot ok';
-        renderStops();
-        document.getElementById('stops-upload-msg').textContent=`✅ Загружено ${arr.length} периодов`;
-        setTimeout(()=>document.getElementById('stops-upload-msg').textContent='',3000);
-      } else throw new Error('Неверный формат файла');
-    }catch(err){alert('❌ '+err.message);}
+    } catch(err) { alert('❌ ' + err.message); }
   };
-  reader.readAsText(file);e.target.value='';
+  reader.readAsText(file); e.target.value = '';
 }
 
 // Expand compact period format to full format
