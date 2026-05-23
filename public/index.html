@@ -354,6 +354,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <div class="ptabs" id="ptabs"></div>
   </div>
   <div class="frow">
+    <select id="wo-period-filter" onchange="applyWoPeriodFilter()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:180px">
+      <option value="">Все периоды</option>
+    </select>
     <button class="fbtn act" onclick="setF('all',this)">Все</button>
     <button class="fbtn" onclick="setF('danger',this)">🔴 &gt;100k</button>
     <button class="fbtn" onclick="setF('warn',this)">🟡 45–100k</button>
@@ -475,16 +479,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <button class="fbtn act" onclick="resetDelFilters()">✕ Сбросить</button>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="del-charts-row">
-      <!-- По датам -->
+    <div style="margin-bottom:24px">
       <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
         <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Довозы по датам</div>
         <div class="dow-row" id="del-by-date" style="height:80px"></div>
-      </div>
-      <!-- По подразделениям -->
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">По подразделениям</div>
-        <div id="del-by-dept" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
     </div>
 
@@ -501,8 +499,14 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     </div>
 
     <!-- Таблица всех записей -->
-    <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">
-      Все записи <span id="del-rows-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700;color:var(--txt)">
+        Все записи <span id="del-rows-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
+      </div>
+      <div class="sw" style="max-width:280px">
+        <span class="sic">🔍</span>
+        <input class="si" id="del-search" type="text" placeholder="Поиск по точке или виновному..." oninput="applyDelFilter()">
+      </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
       <table class="stops-tbl" id="del-table">
@@ -598,16 +602,30 @@ async function loadDeliveriesFromServer() {
     const r = await fetch('/api/deliveries', {headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
-    if(data && data.meta) { applyDeliveriesData(data); return true; }
-  } catch(e) { console.log('No deliveries on server:', e.message); }
-  if(sdot) sdot.className='sdot warn';
-  return false;
+    if(data && data.meta) {
+      applyDeliveriesData(data);
+      return true;
+    }
+    // Сервер вернул null — данных нет
+    if(sdot) sdot.className='sdot warn';
+    if(DEL_DATA) renderDeliveries(); else renderDeliveries(); // покажет empty state
+    return false;
+  } catch(e) {
+    console.log('No deliveries on server:', e.message);
+    if(sdot) sdot.className='sdot warn';
+    if(DEL_DATA) renderDeliveries(); // если данные уже были — покажем их
+    else renderDeliveries();
+    return false;
+  }
 }
 
 function applyDeliveriesData(data) {
   DEL_DATA = data;
   const sdot = document.getElementById('del-sdot');
   if(sdot) sdot.className='sdot ok';
+  // Update status text
+  const lbl = document.getElementById('del-period-label');
+  if(lbl) lbl.innerHTML = ' · <b style="color:var(--txt)">Синхронизировано</b>';
   renderDeliveries();
 }
 
@@ -653,9 +671,7 @@ function renderDeliveries() {
       DEL_DATA.meta.all_points.map(p=>`<option value="${p}">${p}</option>`).join('');
   }
 
-  // Period label
-  const lbl = document.getElementById('del-period-label');
-  if(lbl) lbl.innerHTML=` · <b style="color:var(--txt)">${DEL_DATA.meta.min.substring(0,10).split('-').reverse().slice(0,2).join('.')} — ${DEL_DATA.meta.max.substring(0,10).split('-').reverse().slice(0,2).join('.')}</b>`;
+  // Period label — set once in applyDeliveriesData
 
   applyDelFilter();
 }
@@ -666,17 +682,20 @@ function applyDelFilter() {
   const pointVal = document.getElementById('del-point-filter')?.value || '';
   const typeVal  = document.getElementById('del-type-filter')?.value  || '';
 
+  const searchVal = (document.getElementById('del-search')?.value || '').toLowerCase().trim();
   const rows = DEL_DATA.rows.filter(r =>
     (!dayVal   || r.iso   === dayVal) &&
     (!pointVal || r.point === pointVal) &&
-    (!typeVal  || r.type  === typeVal)
+    (!typeVal  || r.type  === typeVal) &&
+    (!searchVal || r.point.toLowerCase().includes(searchVal) ||
+      (r.guilty||[]).join(' ').toLowerCase().includes(searchVal))
   );
 
   const totalCost = rows.reduce((s,r)=>s+r.cost,0);
   const withGuilty = rows.filter(r=>r.guilty&&r.guilty.length>0).length;
 
   // KPIs
-  document.getElementById('del-kpis').innerHTML=`
+  (document.getElementById('del-kpis')||{innerHTML:''}).innerHTML=`
     <div class="kpi r"><div class="kl">Всего довозов</div><div class="kv">${rows.length}</div><div class="ks">${dayVal?'за день':'за период'}</div></div>
     <div class="kpi w"><div class="kl">Сумма штрафов</div><div class="kv">${totalCost.toLocaleString('ru-RU')} ₽</div><div class="ks">внесено в реестр</div></div>
     <div class="kpi"><div class="kl">С виновным</div><div class="kv">${withGuilty}</div><div class="ks">из ${rows.length}</div></div>
@@ -687,7 +706,7 @@ function applyDelFilter() {
     ? DEL_DATA.meta.all_dates.filter(d=>d.iso===dayVal)
     : DEL_DATA.meta.all_dates;
   const maxN = dateData.length ? Math.max(...dateData.map(d=>d.n)) : 1;
-  document.getElementById('del-by-date').innerHTML = dateData.map(d=>{
+  (document.getElementById('del-by-date')||{innerHTML:''}).innerHTML = dateData.map(d=>{
     const isWE = d.dow==='Сб'||d.dow==='Вс';
     const barH = Math.max(6, Math.round(d.n/maxN*55));
     const clr  = d.n===maxN?'var(--red)':isWE?'var(--warn)':'var(--acc)';
@@ -699,32 +718,24 @@ function applyDelFilter() {
     </div>`;
   }).join('');
 
-  // By dept
-  const deptAgg = {};
-  rows.forEach(r=>{ deptAgg[r.dept]=(deptAgg[r.dept]||0)+1; });
-  const deptMax = Math.max(...Object.values(deptAgg),1);
-  document.getElementById('del-by-dept').innerHTML = Object.entries(deptAgg)
-    .sort((a,b)=>b[1]-a[1]).map(([dept,n])=>`
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="font-size:11px;color:var(--txt2);width:100px;flex-shrink:0">${dept}</span>
-      <div style="flex:1;background:var(--bd);border-radius:2px;height:6px">
-        <div style="height:6px;border-radius:2px;background:var(--acc);width:${Math.round(n/deptMax*100)}%"></div>
-      </div>
-      <span style="font-size:12px;font-weight:700;color:var(--txt);font-family:'JetBrains Mono',monospace;width:28px;text-align:right">${n}</span>
-    </div>`).join('');
+  // By dept — removed
 
   // Top guilty (from filtered rows)
   const guiltyAgg = {};
   rows.forEach(r=>{
-    (r.guilty||[]).forEach(g=>{
+    const guiltyArr = Array.isArray(r.guilty) ? r.guilty
+      : (r.guilty ? String(r.guilty).split(/[,\n]+/).map(g=>g.trim()).filter(Boolean) : []);
+    guiltyArr.forEach(g=>{
+      if(!g||g.length<2) return;
       if(!guiltyAgg[g]) guiltyAgg[g]={count:0,cost:0};
       guiltyAgg[g].count++;
-      guiltyAgg[g].cost += r.cost;
+      guiltyAgg[g].cost += (r.cost||0);
     });
   });
   const topGuilty = Object.entries(guiltyAgg).sort((a,b)=>b[1].count-a[1].count).slice(0,10);
   const maxGC = topGuilty.length ? topGuilty[0][1].count : 1;
-  document.getElementById('del-guilty-list').innerHTML = topGuilty.length
+  const delGuiltyEl = document.getElementById('del-guilty-list');
+  if(delGuiltyEl) delGuiltyEl.innerHTML = topGuilty.length
     ? topGuilty.map(([name,v],i)=>`
       <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd)">
         <span style="font-size:10px;color:var(--txt3);width:16px;text-align:right;font-family:'JetBrains Mono',monospace;flex-shrink:0">${i+1}</span>
@@ -744,7 +755,8 @@ function applyDelFilter() {
   rows.forEach(r=>{ if(r.point){if(!ptAgg[r.point])ptAgg[r.point]={count:0,cost:0};ptAgg[r.point].count++;ptAgg[r.point].cost+=r.cost;} });
   const topPts = Object.entries(ptAgg).sort((a,b)=>b[1].count-a[1].count).slice(0,10);
   const maxPC  = topPts.length ? topPts[0][1].count : 1;
-  document.getElementById('del-points-list').innerHTML = topPts.map(([name,v],i)=>`
+  const delPtsEl = document.getElementById('del-points-list');
+  if(delPtsEl) delPtsEl.innerHTML = topPts.length ? topPts.map(([name,v],i)=>`
     <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd)">
       <span style="font-size:10px;color:var(--txt3);width:16px;text-align:right;font-family:'JetBrains Mono',monospace;flex-shrink:0">${i+1}</span>
       <div style="flex:1;min-width:0">
@@ -755,11 +767,11 @@ function applyDelFilter() {
         <div style="height:4px;border-radius:2px;background:var(--acc);width:${Math.round(v.count/maxPC*100)}%"></div>
       </div>
       <span style="font-size:13px;font-weight:800;color:var(--txt);font-family:'JetBrains Mono',monospace;width:20px;text-align:right">${v.count}</span>
-    </div>`).join('');
+    </div>`).join('') : '<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
 
   // Table
-  document.getElementById('del-rows-count').textContent=`(${rows.length} записей)`;
-  document.getElementById('del-tbody').innerHTML = rows.map(r=>`
+  const _drc=document.getElementById('del-rows-count'); if(_drc) _drc.textContent=`(${rows.length} записей)`;
+  (document.getElementById('del-tbody')||{innerHTML:''}).innerHTML = rows.map(r=>`
     <tr>
       <td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;color:var(--txt)">${r.date}</td>
       <td style="font-weight:600;color:var(--txt);white-space:nowrap">${r.point}</td>
@@ -775,6 +787,7 @@ function resetDelFilters() {
   document.getElementById('del-day-filter').value='';
   document.getElementById('del-point-filter').value='';
   document.getElementById('del-type-filter').value='';
+  const s = document.getElementById('del-search'); if(s) s.value='';
   applyDelFilter();
 }
 
@@ -804,13 +817,10 @@ function switchTab(tab,btn){
   document.getElementById('page-'+tab).classList.add('active');
   btn.classList.add('active');
   if(tab==='stops'){
-    if(!STOPS_DATA){
-      loadStopsFromServer().then(ok => { if(!ok) renderStops(); });
-    } else { renderStops(); }
+    loadStopsFromServer().then(ok => { if(!ok) renderStops(); });
   }
   if(tab==='deliveries'){
-    if(!DEL_DATA){ loadDeliveriesFromServer().then(ok=>{ if(!ok) renderDeliveries(); }); }
-    else renderDeliveries();
+    loadDeliveriesFromServer().then(ok => { if(!ok) renderDeliveries(); });
   }
 }
 
@@ -862,9 +872,36 @@ function renderKPIs(p){
 
 function renderPTabs(){
   const w=document.getElementById('ptabs-wrap');
-  if(periods.length<2){w.style.display='none';return;}
-  w.style.display='block';
-  document.getElementById('ptabs').innerHTML=periods.map((p,i)=>`<button class="ptab ${i===cur?'act':''}" onclick="cur=${i};render()">${p.period}</button>`).join('');
+  if(periods.length<2){w.style.display='none';}
+  else{
+    w.style.display='block';
+    document.getElementById('ptabs').innerHTML=periods.map((p,i)=>`<button class="ptab ${i===cur?'act':''}" onclick="cur=${i};render()">${p.period}</button>`).join('');
+  }
+  // Sync period filter select
+  initWoPeriodFilter();
+}
+
+
+// ── WRITEOFFS PERIOD FILTER ───────────────────────────────────────────────────
+function initWoPeriodFilter() {
+  const sel = document.getElementById('wo-period-filter');
+  if (!sel || !periods.length) return;
+  sel.innerHTML = '<option value="">Все периоды</option>' +
+    periods.map((p,i) => `<option value="${i}">${p.period}</option>`).join('');
+  sel.value = String(cur);
+}
+
+function applyWoPeriodFilter() {
+  const sel = document.getElementById('wo-period-filter');
+  if (!sel) return;
+  const val = sel.value;
+  if (val === '') {
+    // Показать все — cur остаётся, просто сбрасываем фильтр
+    renderCards();
+  } else {
+    cur = parseInt(val);
+    render();
+  }
 }
 
 function renderCards(){
@@ -1154,9 +1191,15 @@ async function loadStopsFromServer() {
       applyStopsData(data);
       return true;
     }
-  } catch(e) { console.log('No stops on server:', e.message); }
-  if(sdot) sdot.className='sdot warn';
-  return false;
+    if(sdot) sdot.className='sdot warn';
+    renderStops();
+    return false;
+  } catch(e) {
+    console.log('No stops on server:', e.message);
+    if(sdot) sdot.className='sdot warn';
+    renderStops();
+    return false;
+  }
 }
 
 function applyStopsData(data) {
