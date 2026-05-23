@@ -6,8 +6,22 @@
 <title>DASHBOARD</title>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#080B12;--surf:#0E1420;--card:#131B2E;--card2:#192035;--bd:#1E2D4A;--acc:#3B7FFF;--grn:#00D4AA;--warn:#FFB020;--red:#FF4560;--txt:#E8EEFF;--txt2:#7A8DB0;--txt3:#3A4E6E}
-html.light{--bg:#F0F2F7;--surf:#FFFFFF;--card:#FFFFFF;--card2:#F5F7FB;--bd:#C8CEDF;--acc:#2563EB;--grn:#059669;--warn:#D97706;--red:#DC2626;--txt:#0F1523;--txt2:#374160;--txt3:#6B7494}
+:root{--bg:#000000;--surf:#0d0d0d;--card:#141414;--card2:#1a1a1a;--bd:#2a2a2a;--acc:#a3d8f4;--grn:#98c21e;--warn:#ccdb1f;--red:#ff4560;--txt:#e8e8e8;--txt2:#b7bdb8;--txt3:#666b66}
+
+/* Dark theme accent fixes — голубой акцент на тёмном */
+.btn-acc{background:var(--acc);border-color:var(--acc);color:#000000}
+.btn-acc:hover{opacity:.88}
+.btn-warn{background:var(--warn);border-color:var(--warn);color:#000000}
+.ptab.act{background:var(--acc);color:#000000;border-color:var(--acc)}
+.fbtn.act{background:var(--acc);color:#000000;border-color:var(--acc)}
+.fbtn:hover{border-color:var(--acc);color:var(--acc)}
+.tab-nav-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
+.kpi::before{background:linear-gradient(90deg,transparent,var(--acc),transparent)}
+.kpi.g::before{background:linear-gradient(90deg,transparent,var(--grn),transparent)}
+.kpi.w::before{background:linear-gradient(90deg,transparent,var(--warn),transparent)}
+.kpi.r::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+
+html.light{--bg:#f5f5f0;--surf:#ffffff;--card:#ffffff;--card2:#fafaf5;--bd:#e0ddd5;--acc:#ffdf00;--grn:#98c21e;--warn:#f28d29;--red:#ff6e2f;--txt:#111111;--txt2:#444440;--txt3:#888880}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font-family:'Manrope',sans-serif;min-height:100vh;transition:background .25s,color .25s}
 
@@ -251,7 +265,48 @@ html.light .login-hint{color:#6B7494}
 html.light #active-point-filter{background:#FFFFFF;border-color:#C8CEDF;color:#0F1523}
 
 footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-top:1px solid var(--bd);margin-top:24px}
-@media(max-width:640px){.hbtns .btn span{display:none}.kpis{grid-template-columns:1fr 1fr}.wrap{padding:16px 12px}}
+@media(max-width:640px){
+  .hbtns .btn span{display:none}
+  .kpis{grid-template-columns:1fr 1fr}
+  .wrap{padding:14px 12px}
+  /* Header */
+  .brand{font-size:13px}
+  /* Cards */
+  .grid{grid-template-columns:1fr}
+  /* Stops grid — одна колонка */
+  .stops-grid{grid-template-columns:1fr}
+  /* Stops charts row — вертикально */
+  #page-stops .wrap > div[style*="grid-template-columns:1fr 1fr"]{
+    grid-template-columns:1fr !important
+  }
+  /* Active stops table — скрыть длительность, адаптировать */
+  .stops-tbl th:nth-child(3),.stops-tbl td:nth-child(3){display:none}
+  .stops-tbl{font-size:11px}
+  .pname{max-width:160px}
+  /* Period tabs — горизонтальный скролл */
+  .ptabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .ptab{flex-shrink:0}
+  /* Stops point filter — полная ширина */
+  #active-point-filter{width:100%}
+  /* Day picker */
+  #day-picker-wrap{flex-direction:column;align-items:flex-start !important}
+  #day-select{width:100%}
+  /* Stops header — вертикально */
+  #page-stops .status{flex-direction:column;align-items:flex-start}
+  /* Modal */
+  .modal{padding:16px}
+  .mkpis{grid-template-columns:1fr 1fr 1fr}
+  .cg{grid-template-columns:1fr}
+  /* KPI cards text */
+  .kv{font-size:18px}
+  /* Comparison grid */
+  .cmprow > div[style*="grid-template-columns"]{grid-template-columns:1fr 1fr !important}
+  /* Stops active section title row */
+  #page-stops .wrap > div[style*="justify-content:space-between"]{flex-direction:column;align-items:flex-start}
+}
+@media(max-width:640px){
+  .stops-charts-row{grid-template-columns:1fr !important}
+}
 </style>
 </head>
 <body>
@@ -335,7 +390,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div class="ptabs" id="stops-ptabs"></div>
     </div>
   <div id="stops-kpis" class="kpis"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+  <div class="stops-charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Стопы по датам</div>
       <div class="dow-row" id="dow-row"></div>
