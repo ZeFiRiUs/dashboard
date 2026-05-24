@@ -503,7 +503,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div class="sw" style="max-width:280px"><span class="sic">🔍</span><input class="si" id="del-search" type="text" placeholder="Поиск по точке, виновному, позиции..." oninput="applyDelFilter()"></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
-      <table class="stops-tbl"><thead><tr><th>Дата</th><th>Точка</th><th>Подразд.</th><th>Виновный</th><th>Позиции</th><th>Причина</th><th>Сумма</th><th>Реестр</th></tr></thead>
+      <table class="stops-tbl"><thead><tr><th style="cursor:pointer;user-select:none" onclick="toggleDelSort()" title="Сортировать по дате"><span id="del-sort-icon">↓</span> Дата</th><th>Точка</th><th>Подразд.</th><th>Виновный</th><th>Позиции</th><th>Причина</th><th>Сумма</th><th>Реестр</th></tr></thead>
       <tbody id="del-tbody"></tbody></table>
     </div>
   </div>
@@ -654,16 +654,27 @@ async function uploadDeliveriesJson(e) {
   reader.readAsText(file); e.target.value='';
 }
 
+
+function toggleDelSort(){
+  DEL_SORT_DESC=!DEL_SORT_DESC;
+  const icon=document.getElementById('del-sort-icon');
+  if(icon) icon.textContent=DEL_SORT_DESC?'↓':'↑';
+  applyDelFilter();
+}
+
 function renderDeliveries(){
   const empty=document.getElementById('del-empty');
   const wrap=document.getElementById('del-data-wrap');
   if(!DEL_DATA){if(empty)empty.style.display='block';if(wrap)wrap.style.display='none';return;}
   if(empty)empty.style.display='none';if(wrap)wrap.style.display='block';
-  const dayF=document.getElementById('del-day-filter');
+  const dayFromF=document.getElementById('del-date-from');
+  const dayToF  =document.getElementById('del-date-to');
   const pointF=document.getElementById('del-point-filter');
   const reasonF=document.getElementById('del-reason-filter');
-  if(dayF)dayF.innerHTML='<option value="">Все даты</option>'+
-    DEL_DATA.meta.all_dates.map(d=>`<option value="${d.iso}">${d.d} (${d.dow}) — ${d.n}</option>`).join('');
+  const dateOpts='<option value="">—</option>'+
+    DEL_DATA.meta.all_dates.map(d=>`<option value="${d.iso}">${d.d} (${d.dow})</option>`).join('');
+  if(dayFromF) dayFromF.innerHTML='<option value="">С даты...</option>'+dateOpts.slice('<option value="">—</option>'.length);
+  if(dayToF)   dayToF.innerHTML  ='<option value="">По дату...</option>'+dateOpts.slice('<option value="">—</option>'.length);
   if(pointF)pointF.innerHTML='<option value="">Все точки</option>'+
     DEL_DATA.meta.all_points.map(p=>`<option value="${p}">${p}</option>`).join('');
   if(reasonF){
@@ -677,18 +688,20 @@ function renderDeliveries(){
 
 function applyDelFilter(){
   if(!DEL_DATA)return;
-  const dayVal   =document.getElementById('del-day-filter')?.value||'';
+  const dateFrom =document.getElementById('del-date-from')?.value||'';
+  const dateTo   =document.getElementById('del-date-to')?.value||'';
   const pointVal =document.getElementById('del-point-filter')?.value||'';
   const deptVal  =document.getElementById('del-dept-filter')?.value||'';
   const reasonVal=document.getElementById('del-reason-filter')?.value||'';
   const searchVal=(document.getElementById('del-search')?.value||'').toLowerCase().trim();
-  const rows=DEL_DATA.rows.filter(r=>
-    (!dayVal||r.iso===dayVal)&&(!pointVal||r.point===pointVal)&&
+  let rows=DEL_DATA.rows.filter(r=>
+    (!dateFrom||r.iso>=dateFrom)&&(!dateTo||r.iso<=dateTo)&&(!pointVal||r.point===pointVal)&&
     (!deptVal||r.dept.includes(deptVal))&&(!reasonVal||r.reason===reasonVal)&&
     (!searchVal||r.point.toLowerCase().includes(searchVal)||
       (r.guilty||[]).join(' ').toLowerCase().includes(searchVal)||
       (r.items||'').toLowerCase().includes(searchVal))
   );
+  rows=[...rows].sort((a,b)=>DEL_SORT_DESC?b.iso.localeCompare(a.iso):a.iso.localeCompare(b.iso));
   const totalCost=rows.reduce((s,r)=>s+r.cost,0);
   const withGuilty=rows.filter(r=>r.guilty&&r.guilty.length>0).length;
   const kEl=document.getElementById('del-kpis');
