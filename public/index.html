@@ -981,24 +981,35 @@ function applyProdFilter(){
   const pEl=document.getElementById('prod-top-list');
   if(pEl)pEl.innerHTML=topP.map(function(entry,i){
     const name=entry[0],v=entry[1];
-    const safeName=name.replace(/\/g,'\\').replace(/'/g,"\'");
-    return '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer" onclick="document.getElementById('prod-product-filter').value=''+safeName+'';applyProdFilter()">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
-      '<span style="font-size:11px;font-weight:700;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+name+'</span>'+
-      '<span style="font-size:14px;font-weight:800;color:'+(i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt)')+';font-family:'JetBrains Mono',monospace;margin-left:8px;flex-shrink:0">'+v.qty.toLocaleString('ru-RU')+'</span></div>'+
-      '<div style="background:var(--bd);border-radius:2px;height:3px;margin-bottom:4px">'+
-      '<div style="height:3px;border-radius:2px;background:'+(i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt3)')+';width:'+Math.round(v.qty/maxQ*100)+'%"></div></div>'+
-      '<div style="font-size:10px;color:var(--txt3)">'+v.days.size+' дн.'+(v.nedov>0?' · недовл: '+v.nedov.toFixed(1):'')+' </div></div>';
+    const encName=encodeURIComponent(name);
+    const clr=i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt)';
+    const barClr=i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt3)';
+    return '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer" onclick="selectProdProduct(this);" data-prod="'+encName+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      +'<span style="font-size:11px;font-weight:700;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+name+'</span>'
+      +'<span style="font-size:14px;font-weight:800;color:'+clr+';font-family:JetBrains Mono,monospace;margin-left:8px;flex-shrink:0">'+v.qty.toLocaleString('ru-RU')+'</span></div>'
+      +'<div style="background:var(--bd);border-radius:2px;height:3px;margin-bottom:4px">'
+      +'<div style="height:3px;border-radius:2px;background:'+barClr+';width:'+Math.round(v.qty/maxQ*100)+'%"></div></div>'
+      +'<div style="font-size:10px;color:var(--txt3)">'+v.days.size+' дн.'+(v.nedov>0?' · недовл: '+v.nedov.toFixed(1):'')+' </div></div>';
   }).join('');
   const rcEl=document.getElementById('prod-rows-count');if(rcEl)rcEl.textContent='('+rows.length+' записей)';
   const tbEl=document.getElementById('prod-tbody');
-  if(tbEl)tbEl.innerHTML=rows.map(r=>'<tr>'+
-    '<td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;color:var(--txt)">'+r.date+'</td>'+
-    '<td style="font-size:12px;color:var(--txt);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+r.name+'">'+r.name+'</td>'+
-    '<td style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--acc);white-space:nowrap">'+r.qty.toLocaleString('ru-RU')+'</td>'+
-    '<td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt2)">'+r.norm+'</td>'+
-    '<td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt2)">'+r.fact+'</td>'+
-    '<td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:'+(r.nedov>0?'var(--red)':'var(--txt3)')+';font-weight:'+(r.nedov>0?'700':'400')+'">'+(r.nedov>0?r.nedov.toFixed(2):'—')+'</td></tr>').join('');
+  const monoSt='font-family:JetBrains Mono,monospace';
+  if(tbEl)tbEl.innerHTML=rows.map(function(r){
+    return '<tr>'
+      +'<td style="'+monoSt+';font-size:11px;white-space:nowrap;color:var(--txt)">'+r.date+'</td>'
+      +'<td style="font-size:12px;color:var(--txt);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+r.name+'">'+r.name+'</td>'
+      +'<td style="'+monoSt+';font-size:12px;font-weight:700;color:var(--acc);white-space:nowrap">'+r.qty.toLocaleString('ru-RU')+'</td>'
+      +'<td style="'+monoSt+';font-size:11px;color:var(--txt2)">'+r.norm+'</td>'
+      +'<td style="'+monoSt+';font-size:11px;color:var(--txt2)">'+r.fact+'</td>'
+      +'<td style="'+monoSt+';font-size:11px;color:'+(r.nedov>0?'var(--red)':'var(--txt3)')+';font-weight:'+(r.nedov>0?'700':'400')+'">'+(r.nedov>0?r.nedov.toFixed(2):'—')+'</td></tr>';
+  }).join('');
+}
+function selectProdProduct(el){
+  const name=decodeURIComponent(el.getAttribute('data-prod'));
+  const pf=document.getElementById('prod-product-filter');
+  if(pf)pf.value=name;
+  applyProdFilter();
 }
 function resetProdFilter(){
   ['prod-date-from','prod-date-to','prod-product-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
