@@ -388,9 +388,22 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 
   <!-- Periods tabs (hidden until data loaded) -->
   <div id="stops-data-wrap" style="display:none">
-    <div style="margin-bottom:20px">
+    <!-- Periods -->
+    <div style="margin-bottom:14px">
       <div style="font-size:11px;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Периоды</div>
       <div class="ptabs" id="stops-ptabs"></div>
+    </div>
+    <!-- Filters row — как в довозах -->
+    <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
+      <select id="stops-day-filter" onchange="applyStopsFilter()"
+        style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px">
+        <option value="">Все даты</option>
+      </select>
+      <select id="stops-point-filter" onchange="applyStopsFilter()"
+        style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
+        <option value="">Все точки</option>
+      </select>
+      <button class="fbtn" onclick="resetStopsFilter()">✕ Сбросить</button>
     </div>
   <div id="stops-kpis" class="kpis"></div>
   <div class="stops-charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
@@ -958,17 +971,58 @@ function renderStops(){
   }
   if(empty) empty.style.display='none';
   if(wrap)  wrap.style.display='block';
-  // Populate day picker if we have full data
-  const dayPickerWrap = document.getElementById('day-picker-wrap');
-  const daySelect     = document.getElementById('day-select');
-  if(STOPS_DATA && daySelect){
-    dayPickerWrap.style.display='flex';
-    daySelect.innerHTML='<option value="">— выберите день —</option>'+
+  // Заполнить фильтр дат из STOPS_DATA
+  const dayF   = document.getElementById('stops-day-filter');
+  const pointF = document.getElementById('stops-point-filter');
+  if(STOPS_DATA && dayF){
+    dayF.innerHTML='<option value="">Все даты</option>'+
       STOPS_DATA.meta.all_dates.map(d=>
         `<option value="${d.iso}">${d.d} (${d.dow}) — ${d.n} ст.</option>`
       ).join('');
   }
+  if(STOPS_DATA && pointF){
+    const pts = STOPS_DATA.meta.all_pts || [];
+    pointF.innerHTML='<option value="">Все точки</option>'+
+      pts.map(p=>`<option value="${p}">${p}</option>`).join('');
+  }
   renderStopsPTabs();
+  renderStopsContent();
+}
+
+function applyStopsFilter(){
+  const dayVal   = document.getElementById('stops-day-filter')?.value   || '';
+  const pointVal = document.getElementById('stops-point-filter')?.value || '';
+  if(dayVal && STOPS_DATA){
+    // Загружаем конкретный день из STOPS_DATA
+    const dayData = STOPS_DATA.days[dayVal];
+    if(dayData){
+      const expanded = expandPeriod(dayData);
+      // Если точка выбрана — фильтруем внутри дня
+      if(pointVal){
+        expanded.by_pt = expanded.by_point?.filter(p=>p.name===pointVal) || expanded.by_pt?.filter(p=>p.name===pointVal) || [];
+        expanded.active = (expanded.active||[]).filter(a=>a.point===pointVal);
+      }
+      // Показываем без изменения stopsIdx
+      renderStopsData(expanded);
+      return;
+    }
+  }
+  if(pointVal){
+    // Фильтр по точке без фильтра дня — фильтруем текущий период
+    const s = STOPS_PERIODS[stopsIdx];
+    const filtered = JSON.parse(JSON.stringify(s));
+    filtered.by_point = (s.by_point||[]).filter(p=>p.name===pointVal);
+    filtered.active   = (s.active||[]).filter(a=>a.point===pointVal);
+    renderStopsData(filtered);
+    return;
+  }
+  // Без фильтров — показываем текущий период
+  renderStopsContent();
+}
+
+function resetStopsFilter(){
+  const d=document.getElementById('stops-day-filter');   if(d) d.value='';
+  const p=document.getElementById('stops-point-filter'); if(p) p.value='';
   renderStopsContent();
 }
 function renderStopsPTabs(){
@@ -980,46 +1034,79 @@ function renderStopsPTabs(){
   }).join('');
 }
 function switchStopsPeriod(i){stopsIdx=i;renderStopsPTabs();renderStopsContent();}
-function renderStopsContent(){
-  const s=STOPS_PERIODS[stopsIdx];
-  const lbl=document.getElementById('stops-period-label');
+function renderStopsData(s){
+  // Рендер стопов из произвольного объекта (день или отфильтрованный период)
+  const lbl = document.getElementById('stops-period-label');
   if(lbl) lbl.innerHTML=' · <b style="color:var(--txt)">'+s.period+'</b>';
-  const prev=stopsIdx>0?STOPS_PERIODS[stopsIdx-1]:null;
-  const dt=prev?Math.round((s.total_stops-prev.total_stops)/prev.total_stops*100):null;
-  const dh=dt!==null?`<div class="kd ${dt>0?'up':'dn'}">${dt>0?'↑':'↓'}${Math.abs(dt)}% vs прошлый</div>`:'<div class="kd fl">Первый период</div>';
-  const avgH=Math.floor(s.avg_duration/60),avgM=s.avg_duration%60;
+  const avgH=Math.floor((s.avg_duration||s.avg||0)/60);
+  const avgM=(s.avg_duration||s.avg||0)%60;
   document.getElementById('stops-kpis').innerHTML=`
-    <div class="kpi r"><div class="kl">Всего стопов</div><div class="kv">${s.total_stops.toLocaleString('ru-RU')}</div><div class="ks">${s.period}</div>${dh}</div>
-    <div class="kpi"><div class="kl">Точек</div><div class="kv">${s.total_points}</div><div class="ks">в анализе</div></div>
-    <div class="kpi w"><div class="kl">Продуктов</div><div class="kv">${s.total_products}</div><div class="ks">попадало в стоп</div></div>
-    <div class="kpi"><div class="kl">Ср. длительность</div><div class="kv">${avgH}ч ${avgM}м</div><div class="ks">на один стоп</div></div>`;
-  // Chart by date
+    <div class="kpi r"><div class="kl">Стопов</div><div class="kv">${(s.total_stops||s.n||0).toLocaleString('ru-RU')}</div><div class="ks">${s.period}</div></div>
+    <div class="kpi"><div class="kl">Точек</div><div class="kv">${s.total_points||s.pts||0}</div><div class="ks">в анализе</div></div>
+    <div class="kpi w"><div class="kl">Продуктов</div><div class="kv">${s.total_products||s.prods||0}</div><div class="ks">в стопе</div></div>
+    <div class="kpi"><div class="kl">Ср. длительность</div><div class="kv">${avgH}ч ${avgM}м</div><div class="ks">на стоп</div></div>`;
+  // График по датам
   const dates=s.by_date||[];
-  const maxV=dates.length?Math.max(...dates.map(d=>d.count)):1;
+  const maxV=dates.length?Math.max(...dates.map(d=>d.count||d.n||0)):1;
   document.getElementById('dow-row').innerHTML=dates.map(d=>{
+    const cnt=d.count||d.n||0;
     const isWE=d.dow==='Сб'||d.dow==='Вс';
-    const barH=Math.max(6,Math.round(d.count/maxV*55));
-    const clr=d.count===maxV?'var(--red)':isWE?'var(--warn)':'var(--acc)';
-    return `<div class="dow-col" title="${d.date}: ${d.count}">
-      <div class="dow-val">${d.count}</div>
+    const barH=Math.max(6,Math.round(cnt/maxV*55));
+    const clr=cnt===maxV?'var(--red)':isWE?'var(--warn)':'var(--acc)';
+    return `<div class="dow-col" title="${d.date||d.d}: ${cnt}">
+      <div class="dow-val">${cnt}</div>
       <div class="dow-bar" style="height:${barH}px;background:${clr}"></div>
-      <div class="dow-lbl">${d.date}</div>
-      <div class="dow-dow">${d.dow}</div>
-    </div>`;
+      <div class="dow-lbl">${d.date||d.d}</div><div class="dow-dow">${d.dow}</div></div>`;
   }).join('');
-  // Top products
-  document.getElementById('top-products-list').innerHTML=s.top_products.slice(0,10).map((p,i)=>`
+  // Топ продуктов
+  const tops=s.top_products||s.top||[];
+  document.getElementById('top-products-list').innerHTML=tops.slice(0,10).map((p,i)=>`
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:10px;color:var(--txt3);width:16px;text-align:right;font-family:'JetBrains Mono',monospace">${i+1}</span>
       <div style="flex:1;background:var(--bd);border-radius:2px;height:4px">
-        <div style="height:4px;border-radius:2px;background:${i===0?'var(--red)':i<3?'var(--warn)':'var(--acc)'};width:${Math.round(p.count/s.top_products[0].count*100)}%"></div>
+        <div style="height:4px;border-radius:2px;background:${i===0?'var(--red)':i<3?'var(--warn)':'var(--acc)'};width:${Math.round((p.count||p.n||0)/(tops[0]?.count||tops[0]?.n||1)*100)}%"></div>
       </div>
       <span style="font-size:11px;flex:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)">${p.name.length>35?p.name.substring(0,34)+'…':p.name}</span>
-      <span style="font-size:11px;font-weight:700;color:var(--warn);font-family:'JetBrains Mono',monospace;white-space:nowrap">${p.count}×</span>
+      <span style="font-size:11px;font-weight:700;color:var(--warn);font-family:'JetBrains Mono',monospace;white-space:nowrap">${p.count||p.n||0}×</span>
     </div>`).join('');
-  renderStopCards();
-  renderActiveStops();
+  // Карточки точек
+  const pts=s.by_point||s.by_pt||[];
+  const mx=pts.length?Math.max(...pts.map(p=>p.count||p.n||0)):1;
+  document.getElementById('stops-grid').innerHTML=pts.map(p=>{
+    const cnt=p.count||p.n||0;
+    const lv=cnt>150?'sh':cnt>50?'sm':'';
+    const avgH2=Math.floor((p.avg_dur||p.avg||0)/60),avgM2=(p.avg_dur||p.avg||0)%60;
+    const bc=lv==='sh'?'var(--red)':lv==='sm'?'var(--warn)':'var(--acc)';
+    return `<div class="sc ${lv}" onclick="openStopModal('${p.name.replace(/'/g,"\'")}')">
+      <div class="sch"><div class="scn">${p.name}</div><div class="scc ${lv||'ok'}">${cnt}</div></div>
+      <div class="scm">Ср. ${avgH2}ч ${avgM2}м · Итого ${Math.floor((p.total_dur||p.tot||0)/60)}ч</div>
+      <div class="bb"><div class="bf" style="width:${Math.round(cnt/mx*100)}%;background:${bc}"></div></div>
+      <div>${(p.top_products||p.top||[]).slice(0,4).map(pr=>`<div class="sprod">${pr.length>45?pr.substring(0,44)+'…':pr}</div>`).join('')}</div>
+    </div>`;
+  }).join('');
+  // Активные стопы
+  const sel=document.getElementById('active-point-filter');
+  const allPts=[...new Set((s.active||[]).map(a=>a.point))].sort();
+  const curPt=sel?sel.value:'';
+  if(sel)sel.innerHTML='<option value="">Все точки</option>'+allPts.map(p=>`<option value="${p}" ${p===curPt?'selected':''}>${p}</option>`).join('');
+  const active=(s.active||[]).filter(a=>!curPt||a.point===curPt);
+  const ce=document.getElementById('active-count'); if(ce)ce.textContent=`(${active.length})`;
+  document.getElementById('active-tbody').innerHTML=active.length
+    ?active.map(a=>{
+        const lv=a.dur>240?'l':a.dur>60?'m':'o';
+        const dStr=a.dur>0?`${Math.floor(a.dur/60)}ч ${a.dur%60}м`:'—';
+        return `<tr><td style="font-weight:600;color:var(--txt)">${a.point}</td>
+          <td><div class="pname">${a.product||a.pr||''}</div></td>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${a.since||a.s||'—'}</td>
+          <td><span class="db d${lv}">${dStr}</span></td></tr>`;
+      }).join('')
+    :'<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--txt3)">Нет активных стопов</td></tr>';
 }
+
+function renderStopsContent(){
+  renderStopsData(STOPS_PERIODS[stopsIdx]);
+}
+
 function renderStopCards(){
   const s=STOPS_PERIODS[stopsIdx];
   let pts=[...s.by_point];
