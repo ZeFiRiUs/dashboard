@@ -342,15 +342,79 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 </header>
 
 <nav class="tab-nav">
-  <button class="tab-nav-btn active" onclick="switchTab('wo',this)">📊 Аналитика списаний</button>
+  <button class="tab-nav-btn active" onclick="switchTab('overview',this)">🏠 Сводка</button>
+  <button class="tab-nav-btn" onclick="switchTab('wo',this)">📊 Аналитика списаний</button>
   <button class="tab-nav-btn" onclick="switchTab('stops',this)">🚫 Стоп листы</button>
   <button class="tab-nav-btn" onclick="switchTab('deliveries',this)">🚚 Довозы</button>
   <button class="tab-nav-btn" onclick="switchTab('production',this)">🏭 Производство</button>
   <button class="tab-nav-btn" onclick="switchTab('sebes',this)">💰 Себестоимость</button>
 </nav>
 
+<!-- ═══ OVERVIEW TAB ═══ -->
+<div id="page-overview" class="page active">
+<div class="wrap">
+
+  <!-- Заголовок -->
+  <div style="margin-bottom:24px">
+    <div style="font-size:22px;font-weight:800;color:var(--txt);margin-bottom:4px">Сводка по всем разделам</div>
+    <div style="font-size:13px;color:var(--txt3)" id="overview-updated">Данные загружаются...</div>
+  </div>
+
+  <!-- Мини KPI блоки — по разделам -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:28px" id="overview-sections"></div>
+
+  <!-- Два графика рядом -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px" id="overview-charts-row">
+    <!-- Списания по дням -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">📊 Динамика списаний</div>
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-wo-sub">—</div>
+      <div class="dow-row" id="overview-wo-chart" style="height:70px;overflow-x:auto"></div>
+    </div>
+    <!-- Стопы по дням -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">🚫 Динамика стопов</div>
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-stops-sub">—</div>
+      <div class="dow-row" id="overview-stops-chart" style="height:70px;overflow-x:auto"></div>
+    </div>
+  </div>
+
+  <!-- Топы рядом -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="overview-tops-row">
+    <!-- Топ виновных по довозам -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">⚠️ Виновные в довозах</div>
+      <div id="overview-guilty" style="display:flex;flex-direction:column;gap:6px">
+        <div style="color:var(--txt3);font-size:12px">Загрузите данные довозов</div>
+      </div>
+    </div>
+    <!-- Топ стопов по продуктам -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🚫 Топ стопов</div>
+      <div id="overview-top-stops" style="display:flex;flex-direction:column;gap:6px">
+        <div style="color:var(--txt3);font-size:12px">Загрузите данные стопов</div>
+      </div>
+    </div>
+    <!-- Топ наценки -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">💰 Топ наценки</div>
+      <div id="overview-top-margin" style="display:flex;flex-direction:column;gap:6px">
+        <div style="color:var(--txt3);font-size:12px">Загрузите себестоимость</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Алерты -->
+  <div id="overview-alerts-wrap" style="display:none;margin-bottom:24px">
+    <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:12px">🔔 Требуют внимания</div>
+    <div id="overview-alerts" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+</div>
+</div><!-- /page-overview -->
+
 <!-- ═══ WRITEOFFS TAB ═══ -->
-<div id="page-wo" class="page active">
+<div id="page-wo" class="page">
 <div class="wrap">
   <div class="status"><div class="sdot spin" id="sdot"></div><span id="stxt">Загрузка...</span></div>
   <div id="krow" class="kpis"></div>
@@ -1335,6 +1399,7 @@ function switchTab(tab,btn){
   document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+tab).classList.add('active');
   btn.classList.add('active');
+  if(tab==='overview'){ renderOverview(); }
   if(tab==='stops'){
     if(!STOPS_DATA){
       loadStopsFromServer().then(ok => { if(!ok) renderStops(); });
@@ -1371,6 +1436,7 @@ async function loadData(){
       periods=srv;
       initWoDateFilter();
       ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
+    if(document.getElementById('page-overview')?.classList.contains('active')) renderOverview();
     } else {
       ss('warn','Нет данных. Загрузите JSON через «Управление»');
     }
@@ -1402,6 +1468,260 @@ function renderKPIs(p){
     <div class="kpi r"><div class="kl">Критичных</div><div class="kv" style="color:var(--red)">${crit}</div><div class="ks">&gt;100k руб</div></div>
     <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
 }
+
+// ══ OVERVIEW (Сводный дашборд) ═════════════════════════════════════════════
+function renderOverview(){
+  const monoSt = 'font-family:JetBrains Mono,monospace';
+  const now = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const updEl = document.getElementById('overview-updated');
+  if(updEl) updEl.textContent = 'Обновлено: ' + now;
+
+  _renderOverviewSections();
+  _renderOverviewCharts();
+  _renderOverviewTops();
+  _renderOverviewAlerts();
+}
+
+function _renderOverviewSections(){
+  const monoSt='font-family:JetBrains Mono,monospace';
+  const sections = [];
+
+  if(periods&&periods.length){
+    const p=periods[0];
+    sections.push({icon:'📊',title:'Аналитика списаний',tab:'wo',color:'var(--acc)',
+      lines:[{label:'Сумма',value:p.grand_total.toLocaleString('ru-RU')+' ₽',bold:true},{label:'Складов',value:p.warehouses.length},{label:'Период',value:p.period}],
+      badge:p.warehouses.filter(w=>w.total>100000).length>0?{text:p.warehouses.filter(w=>w.total>100000).length+' критичных',color:'var(--red)'}:null});
+  } else sections.push({icon:'📊',title:'Аналитика списаний',tab:'wo',color:'var(--txt3)',empty:true});
+
+  if(STOPS_DATA&&STOPS_DATA.periods&&STOPS_DATA.periods.length){
+    const sp=expandPeriod(STOPS_DATA.periods[STOPS_DATA.periods.length-1]);
+    sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',color:'var(--warn)',
+      lines:[{label:'Стопов',value:sp.total_stops,bold:true},{label:'Точек',value:sp.total_points},{label:'Период',value:sp.period}],
+      badge:sp.active&&sp.active.length>0?{text:sp.active.length+' активных',color:'var(--red)'}:null});
+  } else sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',color:'var(--txt3)',empty:true});
+
+  if(DEL_DATA&&DEL_DATA.meta){
+    const totalCost=DEL_DATA.rows.reduce(function(s,r){return s+r.cost;},0);
+    const guiltyCount=DEL_DATA.rows.filter(function(r){return r.guilty&&r.guilty.length>0;}).length;
+    sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',color:'var(--grn)',
+      lines:[{label:'Записей',value:DEL_DATA.meta.total,bold:true},{label:'Штрафов',value:totalCost.toLocaleString('ru-RU')+' ₽'},{label:'Период',value:(DEL_DATA.meta.min||'').substring(0,7)}],
+      badge:guiltyCount>0?{text:guiltyCount+' с виновным',color:'var(--warn)'}:null});
+  } else sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',color:'var(--txt3)',empty:true});
+
+  if(PROD_DATA&&PROD_DATA.meta){
+    const totalQty=PROD_DATA.rows.reduce(function(s,r){return s+r.qty;},0);
+    const nedov=PROD_DATA.rows.filter(function(r){return r.nedov>0;}).length;
+    sections.push({icon:'🏭',title:'Производство',tab:'production',color:'var(--acc)',
+      lines:[{label:'Выпущено',value:totalQty.toLocaleString('ru-RU')+' шт',bold:true},{label:'Позиций',value:PROD_DATA.meta.total_products},{label:'Период',value:(PROD_DATA.meta.min||'').substring(0,7)}],
+      badge:nedov>0?{text:nedov+' недовложений',color:'var(--warn)'}:null});
+  } else sections.push({icon:'🏭',title:'Производство',tab:'production',color:'var(--txt3)',empty:true});
+
+  if(SEBES_DATA&&SEBES_DATA.meta){
+    const lowMargin=SEBES_DATA.all_items.filter(function(i){return i.markup>0&&i.markup<100;}).length;
+    sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',color:'var(--warn)',
+      lines:[{label:'Позиций',value:SEBES_DATA.meta.total_items,bold:true},{label:'Ср. наценка',value:SEBES_DATA.meta.avg_markup+'%'},{label:'Без себест.',value:SEBES_DATA.meta.no_cost+' поз.'}],
+      badge:lowMargin>0?{text:lowMargin+' низкая наценка',color:'var(--red)'}:null});
+  } else sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',color:'var(--txt3)',empty:true});
+
+  const el=document.getElementById('overview-sections');
+  if(!el)return;
+  el.innerHTML=sections.map(function(s){
+    const baseStyle='background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;cursor:pointer;transition:all .2s';
+    if(s.empty) return '<div style="'+baseStyle+';opacity:.5;border-top:3px solid var(--bd)" data-tab="'+s.tab+'">'
+      +'<div style="font-size:24px;margin-bottom:8px">'+s.icon+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--txt2)">'+s.title+'</div>'
+      +'<div style="font-size:11px;color:var(--txt3);margin-top:6px">Нет данных</div></div>';
+    return '<div style="'+baseStyle+';border-top:3px solid '+s.color+'" data-tab="'+s.tab+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">'
+      +'<div style="font-size:20px">'+s.icon+'</div>'
+      +(s.badge?'<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:'+s.badge.color+'22;color:'+s.badge.color+';font-weight:700">'+s.badge.text+'</span>':'')
+      +'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:10px">'+s.title+'</div>'
+      +s.lines.map(function(l){
+        return '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--bd)">'
+          +'<span style="font-size:11px;color:var(--txt3)">'+l.label+'</span>'
+          +'<span style="font-size:'+(l.bold?'14px':'12px')+';font-weight:'+(l.bold?'800':'600')+';color:'+(l.bold?'var(--txt)':'var(--txt2)')+';'+monoSt+'">'+l.value+'</span>'
+          +'</div>';
+      }).join('')
+      +'</div>';
+  }).join('');
+
+  // Вешаем обработчики через JS (без inline onclick)
+  el.querySelectorAll('[data-tab]').forEach(function(card){
+    card.addEventListener('mouseover',function(){this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.15)';});
+    card.addEventListener('mouseout', function(){this.style.transform='';this.style.boxShadow='';});
+    card.addEventListener('click',    function(){switchTabById(this.getAttribute('data-tab'));});
+  });
+}
+
+function _renderOverviewCharts(){
+  const monoSt='font-family:JetBrains Mono,monospace';
+
+  // Списания по дням — из WO_RAW_DATA или writeoffs_index
+  const woDates = (window.WO_RAW_DATA&&WO_RAW_DATA.meta) ? WO_RAW_DATA.meta.all_dates : null;
+  const woEl = document.getElementById('overview-wo-chart');
+  const woSub = document.getElementById('overview-wo-sub');
+  if(woEl && woDates && woDates.length){
+    const maxT = Math.max(...woDates.map(d=>d.total));
+    if(woSub) woSub.textContent = woDates[0].d+' — '+woDates[woDates.length-1].d+' · '+woDates.length+' дней';
+    woEl.innerHTML = woDates.map(function(d){
+      const h = Math.max(6,Math.round(d.total/maxT*55));
+      const isWE=d.dow==='Сб'||d.dow==='Вс';
+      const clr = d.total===maxT?'var(--red)':isWE?'var(--warn)':'var(--acc)';
+      return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.total.toLocaleString('ru-RU')+' ₽">'
+        +'<div class="dow-val" style="font-size:8px">'+Math.round(d.total/1000)+'k</div>'
+        +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
+        +'<div class="dow-lbl">'+d.d+'</div>'
+        +'<div class="dow-dow">'+d.dow+'</div></div>';
+    }).join('');
+  } else if(woEl){
+    woEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
+  }
+
+  // Стопы по дням
+  const stDates = (STOPS_DATA&&STOPS_DATA.meta) ? STOPS_DATA.meta.all_dates : null;
+  const stEl  = document.getElementById('overview-stops-chart');
+  const stSub = document.getElementById('overview-stops-sub');
+  if(stEl && stDates && stDates.length){
+    const maxN = Math.max(...stDates.map(d=>d.n));
+    if(stSub) stSub.textContent = stDates[0].d+' — '+stDates[stDates.length-1].d+' · '+stDates.length+' дней';
+    stEl.innerHTML = stDates.map(function(d){
+      const h = Math.max(6,Math.round(d.n/maxN*55));
+      const isWE=d.dow==='Сб'||d.dow==='Вс';
+      const clr=d.n===maxN?'var(--red)':isWE?'var(--warn)':'var(--grn)';
+      return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.n+' стопов">'
+        +'<div class="dow-val" style="font-size:9px">'+d.n+'</div>'
+        +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
+        +'<div class="dow-lbl">'+d.d+'</div>'
+        +'<div class="dow-dow">'+d.dow+'</div></div>';
+    }).join('');
+  } else if(stEl){
+    stEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
+  }
+}
+
+function _renderOverviewTops(){
+  const monoSt='font-family:JetBrains Mono,monospace';
+
+  // Топ виновных
+  const gEl=document.getElementById('overview-guilty');
+  if(gEl && DEL_DATA && DEL_DATA.rows){
+    const agg={};
+    DEL_DATA.rows.forEach(function(r){
+      (r.guilty||[]).forEach(function(g){
+        if(!agg[g])agg[g]={count:0,cost:0};
+        agg[g].count++;agg[g].cost+=r.cost;
+      });
+    });
+    const top=Object.entries(agg).sort((a,b)=>b[1].count-a[1].count).slice(0,7);
+    if(top.length){
+      const maxC=top[0][1].count;
+      gEl.innerHTML=top.map(function(e,i){
+        const clr=i===0?'var(--red)':i<3?'var(--warn)':'var(--txt2)';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+          +'<span style="font-size:12px;flex:1;color:var(--txt);font-weight:600">'+e[0]+'</span>'
+          +'<div style="width:40px;background:var(--bd);border-radius:2px;height:3px;flex-shrink:0"><div style="height:3px;border-radius:2px;background:'+clr+';width:'+Math.round(e[1].count/maxC*100)+'%"></div></div>'
+          +'<span style="font-size:12px;font-weight:800;color:'+clr+';'+monoSt+';width:20px;text-align:right">'+e[1].count+'</span>'
+          +'</div>';
+      }).join('');
+    }
+  }
+
+  // Топ стопов по продуктам
+  const tsEl=document.getElementById('overview-top-stops');
+  if(tsEl && STOPS_DATA && STOPS_DATA.periods && STOPS_DATA.periods.length){
+    const lastP = expandPeriod(STOPS_DATA.periods[STOPS_DATA.periods.length-1]);
+    const top=(lastP.top_products||[]).slice(0,7);
+    const maxN=top.length?top[0].count:1;
+    tsEl.innerHTML=top.map(function(p,i){
+      const clr=i===0?'var(--red)':i<3?'var(--warn)':'var(--txt2)';
+      const nm=p.name.length>30?p.name.substring(0,29)+'…':p.name;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+        +'<span style="font-size:11px;flex:1;color:var(--txt)" title="'+p.name+'">'+nm+'</span>'
+        +'<div style="width:40px;background:var(--bd);border-radius:2px;height:3px;flex-shrink:0"><div style="height:3px;border-radius:2px;background:'+clr+';width:'+Math.round(p.count/maxN*100)+'%"></div></div>'
+        +'<span style="font-size:12px;font-weight:800;color:'+clr+';'+monoSt+';width:28px;text-align:right">'+p.count+'×</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  // Топ наценки
+  const tmEl=document.getElementById('overview-top-margin');
+  if(tmEl && SEBES_DATA && SEBES_DATA.top_margin){
+    const top=SEBES_DATA.top_margin.slice(0,7);
+    const maxM=top.length?top[0].markup:1;
+    tmEl.innerHTML=top.map(function(it,i){
+      const nm=it.name.length>28?it.name.substring(0,27)+'…':it.name;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+        +'<span style="font-size:11px;flex:1;color:var(--txt)" title="'+it.name+'">'+nm+'</span>'
+        +'<div style="width:40px;background:var(--bd);border-radius:2px;height:3px;flex-shrink:0"><div style="height:3px;border-radius:2px;background:var(--grn);width:'+Math.round(it.markup/maxM*100)+'%"></div></div>'
+        +'<span style="font-size:12px;font-weight:800;color:var(--grn);'+monoSt+';width:45px;text-align:right">'+it.markup+'%</span>'
+        +'</div>';
+    }).join('');
+  }
+}
+
+function _renderOverviewAlerts(){
+  const alerts=[];
+
+  // Склады с критичными списаниями
+  if(periods&&periods.length){
+    const p=periods[0];
+    const crit=p.warehouses.filter(w=>w.total>100000);
+    if(crit.length) alerts.push({
+      type:'danger',icon:'📊',
+      text:'Критичные списания: '+crit.map(w=>w.name+' ('+Math.round(w.total/1000)+'k ₽)').join(', ')
+    });
+  }
+
+  // Много стопов
+  if(STOPS_DATA&&STOPS_DATA.periods&&STOPS_DATA.periods.length){
+    const sp=expandPeriod(STOPS_DATA.periods[STOPS_DATA.periods.length-1]);
+    if(sp.active&&sp.active.length>20) alerts.push({
+      type:'warn',icon:'🚫',
+      text:'Активных стопов: '+sp.active.length+' — значительно выше нормы'
+    });
+  }
+
+  // Много довозов без виновного
+  if(DEL_DATA&&DEL_DATA.rows){
+    const noGuilt=DEL_DATA.rows.filter(r=>!r.guilty||!r.guilty.length).length;
+    const pct=Math.round(noGuilt/DEL_DATA.rows.length*100);
+    if(pct>60) alerts.push({
+      type:'warn',icon:'🚚',
+      text:'Довозов без виновного: '+noGuilt+' из '+DEL_DATA.rows.length+' ('+pct+'%)'
+    });
+  }
+
+  // Позиции с низкой наценкой
+  if(SEBES_DATA&&SEBES_DATA.all_items){
+    const low=SEBES_DATA.all_items.filter(i=>i.markup>0&&i.markup<50).length;
+    if(low>0) alerts.push({
+      type:'danger',icon:'💰',
+      text:'Позиций с наценкой < 50%: '+low+' шт — срочно проверить ценообразование'
+    });
+  }
+
+  const wrap=document.getElementById('overview-alerts-wrap');
+  const el=document.getElementById('overview-alerts');
+  if(!wrap||!el)return;
+  if(!alerts.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  el.innerHTML=alerts.map(function(a){
+    const clr=a.type==='danger'?'var(--red)':'var(--warn)';
+    const bg =a.type==='danger'?'rgba(255,69,96,.08)':'rgba(255,176,32,.08)';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:'+bg+';border:1px solid '+clr+'33;border-radius:10px">'
+      +'<span style="font-size:18px;flex-shrink:0">'+a.icon+'</span>'
+      +'<span style="font-size:13px;color:var(--txt)">'+a.text+'</span>'
+      +'</div>';
+  }).join('');
+}
+
+// Переключить вкладку по id (из сводки)
+function switchTabById(tab){
+  const btn=document.querySelector('.tab-nav-btn[onclick*="'+tab+'"]');
+  if(btn)btn.click();
+}
+
 
 // ── WRITEOFFS FILTERS ────────────────────────────────────────────────────────
 let WO_INDEX = null;
