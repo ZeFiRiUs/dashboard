@@ -350,6 +350,11 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <div class="wrap">
   <div class="status"><div class="sdot spin" id="sdot"></div><span id="stxt">Загрузка...</span></div>
   <div id="krow" class="kpis"></div>
+  <!-- Топ причин (показывается если есть данные) -->
+  <div id="wo-reasons-wrap" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">📋 Топ причин списания</div>
+    <div id="wo-reasons-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px"></div>
+  </div>
 
   <div class="frow">
     <select id="wo-date-from" onchange="applyWoDateFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
@@ -1091,11 +1096,21 @@ async function loadData(){
     const r=await fetch('/api/periods',{headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const srv=await r.json();
-    if(srv.length){
-      periods=srv;
+    // Новый формат: {meta, periods, raw, top_reasons}
+    if(srv && srv.meta && srv.periods){
+      periods = srv.periods;
+      WO_RAW_DATA = srv;
       initWoDateFilter();
       ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
-    } else {
+      renderWoReasons();
+    }
+    // Старый формат: массив периодов
+    else if(Array.isArray(srv) && srv.length){
+      periods = srv;
+      initWoDateFilter();
+      ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
+    }
+    else {
       ss('warn','Нет данных. Загрузите JSON через «Управление»');
     }
   } catch(e){
@@ -1127,8 +1142,36 @@ function renderKPIs(p){
     <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
 }
 
+
+// ── WRITEOFFS REASONS ─────────────────────────────────────────────────────────
+function renderWoReasons(){
+  const wrap = document.getElementById('wo-reasons-wrap');
+  const list = document.getElementById('wo-reasons-list');
+  if(!wrap || !list) return;
+  const reasons = WO_RAW_DATA?.top_reasons;
+  if(!reasons || !reasons.length){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  const maxCost = reasons[0].cost;
+  const COLORS = ['var(--red)','var(--warn)','var(--acc)','var(--grn)'];
+  list.innerHTML = reasons.map(function(r,i){
+    const clr = i<4 ? COLORS[i] : 'var(--txt3)';
+    const pct = Math.round(r.cost/maxCost*100);
+    return '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px 12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      +'<span style="font-size:11px;font-weight:600;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.name+'</span>'
+      +'<span style="font-size:12px;font-weight:800;color:'+clr+';font-family:JetBrains Mono,monospace;margin-left:8px;flex-shrink:0">'+r.cost.toLocaleString('ru-RU')+' ₽</span>'
+      +'</div>'
+      +'<div style="background:var(--bd);border-radius:2px;height:3px;margin-bottom:4px">'
+      +'<div style="height:3px;border-radius:2px;background:'+clr+';width:'+pct+'%"></div>'
+      +'</div>'
+      +'<div style="font-size:10px;color:var(--txt3)">'+r.count+' записей</div>'
+      +'</div>';
+  }).join('');
+}
+
 // ── WRITEOFFS FILTERS ────────────────────────────────────────────────────────
 let WO_INDEX = null;
+let WO_RAW_DATA = null; // полный объект {meta,periods,raw,top_reasons}
 
 // Загружаем индекс с сервера (опционально — для фильтра по датам)
 async function initWoDateFilter(){
