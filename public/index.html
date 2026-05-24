@@ -1265,18 +1265,45 @@ function applyWoWhFilter(){
 
 function buildPeriodFromRaw(rows,label){
   const byWh={};
-  rows.forEach(r=>{
-    if(!byWh[r.wh])byWh[r.wh]={name:r.wh,total:0,cats:{},items:{}};
-    byWh[r.wh].total+=r.cost;
+  rows.forEach(function(r){
+    if(!byWh[r.wh]) byWh[r.wh]={name:r.wh,total:0,cats:{},items:{}};
+    const w=byWh[r.wh];
+    w.total+=r.cost;
+    // Накапливаем позиции
+    const nm=r.nm||r.name||'';
+    if(nm){
+      if(!w.items[nm]) w.items[nm]={cost:0,qty:0,unit:r.unit||''};
+      w.items[nm].cost+=r.cost;
+      w.items[nm].qty +=r.qty||0;
+    }
+    // Накапливаем категории
+    const c=r.cat||categorizeItem(nm);
+    w.cats[c]=(w.cats[c]||0)+r.cost;
   });
   const grand=Object.values(byWh).reduce((s,w)=>s+w.total,0);
-  const warehouses=Object.values(byWh).sort((a,b)=>b.total-a.total).map(w=>{
-    const items=Object.entries(w.items||{}).sort((a,b)=>b[1].cost-a[1].cost).slice(0,10)
-      .map(function(e){return{name:e[0],cost:Math.round(e[1].cost),qty:e[1].qty||0,unit:e[1].unit||''};});
-    return{name:w.name,total:Math.round(w.total),pct:grand?Math.round(w.total/grand*1000)/10:0,
-           n_items:items.length,cats:w.cats,top3:items.slice(0,3),top10:items};
+  const warehouses=Object.values(byWh).sort((a,b)=>b.total-a.total).map(function(w){
+    const itemList=Object.entries(w.items).sort((a,b)=>b[1].cost-a[1].cost);
+    const top10=itemList.slice(0,10).map(function(e){
+      return{name:e[0],cost:Math.round(e[1].cost),qty:Math.round(e[1].qty*100)/100,unit:e[1].unit};
+    });
+    const cats={};
+    Object.entries(w.cats).forEach(function(e){cats[e[0]]=Math.round(e[1]);});
+    return{name:w.name,total:Math.round(w.total),
+           pct:grand?Math.round(w.total/grand*1000)/10:0,
+           n_items:itemList.length,cats:cats,top3:top10.slice(0,3),top10:top10};
   });
   return{period:label,grand_total:Math.round(grand),warehouses};
+}
+
+function categorizeItem(name){
+  const n=(name||'').toLowerCase();
+  if(/кофе|молоко|сливки|сок|чай|лимонад|сироп|матча|морс/.test(n)) return 'Напитки/Бар';
+  if(/курица|свинина|говяж|бедро|филе|колбас|котлет|бекон|мясо|сосиск/.test(n)) return 'Мясо/Птица';
+  if(/огурц|помидор|апельсин|лимон|лайм|капуст|салат|укроп|мята|банан|манго|айсберг|пюре|морковь/.test(n)) return 'Овощи/Фрукты';
+  if(/булочка|лаваш|тортилья|бриошь|хлеб/.test(n)) return 'Выпечка/Хлеб';
+  if(/соус|майонез|кетчуп/.test(n)) return 'Соусы';
+  if(/стакан|крышка|пакет|салфетк|пергамент/.test(n)) return 'Упаковка';
+  return 'Прочее';
 }
 
 function mergeWoDays(dateList){
