@@ -1072,6 +1072,10 @@ function switchTab(tab,btn){
     if(!DEL_DATA){ loadDeliveriesFromServer().then(ok=>{ if(!ok) renderDeliveries(); }); }
     else renderDeliveries();
   }
+  if(tab==='production'){
+    if(!PROD_DATA){ loadProductionFromServer().then(ok=>{ if(!ok) renderProduction(); }); }
+    else renderProduction();
+  }
 }
 
 // STATUS
