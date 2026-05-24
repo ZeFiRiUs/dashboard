@@ -349,10 +349,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <div class="wrap">
   <div class="status"><div class="sdot spin" id="sdot"></div><span id="stxt">Загрузка...</span></div>
   <div id="krow" class="kpis"></div>
-  <div id="ptabs-wrap" style="display:none">
-    <div style="font-size:11px;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Периоды</div>
-    <div class="ptabs" id="ptabs"></div>
-  </div>
+
   <div class="frow">
     <select id="wo-date-from" onchange="applyWoDateFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
     <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
@@ -393,11 +390,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 
   <!-- Periods tabs (hidden until data loaded) -->
   <div id="stops-data-wrap" style="display:none">
-    <!-- Periods -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:11px;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Периоды</div>
-      <div class="ptabs" id="stops-ptabs"></div>
-    </div>
+
     <!-- Filters row — как в довозах -->
     <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
       <select id="stops-date-from" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
@@ -900,13 +893,6 @@ function renderKPIs(p){
     <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
 }
 
-function renderPTabs(){
-  const w=document.getElementById('ptabs-wrap');
-  if(periods.length<2){w.style.display='none';return;}
-  w.style.display='block';
-  document.getElementById('ptabs').innerHTML=periods.map((p,i)=>`<button class="ptab ${i===cur?'act':''}" onclick="cur=${i};render()">${p.period}</button>`).join('');
-}
-
 // ── WRITEOFFS FILTERS (date + warehouse) ─────────────────────────────────────
 let WO_INDEX=null, WO_DAY_SEL='', WO_WH_SEL='';
 
@@ -1194,7 +1180,6 @@ function renderStops(){
     if(ptF) ptF.innerHTML='<option value="">Все точки</option>'+
       STOPS_DATA.meta.all_pts.map(p=>`<option value="${p}">${p}</option>`).join('');
   }
-  renderStopsPTabs();
   renderStopsContent();
 }
 function applyStopsFilter(){
@@ -1290,15 +1275,7 @@ function resetStopsFilter(){
   });
   renderStopsContent();
 }
-function renderStopsPTabs(){
-  document.getElementById('stops-ptabs').innerHTML=STOPS_PERIODS.map((p,i)=>{
-    const prev=STOPS_PERIODS[i-1];
-    const dt=prev?Math.round((p.total_stops-prev.total_stops)/prev.total_stops*100):null;
-    const de=dt!==null?`<span style="font-size:10px;color:${dt>0?'var(--red)':'var(--grn)'};margin-left:4px">${dt>0?'↑':'↓'}${Math.abs(dt)}%</span>`:'';
-    return `<button class="ptab ${i===stopsIdx?'act':''}" onclick="switchStopsPeriod(${i})">${p.period}${de}</button>`;
-  }).join('');
-}
-function switchStopsPeriod(i){stopsIdx=i;renderStopsPTabs();renderStopsContent();}
+
 function renderStopsData(s){
   // Рендер стопов из произвольного объекта (день или отфильтрованный период)
   const lbl = document.getElementById('stops-period-label');
@@ -1512,7 +1489,6 @@ function loadStopsDay(isoDate){
   if(idx>=0) STOPS_PERIODS[idx]=dayData;
   else STOPS_PERIODS.unshift(dayData);
   stopsIdx=0;
-  renderStopsPTabs();
   renderStopsContent();
 }
 
