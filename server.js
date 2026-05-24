@@ -38,6 +38,7 @@ async function initFromGitHub() {
     { path: DATA_PATH,       local: LOCAL_DATA_FILE,  def: '[]' },
     { path: 'data/stops_full.json', local: path.join(LOCAL_DATA_DIR,'stops_full.json'), def: 'null' },
     { path: 'data/deliveries.json', local: path.join(LOCAL_DATA_DIR,'deliveries.json'), def: 'null' },
+    { path: 'data/production.json', local: path.join(LOCAL_DATA_DIR,'production.json'), def: 'null' },
   ];
   for (const f of files) {
     try {
