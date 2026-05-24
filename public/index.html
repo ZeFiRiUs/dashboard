@@ -706,11 +706,11 @@ function applyDelFilter(){
   const withGuilty=rows.filter(r=>r.guilty&&r.guilty.length>0).length;
   const kEl=document.getElementById('del-kpis');
   if(kEl)kEl.innerHTML=`
-    <div class="kpi r"><div class="kl">Всего довозов</div><div class="kv">${rows.length}</div><div class="ks">${dayVal?'за день':'за период'}</div></div>
+    <div class="kpi r"><div class="kl">Всего довозов</div><div class="kv">${rows.length}</div><div class="ks">${(dateFrom||dateTo)?'за период':'всего'}</div></div>
     <div class="kpi w"><div class="kl">Сумма штрафов</div><div class="kv">${totalCost.toLocaleString('ru-RU')} ₽</div><div class="ks">с виновного</div></div>
     <div class="kpi r"><div class="kl">С виновным</div><div class="kv">${withGuilty}</div><div class="ks">из ${rows.length}</div></div>
     <div class="kpi"><div class="kl">Без виновного</div><div class="kv">${rows.length-withGuilty}</div><div class="ks">склад/цех</div></div>`;
-  const dateData=DEL_DATA.meta.all_dates.filter(d=>!dayVal||d.iso===dayVal);
+  const dateData=DEL_DATA.meta.all_dates.filter(d=>(!dateFrom||d.iso>=dateFrom)&&(!dateTo||d.iso<=dateTo));
   const maxN=dateData.length?Math.max(...dateData.map(d=>d.n)):1;
   const dEl=document.getElementById('del-by-date');
   if(dEl)dEl.innerHTML=dateData.map(d=>{
