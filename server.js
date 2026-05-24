@@ -299,6 +299,89 @@ app.post('/api/deliveries', upload.single('file'), async (req, res) => {
   } catch(e) { res.status(400).json({ error: e.message }); }
 });
 
+// ── Writeoffs index (by day + by warehouse) ──────────────────────────────────
+const WO_INDEX_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_index.json');
+
+app.get('/api/writeoffs/index', async (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    if (fs.existsSync(WO_INDEX_FILE)) {
+      const data = JSON.parse(fs.readFileSync(WO_INDEX_FILE, 'utf8'));
+      return res.json(data);
+    }
+    res.json(null);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Rebuild index after new writeoffs_raw upload
+function rebuildWriteoffsIndex() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(LOCAL_DATA_DIR,'writeoffs_raw.json'),'utf8'));
+    const rows = raw.rows || [];
+    const DOW = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+    const cat = n => {
+      n = n.toLowerCase();
+      if(/кофе|молоко|сок|чай|сироп/.test(n)) return 'Напитки/Бар';
+      if(/курица|свинина|говяж|бедро|филе|колбас|котлет|мясо/.test(n)) return 'Мясо/Птица';
+      if(/огурц|помидор|лимон|лайм|капуст|салат|банан|манго|пюре|морковь/.test(n)) return 'Овощи/Фрукты';
+      if(/булочка|лаваш|тортилья|бриошь|хлеб/.test(n)) return 'Выпечка/Хлеб';
+      if(/соус|майонез/.test(n)) return 'Соусы';
+      if(/пакет|салфетк|пергамент|бумажн/.test(n)) return 'Упаковка';
+      return 'Прочее';
+    };
+    const buildPeriod = (frows, label) => {
+      const byWh = {};
+      frows.forEach(r => {
+        if (!byWh[r.wh]) byWh[r.wh] = {total:0,items:{},cats:{}};
+        byWh[r.wh].total += r.cost;
+        const c = cat(r.nm);
+        byWh[r.wh].cats[c] = (byWh[r.wh].cats[c]||0)+r.cost;
+        if (!byWh[r.wh].items[r.nm]) byWh[r.wh].items[r.nm]={cost:0,qty:0,unit:r.unit};
+        byWh[r.wh].items[r.nm].cost += r.cost;
+        byWh[r.wh].items[r.nm].qty  += r.qty;
+      });
+      const grand = Object.values(byWh).reduce((s,v)=>s+v.total,0);
+      const warehouses = Object.entries(byWh)
+        .sort((a,b)=>b[1].total-a[1].total)
+        .map(([name,v])=>{
+          const items = Object.entries(v.items).sort((a,b)=>b[1].cost-a[1].cost);
+          const top10 = items.slice(0,10).map(([nm,i])=>({name:nm,cost:Math.round(i.cost),qty:Math.round(i.qty*100)/100,unit:i.unit}));
+          return {name,total:Math.round(v.total),
+            pct:grand?Math.round(v.total/grand*1000)/10:0,
+            n_items:items.length,
+            cats:Object.fromEntries(Object.entries(v.cats).map(([k,vv])=>[k,Math.round(vv)])),
+            top3:top10.slice(0,3),top10};
+        });
+      return {period:label,grand_total:Math.round(grand),warehouses};
+    };
+    const dates = [...new Set(rows.map(r=>r.d))].sort();
+    const whs   = [...new Set(rows.map(r=>r.wh))].sort();
+    const dateTotal = {}, whTotal = {};
+    rows.forEach(r=>{ dateTotal[r.d]=(dateTotal[r.d]||0)+r.cost; whTotal[r.wh]=(whTotal[r.wh]||0)+r.cost; });
+    const byDay = {}, byWh = {};
+    dates.forEach(d=>{
+      const dt = new Date(d.split('.').reverse().join('-'));
+      const dow = DOW[dt.getDay()];
+      const short = d.substring(0,5);
+      byDay[d] = buildPeriod(rows.filter(r=>r.d===d), `${short} (${dow})`);
+    });
+    whs.forEach(wh=>{
+      byWh[wh] = buildPeriod(rows.filter(r=>r.wh===wh), wh);
+    });
+    const index = {
+      meta:{
+        dates: dates.map(d=>({d,short:d.substring(0,5),dow:DOW[new Date(d.split('.').reverse().join('-')).getDay()],total:Math.round(dateTotal[d])})),
+        warehouses: whs.sort((a,b)=>(whTotal[b]||0)-(whTotal[a]||0)).map(w=>({name:w,total:Math.round(whTotal[w]||0)}))
+      },
+      by_day: byDay,
+      by_wh: byWh
+    };
+    fs.writeFileSync(WO_INDEX_FILE, JSON.stringify(index));
+    console.log('Writeoffs index rebuilt:', dates.length, 'days,', whs.length, 'warehouses');
+  } catch(e) { console.error('Index rebuild error:', e.message); }
+}
+
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -341,6 +424,7 @@ function aggregateStops(rows, period) {
 app.listen(PORT, async () => {
   console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
   await initFromGitHub();
+  rebuildWriteoffsIndex();
 });
 
 // ── WRITEOFFS RAW ─────────────────────────────────────────────────────────────
