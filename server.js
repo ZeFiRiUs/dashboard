@@ -39,6 +39,7 @@ async function initFromGitHub() {
     { path: 'data/stops_full.json', local: path.join(LOCAL_DATA_DIR,'stops_full.json'), def: 'null' },
     { path: 'data/deliveries.json', local: path.join(LOCAL_DATA_DIR,'deliveries.json'), def: 'null' },
     { path: 'data/production.json', local: path.join(LOCAL_DATA_DIR,'production.json'), def: 'null' },
+    { path: 'data/sebes.json', local: path.join(LOCAL_DATA_DIR,'sebes.json'), def: 'null' },
   ];
   for (const f of files) {
     try {
@@ -425,6 +426,51 @@ app.post('/api/production', upload.single('file'), async (req, res) => {
     const { sha } = await readProduction();
     const dest = await writeProduction(data, sha);
     res.json({ ok: true, rows: data.rows.length, saved_to: dest });
+  } catch(e) { res.status(400).json({ error: e.message }); }
+});
+
+// ── Sebes (Себестоимость) ────────────────────────────────────────────────────
+const SEBES_FILE_PATH  = 'data/sebes.json';
+const LOCAL_SEBES_FILE = path.join(LOCAL_DATA_DIR, 'sebes.json');
+if (!fs.existsSync(LOCAL_SEBES_FILE)) fs.writeFileSync(LOCAL_SEBES_FILE, 'null');
+
+async function readSebes() {
+  if (GH_TOKEN && GH_OWNER) {
+    try {
+      const r = await ghRead(SEBES_FILE_PATH);
+      if (r) { fs.writeFileSync(LOCAL_SEBES_FILE, JSON.stringify(r.content)); return { data: r.content, sha: r.sha }; }
+    } catch(e) { console.error('Sebes GitHub read:', e.message); }
+  }
+  try { return { data: JSON.parse(fs.readFileSync(LOCAL_SEBES_FILE, 'utf8')), sha: null }; }
+  catch { return { data: null, sha: null }; }
+}
+
+async function writeSebes(data, sha) {
+  fs.writeFileSync(LOCAL_SEBES_FILE, JSON.stringify(data));
+  if (GH_TOKEN && GH_OWNER) {
+    try {
+      let s = sha; if (!s) { const r = await ghRead(SEBES_FILE_PATH); s = r?.sha; }
+      await ghWrite(SEBES_FILE_PATH, data, s, 'Update sebes');
+      return 'github';
+    } catch(e) { console.error('Sebes GitHub write:', e.message); }
+  }
+  return 'local';
+}
+
+app.get('/api/sebes', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const { data } = await readSebes();
+  res.json(data);
+});
+
+app.post('/api/sebes', upload.single('file'), async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
+    if (!data.meta || !data.all_items) return res.status(400).json({ error: 'Неверный формат' });
+    const { sha } = await readSebes();
+    const dest = await writeSebes(data, sha);
+    res.json({ ok: true, items: data.all_items.length, saved_to: dest });
   } catch(e) { res.status(400).json({ error: e.message }); }
 });
 
