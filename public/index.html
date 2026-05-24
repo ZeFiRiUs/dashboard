@@ -893,124 +893,185 @@ function renderKPIs(p){
     <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
 }
 
-// ── WRITEOFFS FILTERS (date + warehouse) ─────────────────────────────────────
-let WO_INDEX=null, WO_DAY_SEL='', WO_WH_SEL='';
+// ── WRITEOFFS FILTERS ────────────────────────────────────────────────────────
+let WO_INDEX = null;
 
+// Загружаем индекс с сервера (опционально — для фильтра по датам)
 async function initWoDateFilter(){
-  if(!document.getElementById('wo-date-from')) return;
-  try{
-    const r=await fetch('/api/writeoffs/index',{headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) throw new Error('no index');
-    WO_INDEX=await r.json();
-    if(!WO_INDEX) throw new Error('null');
+  try {
+    const r = await fetch('/api/writeoffs/index', {headers:{'X-View-Password':sessionPassword}});
+    if (!r.ok) throw new Error('no index');
+    WO_INDEX = await r.json();
+    if (!WO_INDEX) throw new Error('null');
+    _fillWoSelects();
+  } catch(e) {
+    // Индекс недоступен — заполним из загруженных periods
+    _fillWoSelectsFromPeriods();
+  }
+}
 
-    const dateOpts=WO_INDEX.meta.dates.map(d=>
-      `<option value="${d.d}">${d.short} (${d.dow}) — ${Math.round(d.total/1000)}k ₽</option>`
+function _fillWoSelects(){
+  const dateOpts = WO_INDEX.meta.dates.map(d=>
+    `<option value="${d.d}">${d.short} (${d.dow}) — ${Math.round(d.total/1000)}k ₽</option>`
+  ).join('');
+  const fF=document.getElementById('wo-date-from');
+  const tF=document.getElementById('wo-date-to');
+  if(fF) fF.innerHTML='<option value="">С даты...</option>'+dateOpts;
+  if(tF) tF.innerHTML='<option value="">По дату...</option>'+dateOpts;
+
+  const wSel=document.getElementById('wo-wh-filter');
+  if(wSel) wSel.innerHTML='<option value="">Все склады</option>'+
+    WO_INDEX.meta.warehouses.map(w=>
+      `<option value="${w.name}">${w.name} — ${Math.round(w.total/1000)}k ₽</option>`
     ).join('');
-    const fF=document.getElementById('wo-date-from');
-    const tF=document.getElementById('wo-date-to');
-    if(fF) fF.innerHTML='<option value="">С даты...</option>'+dateOpts;
-    if(tF) tF.innerHTML='<option value="">По дату...</option>'+dateOpts;
+}
 
-    const wSel=document.getElementById('wo-wh-filter');
-    if(wSel) wSel.innerHTML='<option value="">Все склады</option>'+
-      WO_INDEX.meta.warehouses.map(w=>
-        `<option value="${w.name}">${w.name} — ${Math.round(w.total/1000)}k ₽</option>`
-      ).join('');
-  }catch(e){console.log('WO index:',e.message);}
+function _fillWoSelectsFromPeriods(){
+  // Собираем список складов из загруженных периодов
+  const whSet = new Set();
+  periods.forEach(p => (p.warehouses||[]).forEach(w => whSet.add(w.name)));
+  const wSel = document.getElementById('wo-wh-filter');
+  if(wSel && whSet.size) {
+    wSel.innerHTML = '<option value="">Все склады</option>'+
+      [...whSet].sort().map(w=>`<option value="${w}">${w}</option>`).join('');
+  }
+  // Даты — если индекса нет, оставляем пустыми (нет данных по дням)
 }
 
 function applyWoDateFilter(){
-  const fromVal=document.getElementById('wo-date-from')?.value||'';
-  const toVal  =document.getElementById('wo-date-to')?.value||'';
-  WO_WH_SEL='';
-  const ws=document.getElementById('wo-wh-filter'); if(ws)ws.value='';
+  const fromVal = document.getElementById('wo-date-from')?.value||'';
+  const toVal   = document.getElementById('wo-date-to')?.value||'';
 
-  if(!fromVal && !toVal){ _applyWoFilters(); return; }
+  // Сброс фильтра склада при выборе даты
+  const ws = document.getElementById('wo-wh-filter'); if(ws) ws.value='';
+  const rb = document.getElementById('wo-reset-btn');
 
-  // Если есть индекс — агрегируем диапазон
+  if(!fromVal && !toVal){
+    // Сброс — убрать временный период
+    if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
+    if(rb) rb.style.display='none';
+    render(); return;
+  }
+
+  if(rb) rb.style.display='';
+
+  // Есть индекс — агрегируем из сырых данных
   if(WO_INDEX){
-    const matchDates=WO_INDEX.meta.dates.filter(d=>
-      (!fromVal||d.d>=fromVal)&&(!toVal||d.d<=toVal)
+    const matchDates = WO_INDEX.meta.dates.filter(d=>
+      (!fromVal || d.d >= fromVal) && (!toVal || d.d <= toVal)
     );
     if(!matchDates.length){ ss('warn','Нет данных за выбранный период'); return; }
 
-    if(matchDates.length===1){
-      // Один день
-      const data=WO_INDEX.by_day[matchDates[0].d];
-      if(data){ pushTmpPeriod(data); ss('ok',matchDates[0].short+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽'); render(); return; }
+    if(matchDates.length === 1){
+      const data = WO_INDEX.by_day[matchDates[0].d];
+      if(data){
+        pushTmpPeriod(data);
+        ss('ok', matchDates[0].short+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
+        render(); return;
+      }
     }
 
-    // Диапазон — объединяем склады из нескольких дней
     const merged = mergeWoDays(matchDates.map(d=>d.d));
     if(merged){
-      const fromS=matchDates[0].short, toS=matchDates[matchDates.length-1].short;
-      merged.period=fromS+' — '+toS;
+      merged.period = matchDates[0].short+' — '+matchDates[matchDates.length-1].short;
       pushTmpPeriod(merged);
-      ss('ok',merged.period+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
+      ss('ok', merged.period+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
       render(); return;
     }
+  } else {
+    ss('warn','Фильтр по датам требует данных на сервере. Загрузите writeoffs_raw через сервер.');
   }
-  _applyWoFilters();
 }
 
 function mergeWoDays(dateList){
-  // Объединяем данные нескольких дней списаний
   if(!WO_INDEX) return null;
-  const byWh={};
+  const byWh = {};
   dateList.forEach(d=>{
-    const day=WO_INDEX.by_day[d]; if(!day) return;
+    const day = WO_INDEX.by_day[d]; if(!day) return;
     day.warehouses.forEach(wh=>{
-      if(!byWh[wh.name]) byWh[wh.name]={name:wh.name,total:0,n_items:wh.n_items,cats:wh.cats,top3:wh.top3,top10:wh.top10};
-      byWh[wh.name].total+=wh.total;
+      if(!byWh[wh.name]) byWh[wh.name] = {name:wh.name,total:0,n_items:wh.n_items,cats:wh.cats,top3:wh.top3,top10:wh.top10};
+      byWh[wh.name].total += wh.total;
     });
   });
-  const warehouses=Object.values(byWh).sort((a,b)=>b.total-a.total);
-  const grand=warehouses.reduce((s,w)=>s+w.total,0);
-  warehouses.forEach(w=>w.pct=grand?Math.round(w.total/grand*1000)/10:0);
+  const warehouses = Object.values(byWh).sort((a,b)=>b.total-a.total);
+  const grand = warehouses.reduce((s,w)=>s+w.total,0);
+  warehouses.forEach(w=>{ w.pct=grand?Math.round(w.total/grand*1000)/10:0; });
   return {period:'', grand_total:Math.round(grand), warehouses};
 }
 
 function applyWoWhFilter(){
-  WO_WH_SEL=document.getElementById('wo-wh-filter')?.value||'';
-  WO_DAY_SEL='';
+  const whVal = document.getElementById('wo-wh-filter')?.value||'';
+  const rb = document.getElementById('wo-reset-btn');
+
+  // Сброс фильтра дат
   const df=document.getElementById('wo-date-from'); if(df)df.value='';
-  const dt=document.getElementById('wo-date-to'); if(dt)dt.value='';
-  _applyWoFilters();
+  const dt=document.getElementById('wo-date-to');   if(dt)dt.value='';
+
+  if(!whVal){
+    if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
+    if(rb) rb.style.display='none';
+    render(); return;
+  }
+
+  if(rb) rb.style.display='';
+
+  // Индекс есть — данные по складу
+  if(WO_INDEX && WO_INDEX.by_wh[whVal]){
+    pushTmpPeriod(WO_INDEX.by_wh[whVal]);
+    ss('ok', whVal+' · '+WO_INDEX.by_wh[whVal].grand_total.toLocaleString('ru-RU')+' ₽');
+    render(); return;
+  }
+
+  // Индекса нет — фильтруем из загруженных periods
+  const merged = mergeWhFromPeriods(whVal);
+  if(merged){
+    pushTmpPeriod(merged);
+    ss('ok', whVal+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
+    render();
+  }
+}
+
+function mergeWhFromPeriods(whName){
+  // Агрегируем один склад по всем загруженным периодам
+  const allItems = {}, allCats = {};
+  let total = 0;
+  periods.filter(p=>!p._tmp).forEach(p=>{
+    const wh = (p.warehouses||[]).find(w=>w.name===whName);
+    if(!wh) return;
+    total += wh.total;
+    (wh.top10||[]).forEach(it=>{
+      if(!allItems[it.name]) allItems[it.name]={name:it.name,cost:0,qty:it.qty,unit:it.unit};
+      allItems[it.name].cost += it.cost;
+    });
+    Object.entries(wh.cats||{}).forEach(([k,v])=>{ allCats[k]=(allCats[k]||0)+v; });
+  });
+  if(!total) return null;
+  const top10 = Object.values(allItems).sort((a,b)=>b.cost-a.cost).slice(0,10);
+  return {
+    period: whName,
+    grand_total: Math.round(total),
+    warehouses: [{
+      name: whName, total: Math.round(total), pct: 100,
+      n_items: top10.length, cats: allCats,
+      top3: top10.slice(0,3), top10
+    }]
+  };
+}
+
+function pushTmpPeriod(data){
+  if(periods[0]?._tmp) periods.shift();
+  periods.unshift({...data, _tmp:true});
+  cur = 0;
 }
 
 function resetWoFilters(){
-  WO_DAY_SEL=''; WO_WH_SEL='';
-  const df=document.getElementById('wo-date-from'); if(df)df.value='';
-  const dt=document.getElementById('wo-date-to'); if(dt)dt.value='';
-  const ws=document.getElementById('wo-wh-filter');   if(ws)ws.value='';
-  const rb=document.getElementById('wo-reset-btn');   if(rb)rb.style.display='none';
-  if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
+  ['wo-date-from','wo-date-to','wo-wh-filter'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.value='';
+  });
+  const rb=document.getElementById('wo-reset-btn'); if(rb)rb.style.display='none';
+  if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
   render();
   ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
-}
-
-function _applyWoFilters(){
-  const rb=document.getElementById('wo-reset-btn');
-  if(!WO_DAY_SEL&&!WO_WH_SEL){
-    if(rb)rb.style.display='none';
-    if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
-    render();return;
-  }
-  if(rb)rb.style.display='';
-  if(!WO_INDEX){ss('warn','Индекс не загружен — перезагрузите страницу');return;}
-  let data=null;
-  if(WO_DAY_SEL&&WO_INDEX.by_day[WO_DAY_SEL]){
-    data=WO_INDEX.by_day[WO_DAY_SEL];
-    ss('ok',WO_DAY_SEL.substring(0,5)+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
-  } else if(WO_WH_SEL&&WO_INDEX.by_wh[WO_WH_SEL]){
-    data=WO_INDEX.by_wh[WO_WH_SEL];
-    ss('ok',WO_WH_SEL+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
-  }
-  if(!data){ss('warn','Нет данных');return;}
-  if(periods[0]?._tmp)periods.shift();
-  periods.unshift({...data,_tmp:true});
-  cur=0; render();
 }
 
 
@@ -1187,15 +1248,20 @@ function applyStopsFilter(){
   const toVal   = document.getElementById('stops-date-to')?.value||'';
   const ptVal   = document.getElementById('stops-point-filter')?.value||'';
 
+  // Нет фильтров
+  if(!fromVal && !toVal && !ptVal){
+    renderStopsContent(); return;
+  }
+
+  // Фильтр по дате — нужен STOPS_DATA
   if((fromVal || toVal) && STOPS_DATA){
-    // Собираем дни которые попадают в диапазон
     const matchDays = STOPS_DATA.meta.all_dates.filter(d=>
       (!fromVal || d.iso >= fromVal) && (!toVal || d.iso <= toVal)
     );
-    if(!matchDays.length){ renderStopsContent(); return; }
-
+    if(!matchDays.length){
+      renderStopsContent(); return;
+    }
     if(matchDays.length === 1){
-      // Один день — берём из STOPS_DATA.days
       let data = expandPeriod(STOPS_DATA.days[matchDays[0].iso]);
       if(ptVal){
         data = {...data,
@@ -1207,27 +1273,45 @@ function applyStopsFilter(){
       if(lbl) lbl.innerHTML=' · <b style="color:var(--txt)">'+data.period+'</b>';
       renderStopsData(data); return;
     }
-
     // Несколько дней — объединяем
     const merged = mergeStosDays(matchDays.map(d=>d.iso), ptVal);
+    const fromShort=matchDays[0].d, toShort=matchDays[matchDays.length-1].d;
+    merged.period = fromShort+' — '+toShort;
     const lbl=document.getElementById('stops-period-label');
-    const fromShort = matchDays[0].d, toShort = matchDays[matchDays.length-1].d;
-    if(lbl) lbl.innerHTML=` · <b style="color:var(--txt)">${fromShort} — ${toShort}</b>`;
+    if(lbl) lbl.innerHTML=` · <b style="color:var(--txt)">${merged.period}</b>`;
     renderStopsData(merged); return;
   }
 
+  if((fromVal || toVal) && !STOPS_DATA){
+    ss('warn','Загрузите JSON стоп-листов для фильтра по датам');
+    return;
+  }
+
+  // Только точка
   if(ptVal){
-    const s=STOPS_PERIODS[stopsIdx];
-    const data={...s,
-      by_point: s.by_point.filter(p=>p.name===ptVal),
-      active:   s.active.filter(a=>a.point===ptVal)
-    };
-    renderStopsData(data); return;
+    if(STOPS_DATA){
+      // Из всех данных по точке
+      const allDays = Object.values(STOPS_DATA.days);
+      const merged = mergeStosDays(
+        STOPS_DATA.meta.all_dates.map(d=>d.iso), ptVal
+      );
+      merged.period = ptVal;
+      const lbl=document.getElementById('stops-period-label');
+      if(lbl) lbl.innerHTML=` · <b style="color:var(--txt)">${ptVal}</b>`;
+      renderStopsData(merged);
+    } else {
+      const s = STOPS_PERIODS[stopsIdx];
+      const data = {...s,
+        by_point: s.by_point.filter(p=>p.name===ptVal),
+        active:   s.active.filter(a=>a.point===ptVal)
+      };
+      renderStopsData(data);
+    }
+    return;
   }
 
   renderStopsContent();
 }
-
 function mergeStosDays(isoList, ptFilter){
   // Объединяем данные нескольких дней из STOPS_DATA
   const allByPt = {}, allActive = [], allByDate = [], allTop = {};
