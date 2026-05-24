@@ -264,6 +264,9 @@ html.light .login-inp{background:#F5F7FB;border-color:#C8CEDF;color:#0F1523}
 html.light .login-hint{color:#6B7494}
 html.light #active-point-filter{background:#FFFFFF;border-color:#C8CEDF;color:#0F1523}
 
+.sebes-row-hover{transition:background .15s;cursor:default}
+.sebes-row-hover:hover{background:var(--card2)}
+.stops-tbl tr.sebes-row-hover:hover td{background:transparent}
 footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-top:1px solid var(--bd);margin-top:24px}
 @media(max-width:640px){
   .hbtns .btn span{display:none}
@@ -594,7 +597,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <!-- KPIs -->
     <div id="sebes-kpis" class="kpis" style="margin-bottom:20px"></div>
 
-    <!-- Filters -->
+    <!-- Фильтры -->
     <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
       <select id="sebes-cat-filter" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:200px"><option value="">Все категории</option></select>
       <select id="sebes-sort" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:170px">
@@ -604,38 +607,47 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         <option value="price_asc">Цена ↑</option>
         <option value="cost_desc">Себестоимость ↓</option>
       </select>
-      <div class="sw" style="max-width:280px">
+      <!-- Фильтр диапазона наценки -->
+      <select id="sebes-margin-filter" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
+        <option value="">Любая наценка</option>
+        <option value="low">⚠️ Низкая (&lt;100%)</option>
+        <option value="mid">🟡 Средняя (100–300%)</option>
+        <option value="high">🟢 Высокая (&gt;300%)</option>
+        <option value="none">❌ Нет себестоимости</option>
+      </select>
+      <div class="sw" style="max-width:260px">
         <span class="sic">🔍</span>
         <input class="si" id="sebes-search" type="text" placeholder="Поиск по позиции..." oninput="applySebesFilter()">
       </div>
       <button class="fbtn" onclick="resetSebesFilter()">✕ Сбросить</button>
     </div>
 
-    <!-- Топы -->
+    <!-- Топы: две карточки -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="sebes-tops-row">
       <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🏆 Топ наценки</div>
-        <div id="sebes-top-margin" style="display:flex;flex-direction:column;gap:5px"></div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">🏆 Топ наценки</div>
+        <div id="sebes-top-margin"></div>
       </div>
       <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">⚠️ Низкая наценка</div>
-        <div id="sebes-low-margin" style="display:flex;flex-direction:column;gap:5px"></div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">⚠️ Низкая наценка</div>
+        <div id="sebes-low-margin"></div>
       </div>
     </div>
 
-    <!-- Таблица -->
+    <!-- Таблица позиций -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
       <div style="font-size:14px;font-weight:700;color:var(--txt)">
         Все позиции <span id="sebes-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
       </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
-      <table class="stops-tbl">
+      <table class="stops-tbl" id="sebes-table">
         <thead><tr>
-          <th>Категория</th><th>Позиция</th>
-          <th style="text-align:right">Цена</th>
-          <th style="text-align:right">Себест.</th>
-          <th style="text-align:right">Наценка %</th>
+          <th>Категория</th>
+          <th>Позиция</th>
+          <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('price')">Цена <span id="sebes-price-icon"></span></th>
+          <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('cost')">Себест. <span id="sebes-cost-icon"></span></th>
+          <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('markup')">Наценка % <span id="sebes-markup-icon">↓</span></th>
         </tr></thead>
         <tbody id="sebes-tbody"></tbody>
       </table>
@@ -1105,6 +1117,7 @@ function selectProdProduct(el){
 }
 // ══ SEBES (Себестоимость) ══════════════════════════════════════════════════
 let SEBES_DATA = null;
+let SEBES_SORT_COL = 'markup', SEBES_SORT_DESC = true;
 
 async function loadSebesFromServer(){
   const sdot=document.getElementById('sebes-sdot');
@@ -1149,6 +1162,20 @@ async function uploadSebesJson(e){
   reader.readAsText(file);e.target.value='';
 }
 
+function sebesSortBy(col){
+  if(SEBES_SORT_COL===col){ SEBES_SORT_DESC=!SEBES_SORT_DESC; }
+  else { SEBES_SORT_COL=col; SEBES_SORT_DESC=true; }
+  // Обновить иконки
+  ['price','cost','markup'].forEach(function(c){
+    const el=document.getElementById('sebes-'+c+'-icon');
+    if(el)el.textContent=(c===SEBES_SORT_COL)?(SEBES_SORT_DESC?'↓':'↑'):'';
+  });
+  // Синхронизировать select сортировки
+  const srt=document.getElementById('sebes-sort');
+  if(srt)srt.value=SEBES_SORT_COL+'_'+(SEBES_SORT_DESC?'desc':'asc');
+  applySebesFilter();
+}
+
 function renderSebes(){
   const empty=document.getElementById('sebes-empty');
   const wrap=document.getElementById('sebes-data-wrap');
@@ -1157,7 +1184,7 @@ function renderSebes(){
 
   // Заполнить фильтр категорий
   const catF=document.getElementById('sebes-cat-filter');
-  if(catF) catF.innerHTML='<option value="">Все категории</option>'+
+  if(catF)catF.innerHTML='<option value="">Все категории</option>'+
     SEBES_DATA.meta.all_cats.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
 
   // KPIs
@@ -1174,12 +1201,18 @@ function renderSebes(){
   const maxM=SEBES_DATA.top_margin[0]?SEBES_DATA.top_margin[0].markup:1;
   const tmEl=document.getElementById('sebes-top-margin');
   if(tmEl)tmEl.innerHTML=SEBES_DATA.top_margin.slice(0,10).map(function(it,i){
-    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd)">'
+    const barW=Math.round(it.markup/maxM*100);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:default;transition:background .15s" '
+      +">"
       +'<span style="font-size:10px;color:var(--txt3);width:16px;text-align:right;'+monoSt+';flex-shrink:0">'+(i+1)+'</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.name+'</div>'
-      +'<div style="font-size:10px;color:var(--txt3)">'+it.cat+'</div></div>'
-      +'<div style="width:50px;background:var(--bd);border-radius:2px;height:4px;flex-shrink:0"><div style="height:4px;border-radius:2px;background:var(--grn);width:'+Math.round(it.markup/maxM*100)+'%"></div></div>'
-      +'<span style="font-size:12px;font-weight:800;color:var(--grn);'+monoSt+';width:55px;text-align:right;flex-shrink:0">'+it.markup+'%</span>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+it.name+'">'+it.name+'</div>'
+      +'<div style="background:var(--bd);border-radius:2px;height:3px;margin-top:4px"><div style="height:3px;border-radius:2px;background:var(--grn);width:'+barW+'%;transition:width .4s"></div></div>'
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0">'
+      +'<div style="font-size:13px;font-weight:800;color:var(--grn);'+monoSt+'">'+it.markup+'%</div>'
+      +'<div style="font-size:10px;color:var(--txt3)">'+it.price+'₽</div>'
+      +'</div>'
       +'</div>';
   }).join('');
 
@@ -1187,11 +1220,17 @@ function renderSebes(){
   const lmEl=document.getElementById('sebes-low-margin');
   if(lmEl)lmEl.innerHTML=SEBES_DATA.low_margin.slice(0,10).map(function(it,i){
     const clr=it.markup<50?'var(--red)':it.markup<100?'var(--warn)':'var(--txt2)';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd)">'
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:default;transition:background .15s" '
+      +">"
       +'<span style="font-size:10px;color:var(--txt3);width:16px;text-align:right;'+monoSt+';flex-shrink:0">'+(i+1)+'</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.name+'</div>'
-      +'<div style="font-size:10px;color:var(--txt3)">'+it.cat+'</div></div>'
-      +'<span style="font-size:12px;font-weight:800;color:'+clr+';'+monoSt+';width:55px;text-align:right;flex-shrink:0">'+it.markup+'%</span>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+it.name+'">'+it.name+'</div>'
+      +'<div style="font-size:10px;color:var(--txt3)">'+it.cat+'</div>'
+      +'</div>'
+      +'<div style="text-align:right;flex-shrink:0">'
+      +'<div style="font-size:13px;font-weight:800;color:'+clr+';'+monoSt+'">'+it.markup+'%</div>'
+      +'<div style="font-size:10px;color:var(--txt3)">'+it.price+'₽ / '+it.cost+'₽</div>'
+      +'</div>'
       +'</div>';
   }).join('');
 
@@ -1200,23 +1239,32 @@ function renderSebes(){
 
 function applySebesFilter(){
   if(!SEBES_DATA)return;
-  const catVal   =document.getElementById('sebes-cat-filter')?.value||'';
-  const sortVal  =document.getElementById('sebes-sort')?.value||'markup_desc';
-  const searchVal=(document.getElementById('sebes-search')?.value||'').toLowerCase().trim();
+  const catVal    =document.getElementById('sebes-cat-filter')?.value||'';
+  const sortVal   =document.getElementById('sebes-sort')?.value||'markup_desc';
+  const marginVal =document.getElementById('sebes-margin-filter')?.value||'';
+  const searchVal =(document.getElementById('sebes-search')?.value||'').toLowerCase().trim();
+
+  // Синхронизировать SEBES_SORT_COL с select
+  if(sortVal){
+    const parts=sortVal.split('_');
+    SEBES_SORT_COL=parts.slice(0,-1).join('_');
+    SEBES_SORT_DESC=parts[parts.length-1]==='desc';
+  }
 
   let items=SEBES_DATA.all_items.filter(function(it){
-    return(!catVal||it.cat===catVal)&&
-           (!searchVal||it.name.toLowerCase().includes(searchVal)||it.cat.toLowerCase().includes(searchVal));
+    if(catVal && it.cat!==catVal) return false;
+    if(searchVal && !it.name.toLowerCase().includes(searchVal) && !it.cat.toLowerCase().includes(searchVal)) return false;
+    if(marginVal==='low'  && !(it.markup>0&&it.markup<100))  return false;
+    if(marginVal==='mid'  && !(it.markup>=100&&it.markup<=300)) return false;
+    if(marginVal==='high' && !(it.markup>300))  return false;
+    if(marginVal==='none' && it.cost>0)          return false;
+    return true;
   });
 
-  // Сортировка
   items=[...items].sort(function(a,b){
-    if(sortVal==='markup_desc') return b.markup-a.markup;
-    if(sortVal==='markup_asc')  return a.markup-b.markup;
-    if(sortVal==='price_desc')  return b.price-a.price;
-    if(sortVal==='price_asc')   return a.price-b.price;
-    if(sortVal==='cost_desc')   return b.cost-a.cost;
-    return 0;
+    const col=SEBES_SORT_COL||'markup';
+    const diff=SEBES_SORT_DESC?(b[col]||0)-(a[col]||0):(a[col]||0)-(b[col]||0);
+    return diff;
   });
 
   const cntEl=document.getElementById('sebes-count');
@@ -1225,21 +1273,25 @@ function applySebesFilter(){
   const monoSt='font-family:JetBrains Mono,monospace';
   const tbEl=document.getElementById('sebes-tbody');
   if(tbEl)tbEl.innerHTML=items.map(function(it){
-    const markupClr=it.markup===0?'var(--txt3)':it.markup<50?'var(--red)':it.markup<100?'var(--warn)':it.markup>500?'var(--acc)':'var(--grn)';
-    return '<tr>'
-      +'<td style="font-size:10px;color:var(--txt3);max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.cat+'</td>'
-      +'<td style="font-size:12px;color:var(--txt);max-width:280px">'+it.name+'</td>'
-      +'<td style="'+monoSt+';font-size:12px;font-weight:700;color:var(--txt);text-align:right;white-space:nowrap">'+it.price.toLocaleString('ru-RU')+' ₽</td>'
+    const markupClr=it.markup===0?'var(--txt3)':it.markup<50?'var(--red)':it.markup<100?'var(--warn)':it.markup>300?'var(--grn)':'var(--acc)';
+    const markupBg =it.markup===0?'transparent':it.markup<50?'rgba(255,69,96,.08)':it.markup<100?'rgba(255,176,32,.08)':it.markup>300?'rgba(152,194,30,.08)':'rgba(163,216,244,.08)';
+    return '<tr class="sebes-row-hover">'
+      +'<td style="font-size:10px;color:var(--txt3);max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+it.cat+'">'+it.cat+'</td>'
+      +'<td style="font-size:12px;color:var(--txt)">'+it.name+'</td>'
+      +'<td style="'+monoSt+';font-size:12px;font-weight:600;color:var(--txt);text-align:right;white-space:nowrap">'+it.price.toLocaleString('ru-RU')+' ₽</td>'
       +'<td style="'+monoSt+';font-size:12px;color:var(--txt2);text-align:right;white-space:nowrap">'+(it.cost>0?it.cost.toLocaleString('ru-RU')+' ₽':'—')+'</td>'
-      +'<td style="'+monoSt+';font-size:13px;font-weight:800;color:'+markupClr+';text-align:right;white-space:nowrap">'+(it.markup>0?it.markup+'%':'—')+'</td>'
+      +'<td style="text-align:right;padding:6px 14px">'
+      +'<span style="'+monoSt+';font-size:13px;font-weight:800;color:'+markupClr+';background:'+markupBg+';padding:2px 8px;border-radius:20px;white-space:nowrap">'+(it.markup>0?it.markup+'%':'—')+'</span>'
+      +'</td>'
       +'</tr>';
   }).join('');
 }
 
 function resetSebesFilter(){
-  ['sebes-cat-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
+  ['sebes-cat-filter','sebes-margin-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
   const s=document.getElementById('sebes-search');if(s)s.value='';
   const srt=document.getElementById('sebes-sort');if(srt)srt.value='markup_desc';
+  SEBES_SORT_COL='markup';SEBES_SORT_DESC=true;
   applySebesFilter();
 }
 
