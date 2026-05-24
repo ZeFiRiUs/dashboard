@@ -639,8 +639,12 @@ function renderDeliveries(){
     DEL_DATA.meta.all_dates.map(d=>`<option value="${d.iso}">${d.d} (${d.dow}) — ${d.n}</option>`).join('');
   if(pointF)pointF.innerHTML='<option value="">Все точки</option>'+
     DEL_DATA.meta.all_points.map(p=>`<option value="${p}">${p}</option>`).join('');
-  if(reasonF&&DEL_DATA.meta.all_reasons)reasonF.innerHTML='<option value="">Все причины</option>'+
-    DEL_DATA.meta.all_reasons.map(r=>`<option value="${r}">${r}</option>`).join('');
+  if(reasonF){
+    // Собираем реальные причины из строк
+    const reasons=[...new Set(DEL_DATA.rows.map(r=>r.reason).filter(Boolean).map(r=>r.trim()))].sort();
+    reasonF.innerHTML='<option value="">Все причины</option>'+
+      reasons.map(r=>`<option value="${r}">${r}</option>`).join('');
+  }
   applyDelFilter();
 }
 
@@ -694,8 +698,17 @@ function applyDelFilter(){
       <span style="font-size:13px;font-weight:800;color:${i===0?'var(--red)':'var(--txt)'};font-family:'JetBrains Mono',monospace;width:20px;text-align:right">${v.count}</span>
     </div>`).join(''):'<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
   const reasonAgg={};
-  rows.forEach(r=>{const k=r.reason||'Не указана';if(!reasonAgg[k])reasonAgg[k]=0;reasonAgg[k]++;});
-  const topR=Object.entries(reasonAgg).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  rows.forEach(r=>{
+    const k=(r.reason&&r.reason.trim())?r.reason.trim():'Не указана';
+    if(!reasonAgg[k])reasonAgg[k]=0;
+    reasonAgg[k]++;
+  });
+  // Сортируем: сначала реальные причины, потом «Не указана»
+  const topR=Object.entries(reasonAgg)
+    .sort((a,b)=>b[1]-a[1])
+    .filter(([k])=>k!=='Не указана')
+    .concat(reasonAgg['Не указана']?[['Не указана',reasonAgg['Не указана']]]:[])
+    .slice(0,10);
   const maxR2=topR.length?topR[0][1]:1;
   const rEl=document.getElementById('del-reason-list');
   if(rEl)rEl.innerHTML=topR.map(([name,n])=>`
