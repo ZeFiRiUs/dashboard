@@ -267,6 +267,46 @@ html.light #active-point-filter{background:#FFFFFF;border-color:#C8CEDF;color:#0
 .sebes-row-hover{transition:background .15s;cursor:default}
 .sebes-row-hover:hover{background:var(--card2)}
 .stops-tbl tr.sebes-row-hover:hover td{background:transparent}
+
+/* ── МОБИЛЬНАЯ НАВИГАЦИЯ ───────────────────────────────────────────────── */
+.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:var(--surf);border-top:1px solid var(--bd);
+  padding:0 0 env(safe-area-inset-bottom);
+  height:calc(56px + env(safe-area-inset-bottom))}
+.mob-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;padding:6px 4px;border:none;background:transparent;color:var(--txt3);
+  cursor:pointer;font-family:'Manrope',sans-serif;transition:color .15s;min-width:0}
+.mob-nav-btn.active{color:var(--acc)}
+.mob-nav-icon{font-size:20px;line-height:1}
+.mob-nav-label{font-size:10px;font-weight:600;white-space:nowrap}
+
+/* Меню "Ещё" */
+.mob-menu{display:none;position:fixed;bottom:56px;left:0;right:0;z-index:300;
+  background:var(--surf);border-top:1px solid var(--bd);border-radius:16px 16px 0 0;
+  transform:translateY(100%);transition:transform .25s ease}
+.mob-menu.open{display:block;transform:translateY(0)}
+.mob-menu-inner{padding:16px;display:flex;flex-direction:column;gap:4px}
+.mob-menu-item{display:flex;align-items:center;gap:14px;padding:14px 16px;
+  border:none;background:transparent;color:var(--txt);font-size:14px;font-weight:600;
+  font-family:'Manrope',sans-serif;cursor:pointer;border-radius:10px;
+  text-align:left;transition:background .15s;width:100%}
+.mob-menu-item:hover{background:var(--card)}
+.mob-menu-item.active{color:var(--acc)}
+.mob-menu-overlay{display:none;position:fixed;inset:0;z-index:299;background:rgba(0,0,0,.4);
+  backdrop-filter:blur(2px)}
+.mob-menu-overlay.open{display:block}
+
+/* Отступ снизу чтобы контент не прятался за навигацией */
+@media(max-width:640px){
+  .mob-nav{display:flex}
+  #desktop-nav{display:none}
+  .wrap{padding-bottom:72px}
+  /* Прячем кнопки управления кроме темы */
+  .hbtns .btn:not(.btn-warn){display:none}
+  .hbtns .theme-btn{display:flex}
+  /* Компактный header */
+  header{padding:0 16px;height:52px}
+}
 footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-top:1px solid var(--bd);margin-top:24px}
 @media(max-width:640px){
   .hbtns .btn span{display:none}
@@ -341,7 +381,8 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
 </header>
 
-<nav class="tab-nav">
+<!-- Десктоп навигация -->
+<nav class="tab-nav" id="desktop-nav">
   <button class="tab-nav-btn active" onclick="switchTab('overview',this)">🏠 Сводка</button>
   <button class="tab-nav-btn" onclick="switchTab('wo',this)">📊 Аналитика списаний</button>
   <button class="tab-nav-btn" onclick="switchTab('stops',this)">🚫 Стоп листы</button>
@@ -349,6 +390,45 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   <button class="tab-nav-btn" onclick="switchTab('production',this)">🏭 Производство</button>
   <button class="tab-nav-btn" onclick="switchTab('sebes',this)">💰 Себестоимость</button>
 </nav>
+
+<!-- Мобильная нижняя панель -->
+<nav class="mob-nav" id="mob-nav">
+  <button class="mob-nav-btn active" data-tab="overview" onclick="mobSwitch('overview',this)">
+    <span class="mob-nav-icon">🏠</span>
+    <span class="mob-nav-label">Сводка</span>
+  </button>
+  <button class="mob-nav-btn" data-tab="wo" onclick="mobSwitch('wo',this)">
+    <span class="mob-nav-icon">📊</span>
+    <span class="mob-nav-label">Списания</span>
+  </button>
+  <button class="mob-nav-btn" data-tab="stops" onclick="mobSwitch('stops',this)">
+    <span class="mob-nav-icon">🚫</span>
+    <span class="mob-nav-label">Стопы</span>
+  </button>
+  <button class="mob-nav-btn" data-tab="deliveries" onclick="mobSwitch('deliveries',this)">
+    <span class="mob-nav-icon">🚚</span>
+    <span class="mob-nav-label">Довозы</span>
+  </button>
+  <button class="mob-nav-btn" id="mob-more-btn" onclick="toggleMobMenu()">
+    <span class="mob-nav-icon">⋯</span>
+    <span class="mob-nav-label">Ещё</span>
+  </button>
+</nav>
+
+<!-- Мобильное меню "Ещё" -->
+<div class="mob-menu" id="mob-menu">
+  <div class="mob-menu-inner">
+    <button class="mob-menu-item" data-tab="production" onclick="mobSwitch('production',null);toggleMobMenu()">
+      <span style="font-size:20px">🏭</span>
+      <span>Производство</span>
+    </button>
+    <button class="mob-menu-item" data-tab="sebes" onclick="mobSwitch('sebes',null);toggleMobMenu()">
+      <span style="font-size:20px">💰</span>
+      <span>Себестоимость</span>
+    </button>
+  </div>
+</div>
+<div class="mob-menu-overlay" id="mob-menu-overlay" onclick="toggleMobMenu()"></div>
 
 <!-- ═══ OVERVIEW TAB ═══ -->
 <div id="page-overview" class="page active">
@@ -2418,6 +2498,61 @@ async function doLogin(){
     else{err.textContent='❌ Неверный пароль';btn.disabled=false;btn.textContent='Войти →';document.getElementById('lpw').value='';document.getElementById('lpw').focus();}
   }catch(e){err.textContent='❌ Ошибка соединения';btn.disabled=false;btn.textContent='Войти →';}
 }
+
+
+// ── МОБИЛЬНАЯ НАВИГАЦИЯ ──────────────────────────────────────────────────────
+function mobSwitch(tab, btn){
+  // Синхронизируем с десктоп навигацией
+  const desktopBtn = document.querySelector('#desktop-nav .tab-nav-btn[onclick*="'+tab+'"]');
+  if(desktopBtn) desktopBtn.click();
+  else {
+    // Вручную переключаем если десктоп-кнопки нет в видимости
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+tab)?.classList.add('active');
+    document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
+  }
+  // Обновить активную кнопку в мобильной панели
+  document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  // Если вкладка из меню "Ещё" — показываем индикатор на кнопке ⋯
+  const moreTabs=['production','sebes'];
+  const moreBtn=document.getElementById('mob-more-btn');
+  if(moreBtn){
+    if(moreTabs.includes(tab)) moreBtn.classList.add('active');
+    else moreBtn.classList.remove('active');
+  }
+}
+
+function toggleMobMenu(){
+  const menu=document.getElementById('mob-menu');
+  const overlay=document.getElementById('mob-menu-overlay');
+  if(!menu||!overlay)return;
+  const isOpen=menu.classList.contains('open');
+  if(isOpen){
+    menu.classList.remove('open');
+    overlay.classList.remove('open');
+    setTimeout(function(){if(!menu.classList.contains('open'))menu.style.display='none';},260);
+  } else {
+    menu.style.display='block';
+    requestAnimationFrame(function(){menu.classList.add('open');overlay.classList.add('open');});
+  }
+}
+
+// Синхронизировать мобильную панель при переключении десктоп-вкладок
+const _origSwitchTab = switchTab;
+function switchTab(tab, btn){
+  _origSwitchTab(tab, btn);
+  // Обновить мобильную панель
+  const mobBtns = document.querySelectorAll('.mob-nav-btn[data-tab]');
+  mobBtns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===tab); });
+  const moreBtn=document.getElementById('mob-more-btn');
+  if(moreBtn) moreBtn.classList.toggle('active',['production','sebes'].includes(tab));
+  // Обновить пункты меню "Ещё"
+  document.querySelectorAll('.mob-menu-item[data-tab]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-tab')===tab);
+  });
+}
+
 
 // INIT
 function op(id){document.getElementById(id).classList.add('open');}
