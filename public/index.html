@@ -782,9 +782,15 @@ async function loadData(){
     const r=await fetch('/api/periods',{headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const srv=await r.json();
-    if(srv.length) periods=srv;
-    // Данных нет — показываем пустое состояние
-    ss('warn','Нет данных. Загрузите JSON через «Управление»');
+    if(srv.length){
+      periods=srv;
+      initWoDateFilter();
+      ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
+    } else {
+      ss('warn','Нет данных. Загрузите JSON через «Управление»');
+    }
+  } catch(e){
+    ss('warn','Ошибка загрузки: '+e.message);
   }
   cur=0; render();
 }
