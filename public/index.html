@@ -1478,7 +1478,16 @@ function switchTab(tab,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+tab).classList.add('active');
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
+  // Синхронизируем мобильную панель
+  document.querySelectorAll('.mob-nav-btn[data-tab]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-tab')===tab);
+  });
+  const moreBtn=document.getElementById('mob-more-btn');
+  if(moreBtn) moreBtn.classList.toggle('active',['production','sebes'].includes(tab));
+  document.querySelectorAll('.mob-menu-item[data-tab]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-tab')===tab);
+  });
   if(tab==='overview'){ renderOverview(); }
   if(tab==='stops'){
     if(!STOPS_DATA){
@@ -2502,25 +2511,8 @@ async function doLogin(){
 
 // ── МОБИЛЬНАЯ НАВИГАЦИЯ ──────────────────────────────────────────────────────
 function mobSwitch(tab, btn){
-  // Синхронизируем с десктоп навигацией
-  const desktopBtn = document.querySelector('#desktop-nav .tab-nav-btn[onclick*="'+tab+'"]');
-  if(desktopBtn) desktopBtn.click();
-  else {
-    // Вручную переключаем если десктоп-кнопки нет в видимости
-    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-    document.getElementById('page-'+tab)?.classList.add('active');
-    document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
-  }
-  // Обновить активную кнопку в мобильной панели
-  document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-  // Если вкладка из меню "Ещё" — показываем индикатор на кнопке ⋯
-  const moreTabs=['production','sebes'];
-  const moreBtn=document.getElementById('mob-more-btn');
-  if(moreBtn){
-    if(moreTabs.includes(tab)) moreBtn.classList.add('active');
-    else moreBtn.classList.remove('active');
-  }
+  // Вызываем общий switchTab — он сам синхронизирует и мобильную и десктоп панели
+  switchTab(tab, btn);
 }
 
 function toggleMobMenu(){
@@ -2538,20 +2530,7 @@ function toggleMobMenu(){
   }
 }
 
-// Синхронизировать мобильную панель при переключении десктоп-вкладок
-const _origSwitchTab = switchTab;
-function switchTab(tab, btn){
-  _origSwitchTab(tab, btn);
-  // Обновить мобильную панель
-  const mobBtns = document.querySelectorAll('.mob-nav-btn[data-tab]');
-  mobBtns.forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===tab); });
-  const moreBtn=document.getElementById('mob-more-btn');
-  if(moreBtn) moreBtn.classList.toggle('active',['production','sebes'].includes(tab));
-  // Обновить пункты меню "Ещё"
-  document.querySelectorAll('.mob-menu-item[data-tab]').forEach(function(b){
-    b.classList.toggle('active', b.getAttribute('data-tab')===tab);
-  });
-}
+// Мобильная синхронизация встроена в switchTab ниже
 
 
 // INIT
