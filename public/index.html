@@ -1121,6 +1121,7 @@ async function loadData(){
     // Старый формат: массив периодов
     else if(Array.isArray(srv) && srv.length){
       periods = srv;
+      // WO_RAW_DATA не сбрасываем — мог быть загружен раньше
       initWoDateFilter();
       ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
     }
@@ -1136,6 +1137,25 @@ async function loadData(){
 function render(){
   const p=d(); if(!p){renderEmpty();return;}
   renderKPIs(p); renderCards(); renderWoReasons();
+  // Заполняем селекты дат и складов из WO_RAW_DATA (как в довозах)
+  if(WO_RAW_DATA&&WO_RAW_DATA.meta){
+    const fF=document.getElementById('wo-date-from');
+    const tF=document.getElementById('wo-date-to');
+    const wF=document.getElementById('wo-wh-filter');
+    if(fF&&!fF.options.length||fF.options.length<=1){
+      const opts=WO_RAW_DATA.meta.all_dates.map(function(d){
+        return '<option value="'+d.iso+'">'+d.d+' ('+d.dow+') — '+Math.round(d.total/1000)+'k ₽</option>';
+      }).join('');
+      if(fF)fF.innerHTML='<option value="">С даты...</option>'+opts;
+      if(tF)tF.innerHTML='<option value="">По дату...</option>'+opts;
+    }
+    if(wF&&wF.options.length<=1){
+      wF.innerHTML='<option value="">Все склады</option>'+
+        WO_RAW_DATA.meta.all_warehouses.map(function(w){
+          return '<option value="'+w+'">'+w+'</option>';
+        }).join('');
+    }
+  }
 }
 function renderEmpty(){
   document.getElementById('krow').innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0;grid-column:1/-1">Нет данных. Загрузите JSON через «Управление».</div>';
@@ -1188,7 +1208,22 @@ let WO_INDEX    = null;
 let WO_RAW_DATA = null;
 
 async function initWoDateFilter(){
+  // Если уже есть raw data — заполняем из неё
   if(WO_RAW_DATA&&WO_RAW_DATA.meta){ _fillWoSelectsFromRawData(); return; }
+  // Попробуем снова запросить данные — возможно сервер уже обновился
+  try{
+    const r=await fetch('/api/periods',{headers:{'X-View-Password':sessionPassword}});
+    if(r.ok){
+      const data=await r.json();
+      if(data&&data.meta&&data.raw){
+        WO_RAW_DATA=data;
+        if(!periods.length||!periods[0]) periods=data.periods;
+        _fillWoSelectsFromRawData();
+        return;
+      }
+    }
+  }catch(e){}
+  // Старый индекс
   try{
     const r=await fetch('/api/writeoffs/index',{headers:{'X-View-Password':sessionPassword}});
     if(!r.ok)throw new Error('no index');
@@ -1230,32 +1265,36 @@ function _fillWoSelectsFromPeriods(){
 function applyWoDateFilter(){
   const fromVal=document.getElementById('wo-date-from')?.value||'';
   const toVal  =document.getElementById('wo-date-to')?.value||'';
+  // Сбрасываем фильтр склада
   const ws=document.getElementById('wo-wh-filter');if(ws)ws.value='';
   const rb=document.getElementById('wo-reset-btn');
+
   if(!fromVal&&!toVal){
     if(rb)rb.style.display='none';
     if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
     render();return;
   }
   if(rb)rb.style.display='';
-  if(WO_RAW_DATA&&WO_RAW_DATA.raw){
-    const rows=WO_RAW_DATA.raw.filter(r=>(!fromVal||r.iso>=fromVal)&&(!toVal||r.iso<=toVal));
-    if(!rows.length){ss('warn','Нет данных за выбранный период');return;}
-    const fromD=(fromVal||'').split('-').slice(1).reverse().join('.');
-    const toD  =(toVal  ||'').split('-').slice(1).reverse().join('.');
-    const merged=buildPeriodFromRaw(rows,(fromD&&toD)?fromD+' — '+toD:(fromD||toD));
-    pushTmpPeriod(merged);
-    ss('ok',merged.period+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
-    render();return;
+
+  if(!WO_RAW_DATA||!WO_RAW_DATA.raw){
+    ss('warn','Загрузите данные через Управление');return;
   }
-  if(WO_INDEX){
-    const matchDates=WO_INDEX.meta.dates.filter(d=>(!fromVal||d.d>=fromVal)&&(!toVal||d.d<=toVal));
-    if(!matchDates.length){ss('warn','Нет данных');return;}
-    const merged=matchDates.length===1?WO_INDEX.by_day[matchDates[0].d]:mergeWoDays(matchDates.map(d=>d.d));
-    if(merged){merged.period=matchDates[0].short+(matchDates.length>1?' — '+matchDates[matchDates.length-1].short:'');pushTmpPeriod(merged);render();}
-    return;
-  }
-  ss('warn','Загрузите данные для фильтра по датам');
+
+  // Фильтруем raw строки по iso дате — точно как в довозах
+  const rows=WO_RAW_DATA.raw.filter(function(r){
+    return(!fromVal||r.iso>=fromVal)&&(!toVal||r.iso<=toVal);
+  });
+
+  if(!rows.length){ss('warn','Нет данных за выбранный период');return;}
+
+  // Строим label из выбранных дат
+  const fromD=WO_RAW_DATA.meta.all_dates.find(function(d){return d.iso===fromVal;});
+  const toD  =WO_RAW_DATA.meta.all_dates.find(function(d){return d.iso===toVal;});
+  const label=(fromD?fromD.d:'')+(toD&&toD!==fromD?' — '+toD.d:'');
+
+  pushTmpPeriod(buildPeriodFromRaw(rows, label||'Выборка'));
+  ss('ok',(label||'Выборка')+' · '+rows.reduce(function(s,r){return s+r.cost;},0).toLocaleString('ru-RU')+' ₽');
+  render();
 }
 
 function applyWoWhFilter(){
@@ -1263,20 +1302,24 @@ function applyWoWhFilter(){
   const df=document.getElementById('wo-date-from');if(df)df.value='';
   const dt=document.getElementById('wo-date-to');  if(dt)dt.value='';
   const rb=document.getElementById('wo-reset-btn');
+
   if(!whVal){
     if(rb)rb.style.display='none';
     if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
     render();return;
   }
   if(rb)rb.style.display='';
+
   if(WO_RAW_DATA&&WO_RAW_DATA.raw){
-    const rows=WO_RAW_DATA.raw.filter(r=>r.wh===whVal);
+    const rows=WO_RAW_DATA.raw.filter(function(r){return r.wh===whVal;});
     if(!rows.length){ss('warn','Нет данных по складу');return;}
     pushTmpPeriod(buildPeriodFromRaw(rows,whVal));
-    ss('ok',whVal);render();return;
+    ss('ok',whVal+' · '+rows.reduce(function(s,r){return s+r.cost;},0).toLocaleString('ru-RU')+' ₽');
+    render();return;
   }
-  if(WO_INDEX&&WO_INDEX.by_wh[whVal]){pushTmpPeriod(WO_INDEX.by_wh[whVal]);render();return;}
-  const m=mergeWhFromPeriods(whVal);if(m){pushTmpPeriod(m);render();}
+  // Фоллбэк из периодов
+  const m=mergeWhFromPeriods(whVal);
+  if(m){pushTmpPeriod(m);render();}
 }
 
 function buildPeriodFromRaw(rows,label){
@@ -1402,7 +1445,7 @@ function resetWoFilters(){
   const rb=document.getElementById('wo-reset-btn');if(rb)rb.style.display='none';
   if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
   render();
-  ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
+  ss('ok','Синхронизировано · '+periods.filter(function(p){return!p._tmp;}).length+' периодов');
 }
 
 
@@ -1520,6 +1563,15 @@ function openAdmin(){
 }
 async function upload(e){
   const file=e.target.files[0];if(!file)return;
+  // Читаем файл чтобы установить WO_RAW_DATA если это новый формат
+  const reader=new FileReader();
+  reader.onload=async function(ev){
+    try{
+      const parsed=JSON.parse(ev.target.result);
+      if(parsed&&parsed.meta&&parsed.raw){ WO_RAW_DATA=parsed; }
+    }catch(ex){}
+  };
+  reader.readAsText(file);
   const fd=new FormData();fd.append('file',file);
   const msg=document.getElementById('upmsg');
   msg.innerHTML='<div style="color:var(--txt2);font-size:12px">Загрузка...</div>';
