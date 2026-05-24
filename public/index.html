@@ -573,6 +573,33 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
 </div>
 
+<!-- Delivery detail modal -->
+<div class="ov" id="del-modal" onclick="if(event.target===this)cl('del-modal')">
+  <div class="modal" style="max-width:560px">
+    <div class="mh">
+      <div>
+        <div class="mt" id="del-modal-point"></div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:2px" id="del-modal-date"></div>
+      </div>
+      <button class="mx" onclick="cl('del-modal')">✕</button>
+    </div>
+    <!-- Tags row -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px" id="del-modal-tags"></div>
+    <!-- Позиции -->
+    <div class="st">Позиции довоза</div>
+    <div id="del-modal-items" style="background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--txt);line-height:1.7;white-space:pre-line"></div>
+    <!-- Детали -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px" id="del-modal-details">
+      <div class="mk"><div class="mkl">Причина</div><div id="del-modal-reason" style="font-size:13px;color:var(--txt);margin-top:4px;font-weight:600"></div></div>
+      <div class="mk"><div class="mkl">Виновный</div><div id="del-modal-guilty" style="font-size:13px;color:var(--warn);margin-top:4px;font-weight:600"></div></div>
+      <div class="mk"><div class="mkl">Подразделение</div><div id="del-modal-dept" style="font-size:13px;color:var(--txt);margin-top:4px;font-weight:600"></div></div>
+      <div class="mk"><div class="mkl">Сумма штрафа</div><div id="del-modal-cost" style="font-size:16px;font-weight:800;margin-top:4px"></div></div>
+    </div>
+    <!-- Реестр -->
+    <div id="del-modal-reg"></div>
+  </div>
+</div>
+
 <footer>DASHBOARD · Данные обновляются администратором</footer>
 
 <script>
@@ -733,7 +760,7 @@ function applyDelFilter(){
       ${v.cost>0?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">${v.cost.toLocaleString('ru-RU')} ₽</div>`:''}</div>`).join('');
   const rcEl=document.getElementById('del-rows-count');if(rcEl)rcEl.textContent=`(${rows.length} записей)`;
   const tbEl=document.getElementById('del-tbody');
-  if(tbEl)tbEl.innerHTML=rows.map(r=>`<tr>
+  if(tbEl)tbEl.innerHTML=rows.map((r,i)=>`<tr style="cursor:pointer" onclick="openDelModal(${i})" title="Нажмите для подробностей">
     <td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;color:var(--txt)">${r.date}</td>
     <td style="font-weight:600;color:var(--txt);white-space:nowrap">${r.point}</td>
     <td style="font-size:11px;color:var(--txt2);white-space:nowrap">${r.dept||'—'}</td>
@@ -743,7 +770,35 @@ function applyDelFilter(){
     <td style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${r.cost>0?'var(--warn)':'var(--txt3)'};white-space:nowrap">${r.cost>0?r.cost.toLocaleString('ru-RU')+' ₽':'—'}</td>
     <td>${r.registered==='Внесено'?'<span style="font-size:10px;color:var(--grn)">✓</span>':'<span style="font-size:10px;color:var(--txt3)">—</span>'}</td>
     </tr>`).join('');
+  // Сохраняем текущие строки для модалки
+  window._delRows = rows;
 }
+// ── DELIVERY MODAL ────────────────────────────────────────────────────────────
+function openDelModal(idx){
+  const r=(window._delRows||[])[idx]; if(!r)return;
+  document.getElementById('del-modal-point').textContent=r.point;
+  document.getElementById('del-modal-date').textContent=r.date+(r.type?' · '+r.type:'');
+  const tags=[];
+  if(r.dept) tags.push({text:r.dept,color:'var(--acc)'});
+  if(r.registered==='Внесено') tags.push({text:'✓ Внесено в реестр',color:'var(--grn)'});
+  if(r.cost>0) tags.push({text:r.cost.toLocaleString('ru-RU')+' ₽',color:'var(--warn)'});
+  document.getElementById('del-modal-tags').innerHTML=tags.map(t=>
+    `<span style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid ${t.color};color:${t.color};font-weight:600">${t.text}</span>`
+  ).join('');
+  document.getElementById('del-modal-items').textContent=r.items||'—';
+  document.getElementById('del-modal-reason').textContent=r.reason||'—';
+  document.getElementById('del-modal-guilty').textContent=(r.guilty&&r.guilty.length)?r.guilty.join(', '):'—';
+  document.getElementById('del-modal-dept').textContent=r.dept||'—';
+  const costEl=document.getElementById('del-modal-cost');
+  costEl.textContent=r.cost>0?r.cost.toLocaleString('ru-RU')+' ₽':'—';
+  costEl.style.color=r.cost>0?'var(--warn)':'var(--txt3)';
+  document.getElementById('del-modal-reg').innerHTML=r.registered==='Внесено'
+    ?'<div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--grn)">✓ Внесено в реестр штрафов</div>'
+    :'';
+  op('del-modal');
+}
+
+
 function resetDelFilters() {
   document.getElementById('del-day-filter').value='';
   document.getElementById('del-point-filter').value='';
