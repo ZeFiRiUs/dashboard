@@ -472,12 +472,15 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   <div id="del-data-wrap" style="display:none">
     <div id="del-kpis" class="kpis" style="margin-bottom:20px"></div>
     <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
-      <select id="del-day-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:140px"><option value="">Все даты</option></select>
+      <!-- Диапазон дат: от — до -->
+      <select id="del-date-from" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
+      <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
+      <select id="del-date-to" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
       <select id="del-point-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все точки</option></select>
       <select id="del-dept-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
         <option value="">Все подразделения</option><option value="ТОЧКА">Точка</option><option value="СКЛАД">Склад</option><option value="ЦЕХ">Цех</option><option value="ЗАКУП">Закуп</option>
       </select>
-      <select id="del-reason-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все причины</option></select>
+      <select id="del-reason-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все причины</option></select>
       <button class="fbtn" onclick="resetDelFilters()">✕ Сбросить</button>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
@@ -813,7 +816,7 @@ function openDelModal(idx){
 
 
 function resetDelFilters() {
-  document.getElementById('del-day-filter').value='';
+  
   document.getElementById('del-point-filter').value='';
   document.getElementById('del-type-filter').value='';
   applyDelFilter();
