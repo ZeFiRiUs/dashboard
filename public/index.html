@@ -355,9 +355,14 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
   <div class="frow">
     <select id="wo-date-filter" onchange="applyWoDateFilter()"
-      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:170px">
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
       <option value="">Все даты (период)</option>
     </select>
+    <select id="wo-wh-filter" onchange="applyWoWhFilter()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
+      <option value="">Все склады</option>
+    </select>
+    <button class="fbtn" id="wo-reset-btn" onclick="resetWoFilters()" style="display:none">✕ Сбросить</button>
     <button class="fbtn act" onclick="setF('all',this)">Все</button>
     <button class="fbtn" onclick="setF('danger',this)">🔴 &gt;100k</button>
     <button class="fbtn" onclick="setF('warn',this)">🟡 45–100k</button>
@@ -824,6 +829,77 @@ function renderPTabs(){
   w.style.display='block';
   document.getElementById('ptabs').innerHTML=periods.map((p,i)=>`<button class="ptab ${i===cur?'act':''}" onclick="cur=${i};render()">${p.period}</button>`).join('');
 }
+
+// ── WRITEOFFS FILTERS (date + warehouse) ─────────────────────────────────────
+let WO_INDEX=null, WO_DAY_SEL='', WO_WH_SEL='';
+
+async function initWoDateFilter(){
+  const dSel=document.getElementById('wo-date-filter');
+  const wSel=document.getElementById('wo-wh-filter');
+  if(!dSel)return;
+  try{
+    const r=await fetch('/api/writeoffs/index',{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok)throw new Error('no index');
+    WO_INDEX=await r.json();
+    if(!WO_INDEX)throw new Error('null');
+    dSel.innerHTML='<option value="">Все даты (период)</option>'+
+      WO_INDEX.meta.dates.map(d=>
+        `<option value="${d.d}">${d.short} (${d.dow}) — ${Math.round(d.total/1000)}k ₽</option>`
+      ).join('');
+    if(wSel) wSel.innerHTML='<option value="">Все склады</option>'+
+      WO_INDEX.meta.warehouses.map(w=>
+        `<option value="${w.name}">${w.name} — ${Math.round(w.total/1000)}k ₽</option>`
+      ).join('');
+  }catch(e){console.log('WO index:',e.message);}
+}
+
+function applyWoDateFilter(){
+  WO_DAY_SEL=document.getElementById('wo-date-filter')?.value||'';
+  WO_WH_SEL='';
+  const ws=document.getElementById('wo-wh-filter'); if(ws)ws.value='';
+  _applyWoFilters();
+}
+
+function applyWoWhFilter(){
+  WO_WH_SEL=document.getElementById('wo-wh-filter')?.value||'';
+  WO_DAY_SEL='';
+  const ds=document.getElementById('wo-date-filter'); if(ds)ds.value='';
+  _applyWoFilters();
+}
+
+function resetWoFilters(){
+  WO_DAY_SEL=''; WO_WH_SEL='';
+  const ds=document.getElementById('wo-date-filter'); if(ds)ds.value='';
+  const ws=document.getElementById('wo-wh-filter');   if(ws)ws.value='';
+  const rb=document.getElementById('wo-reset-btn');   if(rb)rb.style.display='none';
+  if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
+  render();
+  ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
+}
+
+function _applyWoFilters(){
+  const rb=document.getElementById('wo-reset-btn');
+  if(!WO_DAY_SEL&&!WO_WH_SEL){
+    if(rb)rb.style.display='none';
+    if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
+    render();return;
+  }
+  if(rb)rb.style.display='';
+  if(!WO_INDEX){ss('warn','Индекс не загружен — перезагрузите страницу');return;}
+  let data=null;
+  if(WO_DAY_SEL&&WO_INDEX.by_day[WO_DAY_SEL]){
+    data=WO_INDEX.by_day[WO_DAY_SEL];
+    ss('ok',WO_DAY_SEL.substring(0,5)+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
+  } else if(WO_WH_SEL&&WO_INDEX.by_wh[WO_WH_SEL]){
+    data=WO_INDEX.by_wh[WO_WH_SEL];
+    ss('ok',WO_WH_SEL+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
+  }
+  if(!data){ss('warn','Нет данных');return;}
+  if(periods[0]?._tmp)periods.shift();
+  periods.unshift({...data,_tmp:true});
+  cur=0; render();
+}
+
 
 function renderCards(){
   const p=d(); if(!p) return;
