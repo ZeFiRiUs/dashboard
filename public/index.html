@@ -1102,7 +1102,6 @@ async function loadData(){
       WO_RAW_DATA = srv;
       initWoDateFilter();
       ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
-      renderWoReasons();
     }
     // Старый формат: массив периодов
     else if(Array.isArray(srv) && srv.length){
@@ -1121,7 +1120,7 @@ async function loadData(){
 
 function render(){
   const p=d(); if(!p){renderEmpty();return;}
-  renderKPIs(p); renderCards();
+  renderKPIs(p); renderCards(); renderWoReasons();
 }
 function renderEmpty(){
   document.getElementById('krow').innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0;grid-column:1/-1">Нет данных. Загрузите JSON через «Управление».</div>';
@@ -1472,7 +1471,7 @@ async function upload(e){
   try{
     const r=await fetch('/api/periods',{method:'POST',headers:{'X-Admin-Password':adminPw},body:fd});
     const j=await r.json();
-    if(j.ok){msg.innerHTML=`<div class="success-msg">✅ Период "${j.period}" загружен</div>`;await loadData();renderAdminList();}
+    if(j.ok){msg.innerHTML=`<div class="success-msg">✅ Период "${j.period}" загружен</div>`;await loadData();renderAdminList();renderWoReasons();}
     else msg.innerHTML=`<div style="color:var(--red);font-size:12px">❌ ${j.error}</div>`;
   }catch(err){msg.innerHTML=`<div style="color:var(--red);font-size:12px">❌ ${err.message}</div>`;}
   e.target.value='';
