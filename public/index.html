@@ -342,7 +342,6 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   <button class="tab-nav-btn active" onclick="switchTab('wo',this)">📊 Аналитика списаний</button>
   <button class="tab-nav-btn" onclick="switchTab('stops',this)">🚫 Стоп листы</button>
   <button class="tab-nav-btn" onclick="switchTab('deliveries',this)">🚚 Довозы</button>
-  <button class="tab-nav-btn" onclick="switchTab('production',this)">🏭 Производство</button>
 </nav>
 
 <!-- ═══ WRITEOFFS TAB ═══ -->
@@ -350,12 +349,19 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <div class="wrap">
   <div class="status"><div class="sdot spin" id="sdot"></div><span id="stxt">Загрузка...</span></div>
   <div id="krow" class="kpis"></div>
-
+  <div id="ptabs-wrap" style="display:none">
+    <div style="font-size:11px;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Периоды</div>
+    <div class="ptabs" id="ptabs"></div>
+  </div>
   <div class="frow">
-    <select id="wo-date-from" onchange="applyWoDateFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
-    <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-    <select id="wo-date-to" onchange="applyWoDateFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
-    <select id="wo-wh-filter" onchange="applyWoWhFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все склады</option></select>
+    <select id="wo-date-filter" onchange="applyWoDateFilter()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
+      <option value="">Все даты (период)</option>
+    </select>
+    <select id="wo-wh-filter" onchange="applyWoWhFilter()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
+      <option value="">Все склады</option>
+    </select>
     <button class="fbtn" id="wo-reset-btn" onclick="resetWoFilters()" style="display:none">✕ Сбросить</button>
     <button class="fbtn act" onclick="setF('all',this)">Все</button>
     <button class="fbtn" onclick="setF('danger',this)">🔴 &gt;100k</button>
@@ -391,15 +397,22 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 
   <!-- Periods tabs (hidden until data loaded) -->
   <div id="stops-data-wrap" style="display:none">
-
+    <!-- Periods -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Периоды</div>
+      <div class="ptabs" id="stops-ptabs"></div>
+    </div>
     <!-- Filters row — как в довозах -->
     <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
-      <select id="stops-date-from" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
-      <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-      <select id="stops-date-to" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
-      <select id="stops-point-filter" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все точки</option></select>
+      <select id="stops-day-filter" onchange="applyStopsFilter()"
+        style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px">
+        <option value="">Все даты</option>
+      </select>
+      <select id="stops-point-filter" onchange="applyStopsFilter()"
+        style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
+        <option value="">Все точки</option>
+      </select>
       <button class="fbtn" onclick="resetStopsFilter()">✕ Сбросить</button>
-    </div>
     </div>
   <div id="stops-kpis" class="kpis"></div>
   <div class="stops-charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
@@ -459,15 +472,12 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   <div id="del-data-wrap" style="display:none">
     <div id="del-kpis" class="kpis" style="margin-bottom:20px"></div>
     <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
-      <!-- Диапазон дат: от — до -->
-      <select id="del-date-from" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
-      <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-      <select id="del-date-to" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
+      <select id="del-day-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:140px"><option value="">Все даты</option></select>
       <select id="del-point-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все точки</option></select>
       <select id="del-dept-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
         <option value="">Все подразделения</option><option value="ТОЧКА">Точка</option><option value="СКЛАД">Склад</option><option value="ЦЕХ">Цех</option><option value="ЗАКУП">Закуп</option>
       </select>
-      <select id="del-reason-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все причины</option></select>
+      <select id="del-reason-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все причины</option></select>
       <button class="fbtn" onclick="resetDelFilters()">✕ Сбросить</button>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
@@ -493,82 +503,12 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div class="sw" style="max-width:280px"><span class="sic">🔍</span><input class="si" id="del-search" type="text" placeholder="Поиск по точке, виновному, позиции..." oninput="applyDelFilter()"></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
-      <table class="stops-tbl"><thead><tr><th style="cursor:pointer;user-select:none" onclick="toggleDelSort()" title="Сортировать по дате"><span id="del-sort-icon">↓</span> Дата</th><th>Точка</th><th>Подразд.</th><th>Виновный</th><th>Позиции</th><th>Причина</th><th>Сумма</th><th>Реестр</th></tr></thead>
+      <table class="stops-tbl"><thead><tr><th>Дата</th><th>Точка</th><th>Подразд.</th><th>Виновный</th><th>Позиции</th><th>Причина</th><th>Сумма</th><th>Реестр</th></tr></thead>
       <tbody id="del-tbody"></tbody></table>
     </div>
   </div>
 </div>
 </div>
-
-
-<!-- ═══ PRODUCTION TAB ═══ -->
-<div id="page-production" class="page">
-<div class="wrap">
-  <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="sdot ok" id="prod-sdot"></div>
-      <span>Производство<span id="prod-period-label"></span></span>
-    </div>
-    <span id="prod-upload-msg" style="font-size:11px;color:var(--grn)"></span>
-  </div>
-
-  <!-- Empty state -->
-  <div id="prod-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
-    <div style="font-size:48px;margin-bottom:16px;opacity:.3">🏭</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные производства не загружены</div>
-    <div style="font-size:13px;margin-bottom:24px">Загрузите JSON через «Управление»</div>
-  </div>
-
-  <!-- Data -->
-  <div id="prod-data-wrap" style="display:none">
-
-    <!-- KPIs -->
-    <div id="prod-kpis" class="kpis" style="margin-bottom:20px"></div>
-
-    <!-- Filters -->
-    <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
-      <select id="prod-date-from" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
-      <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-      <select id="prod-date-to" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
-      <select id="prod-product-filter" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:180px"><option value="">Все продукты</option></select>
-      <button class="fbtn" onclick="resetProdFilter()">✕ Сбросить</button>
-    </div>
-
-    <!-- График по датам -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Выпуск по датам</div>
-      <div class="dow-row" id="prod-by-date" style="height:80px;overflow-x:auto"></div>
-    </div>
-
-    <!-- Топ продуктов -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🏆 Топ продуктов по выпуску</div>
-      <div id="prod-top-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px"></div>
-    </div>
-
-    <!-- Таблица -->
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-      <div style="font-size:14px;font-weight:700;color:var(--txt)">
-        Все записи <span id="prod-rows-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
-      </div>
-      <div class="sw" style="max-width:280px">
-        <span class="sic">🔍</span>
-        <input class="si" id="prod-search" type="text" placeholder="Поиск по продукту или документу..." oninput="applyProdFilter()">
-      </div>
-    </div>
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
-      <table class="stops-tbl">
-        <thead><tr>
-          <th style="cursor:pointer;user-select:none" onclick="toggleProdSort()" title="Сортировать"><span id="prod-sort-icon">↓</span> Дата</th>
-          <th>Продукт</th><th>Кол-во</th><th>Норма</th><th>Факт</th><th>Недовложения</th>
-        </tr></thead>
-        <tbody id="prod-tbody"></tbody>
-      </table>
-    </div>
-
-  </div>
-</div>
-</div><!-- /page-production -->
 
 <!-- Warehouse modal -->
 <div class="ov" id="wm" onclick="if(event.target===this)cl('wm')">
@@ -602,7 +542,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </div>
     </div>
     <div id="apc" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
         <div class="uz" onclick="document.getElementById('jfu').click()" style="margin-bottom:0">
           <div style="font-size:22px;margin-bottom:6px">📊</div>
           <b>Списания</b><br>
@@ -618,16 +558,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
           <b>Довозы</b><br>
           <span style="font-size:11px;color:var(--txt3)">deliveries.json</span>
         </div>
-        <div class="uz" onclick="document.getElementById('prod-jfu').click()" style="margin-bottom:0">
-          <div style="font-size:22px;margin-bottom:6px">🏭</div>
-          <b>Производство</b><br>
-          <span style="font-size:11px;color:var(--txt3)">production.json</span>
-        </div>
       </div>
       <input type="file" id="jfu" accept=".json" style="display:none" onchange="upload(event)">
       <input type="file" id="stops-jfu" accept=".json" style="display:none" onchange="uploadStopsJson(event)">
       <input type="file" id="del-jfu" accept=".json" style="display:none" onchange="uploadDeliveriesJson(event)">
-      <input type="file" id="prod-jfu" accept=".json" style="display:none" onchange="uploadProductionJson(event)">
       <div id="upmsg"></div>
       <div class="st" style="margin-bottom:8px">Загруженные периоды</div>
       <div class="pl" id="apl"></div>
@@ -636,33 +570,6 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         <button class="btn" style="color:var(--red);flex:1;justify-content:center" onclick="clearAll()">🗑 Очистить</button>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- Delivery detail modal -->
-<div class="ov" id="del-modal" onclick="if(event.target===this)cl('del-modal')">
-  <div class="modal" style="max-width:560px">
-    <div class="mh">
-      <div>
-        <div class="mt" id="del-modal-point"></div>
-        <div style="font-size:12px;color:var(--txt2);margin-top:2px" id="del-modal-date"></div>
-      </div>
-      <button class="mx" onclick="cl('del-modal')">✕</button>
-    </div>
-    <!-- Tags row -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px" id="del-modal-tags"></div>
-    <!-- Позиции -->
-    <div class="st">Позиции довоза</div>
-    <div id="del-modal-items" style="background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--txt);line-height:1.7;white-space:pre-line"></div>
-    <!-- Детали -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px" id="del-modal-details">
-      <div class="mk"><div class="mkl">Причина</div><div id="del-modal-reason" style="font-size:13px;color:var(--txt);margin-top:4px;font-weight:600"></div></div>
-      <div class="mk"><div class="mkl">Виновный</div><div id="del-modal-guilty" style="font-size:13px;color:var(--warn);margin-top:4px;font-weight:600"></div></div>
-      <div class="mk"><div class="mkl">Подразделение</div><div id="del-modal-dept" style="font-size:13px;color:var(--txt);margin-top:4px;font-weight:600"></div></div>
-      <div class="mk"><div class="mkl">Сумма штрафа</div><div id="del-modal-cost" style="font-size:16px;font-weight:800;margin-top:4px"></div></div>
-    </div>
-    <!-- Реестр -->
-    <div id="del-modal-reg"></div>
   </div>
 </div>
 
@@ -675,7 +582,7 @@ let periods=[], cur=0, flt='all', adminPw='', stopsIdx=STOPS_PERIODS.length-1, s
 
 
 // ══ DELIVERIES ══════════════════════════════════════════════════════════════
-let DEL_DATA = null, DEL_SORT_DESC = true;
+let DEL_DATA = null;
 
 async function loadDeliveriesFromServer() {
   const sdot = document.getElementById('del-sdot');
@@ -720,27 +627,16 @@ async function uploadDeliveriesJson(e) {
   reader.readAsText(file); e.target.value='';
 }
 
-
-function toggleDelSort(){
-  DEL_SORT_DESC=!DEL_SORT_DESC;
-  const icon=document.getElementById('del-sort-icon');
-  if(icon) icon.textContent=DEL_SORT_DESC?'↓':'↑';
-  applyDelFilter();
-}
-
 function renderDeliveries(){
   const empty=document.getElementById('del-empty');
   const wrap=document.getElementById('del-data-wrap');
   if(!DEL_DATA){if(empty)empty.style.display='block';if(wrap)wrap.style.display='none';return;}
   if(empty)empty.style.display='none';if(wrap)wrap.style.display='block';
-  const dayFromF=document.getElementById('del-date-from');
-  const dayToF  =document.getElementById('del-date-to');
+  const dayF=document.getElementById('del-day-filter');
   const pointF=document.getElementById('del-point-filter');
   const reasonF=document.getElementById('del-reason-filter');
-  const dateOpts='<option value="">—</option>'+
-    DEL_DATA.meta.all_dates.map(d=>`<option value="${d.iso}">${d.d} (${d.dow})</option>`).join('');
-  if(dayFromF) dayFromF.innerHTML='<option value="">С даты...</option>'+dateOpts.slice('<option value="">—</option>'.length);
-  if(dayToF)   dayToF.innerHTML  ='<option value="">По дату...</option>'+dateOpts.slice('<option value="">—</option>'.length);
+  if(dayF)dayF.innerHTML='<option value="">Все даты</option>'+
+    DEL_DATA.meta.all_dates.map(d=>`<option value="${d.iso}">${d.d} (${d.dow}) — ${d.n}</option>`).join('');
   if(pointF)pointF.innerHTML='<option value="">Все точки</option>'+
     DEL_DATA.meta.all_points.map(p=>`<option value="${p}">${p}</option>`).join('');
   if(reasonF){
@@ -754,29 +650,27 @@ function renderDeliveries(){
 
 function applyDelFilter(){
   if(!DEL_DATA)return;
-  const dateFrom =document.getElementById('del-date-from')?.value||'';
-  const dateTo   =document.getElementById('del-date-to')?.value||'';
+  const dayVal   =document.getElementById('del-day-filter')?.value||'';
   const pointVal =document.getElementById('del-point-filter')?.value||'';
   const deptVal  =document.getElementById('del-dept-filter')?.value||'';
   const reasonVal=document.getElementById('del-reason-filter')?.value||'';
   const searchVal=(document.getElementById('del-search')?.value||'').toLowerCase().trim();
-  let rows=DEL_DATA.rows.filter(r=>
-    (!dateFrom||r.iso>=dateFrom)&&(!dateTo||r.iso<=dateTo)&&(!pointVal||r.point===pointVal)&&
+  const rows=DEL_DATA.rows.filter(r=>
+    (!dayVal||r.iso===dayVal)&&(!pointVal||r.point===pointVal)&&
     (!deptVal||r.dept.includes(deptVal))&&(!reasonVal||r.reason===reasonVal)&&
     (!searchVal||r.point.toLowerCase().includes(searchVal)||
       (r.guilty||[]).join(' ').toLowerCase().includes(searchVal)||
       (r.items||'').toLowerCase().includes(searchVal))
   );
-  rows=[...rows].sort((a,b)=>DEL_SORT_DESC?b.iso.localeCompare(a.iso):a.iso.localeCompare(b.iso));
   const totalCost=rows.reduce((s,r)=>s+r.cost,0);
   const withGuilty=rows.filter(r=>r.guilty&&r.guilty.length>0).length;
   const kEl=document.getElementById('del-kpis');
   if(kEl)kEl.innerHTML=`
-    <div class="kpi r"><div class="kl">Всего довозов</div><div class="kv">${rows.length}</div><div class="ks">${(dateFrom||dateTo)?'за период':'всего'}</div></div>
+    <div class="kpi r"><div class="kl">Всего довозов</div><div class="kv">${rows.length}</div><div class="ks">${dayVal?'за день':'за период'}</div></div>
     <div class="kpi w"><div class="kl">Сумма штрафов</div><div class="kv">${totalCost.toLocaleString('ru-RU')} ₽</div><div class="ks">с виновного</div></div>
     <div class="kpi r"><div class="kl">С виновным</div><div class="kv">${withGuilty}</div><div class="ks">из ${rows.length}</div></div>
     <div class="kpi"><div class="kl">Без виновного</div><div class="kv">${rows.length-withGuilty}</div><div class="ks">склад/цех</div></div>`;
-  const dateData=DEL_DATA.meta.all_dates.filter(d=>(!dateFrom||d.iso>=dateFrom)&&(!dateTo||d.iso<=dateTo));
+  const dateData=DEL_DATA.meta.all_dates.filter(d=>!dayVal||d.iso===dayVal);
   const maxN=dateData.length?Math.max(...dateData.map(d=>d.n)):1;
   const dEl=document.getElementById('del-by-date');
   if(dEl)dEl.innerHTML=dateData.map(d=>{
@@ -839,7 +733,7 @@ function applyDelFilter(){
       ${v.cost>0?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">${v.cost.toLocaleString('ru-RU')} ₽</div>`:''}</div>`).join('');
   const rcEl=document.getElementById('del-rows-count');if(rcEl)rcEl.textContent=`(${rows.length} записей)`;
   const tbEl=document.getElementById('del-tbody');
-  if(tbEl)tbEl.innerHTML=rows.map((r,i)=>`<tr style="cursor:pointer" onclick="openDelModal(${i})" title="Нажмите для подробностей">
+  if(tbEl)tbEl.innerHTML=rows.map(r=>`<tr>
     <td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;color:var(--txt)">${r.date}</td>
     <td style="font-weight:600;color:var(--txt);white-space:nowrap">${r.point}</td>
     <td style="font-size:11px;color:var(--txt2);white-space:nowrap">${r.dept||'—'}</td>
@@ -849,177 +743,9 @@ function applyDelFilter(){
     <td style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${r.cost>0?'var(--warn)':'var(--txt3)'};white-space:nowrap">${r.cost>0?r.cost.toLocaleString('ru-RU')+' ₽':'—'}</td>
     <td>${r.registered==='Внесено'?'<span style="font-size:10px;color:var(--grn)">✓</span>':'<span style="font-size:10px;color:var(--txt3)">—</span>'}</td>
     </tr>`).join('');
-  // Сохраняем текущие строки для модалки
-  window._delRows = rows;
 }
-// ── DELIVERY MODAL ────────────────────────────────────────────────────────────
-function openDelModal(idx){
-  const r=(window._delRows||[])[idx]; if(!r)return;
-  document.getElementById('del-modal-point').textContent=r.point;
-  document.getElementById('del-modal-date').textContent=r.date+(r.type?' · '+r.type:'');
-  const tags=[];
-  if(r.dept) tags.push({text:r.dept,color:'var(--acc)'});
-  if(r.registered==='Внесено') tags.push({text:'✓ Внесено в реестр',color:'var(--grn)'});
-  if(r.cost>0) tags.push({text:r.cost.toLocaleString('ru-RU')+' ₽',color:'var(--warn)'});
-  document.getElementById('del-modal-tags').innerHTML=tags.map(t=>
-    `<span style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid ${t.color};color:${t.color};font-weight:600">${t.text}</span>`
-  ).join('');
-  document.getElementById('del-modal-items').textContent=r.items||'—';
-  document.getElementById('del-modal-reason').textContent=r.reason||'—';
-  document.getElementById('del-modal-guilty').textContent=(r.guilty&&r.guilty.length)?r.guilty.join(', '):'—';
-  document.getElementById('del-modal-dept').textContent=r.dept||'—';
-  const costEl=document.getElementById('del-modal-cost');
-  costEl.textContent=r.cost>0?r.cost.toLocaleString('ru-RU')+' ₽':'—';
-  costEl.style.color=r.cost>0?'var(--warn)':'var(--txt3)';
-  document.getElementById('del-modal-reg').innerHTML=r.registered==='Внесено'
-    ?'<div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--grn)">✓ Внесено в реестр штрафов</div>'
-    :'';
-  op('del-modal');
-}
-
-
-
-// ══ PRODUCTION ═════════════════════════════════════════════════════════════
-let PROD_DATA = null, PROD_SORT_DESC = true;
-
-async function loadProductionFromServer(){
-  const sdot=document.getElementById('prod-sdot');
-  if(sdot)sdot.className='sdot spin';
-  try{
-    const r=await fetch('/api/production',{headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const data=await r.json();
-    if(data&&data.meta){applyProductionData(data);return true;}
-    if(sdot)sdot.className='sdot warn';renderProduction();return false;
-  }catch(e){const s2=document.getElementById('prod-sdot');if(s2)s2.className='sdot warn';renderProduction();return false;}
-}
-function applyProductionData(data){
-  PROD_DATA=data;
-  const sdot=document.getElementById('prod-sdot');if(sdot)sdot.className='sdot ok';
-  const lbl=document.getElementById('prod-period-label');
-  if(lbl)lbl.innerHTML=' · <b style="color:var(--txt)">Синхронизировано</b>';
-  renderProduction();
-}
-async function uploadProductionJson(e){
-  const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=async ev=>{
-    try{
-      const data=JSON.parse(ev.target.result);
-      if(!data.meta||!data.rows)throw new Error('Неверный формат');
-      const msg=document.getElementById('prod-upload-msg');if(msg)msg.textContent='Загрузка...';
-      const fd=new FormData();fd.append('file',file);
-      const r=await fetch('/api/production',{method:'POST',headers:{'X-Admin-Password':adminPw},body:fd});
-      const j=await r.json();
-      if(j.ok){applyProductionData(data);if(msg){msg.textContent='✅ '+j.rows+' записей';setTimeout(()=>msg.textContent='',4000);}}
-      else throw new Error(j.error);
-    }catch(err){alert('❌ '+err.message);}
-  };
-  reader.readAsText(file);e.target.value='';
-}
-function renderProduction(){
-  const empty=document.getElementById('prod-empty');
-  const wrap=document.getElementById('prod-data-wrap');
-  if(!PROD_DATA){if(empty)empty.style.display='block';if(wrap)wrap.style.display='none';return;}
-  if(empty)empty.style.display='none';if(wrap)wrap.style.display='block';
-  const dateOpts=PROD_DATA.meta.all_dates.map(d=>'<option value="'+d.iso+'">'+d.d+' ('+d.dow+') — '+d.n_items+' поз.</option>').join('');
-  const fF=document.getElementById('prod-date-from');const tF=document.getElementById('prod-date-to');
-  if(fF)fF.innerHTML='<option value="">С даты...</option>'+dateOpts;
-  if(tF)tF.innerHTML='<option value="">По дату...</option>'+dateOpts;
-  const pF=document.getElementById('prod-product-filter');
-  if(pF)pF.innerHTML='<option value="">Все продукты</option>'+PROD_DATA.meta.all_products.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
-  applyProdFilter();
-}
-function toggleProdSort(){
-  PROD_SORT_DESC=!PROD_SORT_DESC;
-  const ic=document.getElementById('prod-sort-icon');if(ic)ic.textContent=PROD_SORT_DESC?'↓':'↑';
-  applyProdFilter();
-}
-function applyProdFilter(){
-  if(!PROD_DATA)return;
-  const fromVal=document.getElementById('prod-date-from')?.value||'';
-  const toVal=document.getElementById('prod-date-to')?.value||'';
-  const prodVal=document.getElementById('prod-product-filter')?.value||'';
-  const searchVal=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
-  let rows=PROD_DATA.rows.filter(r=>
-    (!fromVal||r.iso>=fromVal)&&(!toVal||r.iso<=toVal)&&
-    (!prodVal||r.name===prodVal)&&
-    (!searchVal||r.name.toLowerCase().includes(searchVal)||r.doc.toLowerCase().includes(searchVal))
-  );
-  rows=[...rows].sort((a,b)=>PROD_SORT_DESC?b.iso.localeCompare(a.iso):a.iso.localeCompare(b.iso));
-  const totalQty=rows.reduce((s,r)=>s+r.qty,0);
-  const totalNedov=rows.reduce((s,r)=>s+r.nedov,0);
-  const uniqProds=new Set(rows.map(r=>r.name)).size;
-  const uniqDates=new Set(rows.map(r=>r.iso)).size;
-  const kEl=document.getElementById('prod-kpis');
-  if(kEl)kEl.innerHTML=
-    '<div class="kpi"><div class="kl">Позиций выпущено</div><div class="kv">'+rows.length+'</div><div class="ks">записей</div></div>'+
-    '<div class="kpi g"><div class="kl">Итого кол-во</div><div class="kv">'+totalQty.toLocaleString('ru-RU')+'</div><div class="ks">штук/кг</div></div>'+
-    '<div class="kpi w"><div class="kl">Недовложения</div><div class="kv">'+(totalNedov>0?totalNedov.toFixed(1):'—')+'</div><div class="ks">единиц</div></div>'+
-    '<div class="kpi"><div class="kl">Продуктов</div><div class="kv">'+uniqProds+'</div><div class="ks">за '+uniqDates+' дн.</div></div>';
-  const dateAgg={};rows.forEach(r=>{dateAgg[r.iso]=(dateAgg[r.iso]||0)+r.qty;});
-  const filtDates=PROD_DATA.meta.all_dates.filter(d=>(!fromVal||d.iso>=fromVal)&&(!toVal||d.iso<=toVal));
-  const maxN=filtDates.length?Math.max(...filtDates.map(d=>dateAgg[d.iso]||0),1):1;
-  const dEl=document.getElementById('prod-by-date');
-  if(dEl)dEl.innerHTML=filtDates.map(d=>{
-    const n=dateAgg[d.iso]||0;
-    const isWE=d.dow==='Сб'||d.dow==='Вс';
-    const barH=Math.max(6,Math.round(n/maxN*55));
-    const clr=n===maxN?'var(--acc)':isWE?'var(--warn)':'var(--grn)';
-    return '<div class="dow-col" style="min-width:34px" title="'+d.d+': '+n.toLocaleString('ru-RU')+'">'+
-      '<div class="dow-val" style="font-size:9px">'+(n>=1000?Math.round(n/1000)+'k':n)+'</div>'+
-      '<div class="dow-bar" style="height:'+barH+'px;background:'+clr+'"></div>'+
-      '<div class="dow-lbl">'+d.d+'</div><div class="dow-dow">'+d.dow+'</div></div>';
-  }).join('');
-  const prodAgg={};
-  rows.forEach(r=>{
-    if(!prodAgg[r.name])prodAgg[r.name]={qty:0,nedov:0,days:new Set()};
-    prodAgg[r.name].qty+=r.qty;prodAgg[r.name].nedov+=r.nedov;prodAgg[r.name].days.add(r.iso);
-  });
-  const topP=Object.entries(prodAgg).sort((a,b)=>b[1].qty-a[1].qty).slice(0,15);
-  const maxQ=topP.length?topP[0][1].qty:1;
-  const pEl=document.getElementById('prod-top-list');
-  if(pEl)pEl.innerHTML=topP.map(function(entry,i){
-    const name=entry[0],v=entry[1];
-    const encName=encodeURIComponent(name);
-    const clr=i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt)';
-    const barClr=i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt3)';
-    return '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer" onclick="selectProdProduct(this);" data-prod="'+encName+'">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-      +'<span style="font-size:11px;font-weight:700;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+name+'</span>'
-      +'<span style="font-size:14px;font-weight:800;color:'+clr+';font-family:JetBrains Mono,monospace;margin-left:8px;flex-shrink:0">'+v.qty.toLocaleString('ru-RU')+'</span></div>'
-      +'<div style="background:var(--bd);border-radius:2px;height:3px;margin-bottom:4px">'
-      +'<div style="height:3px;border-radius:2px;background:'+barClr+';width:'+Math.round(v.qty/maxQ*100)+'%"></div></div>'
-      +'<div style="font-size:10px;color:var(--txt3)">'+v.days.size+' дн.'+(v.nedov>0?' · недовл: '+v.nedov.toFixed(1):'')+' </div></div>';
-  }).join('');
-  const rcEl=document.getElementById('prod-rows-count');if(rcEl)rcEl.textContent='('+rows.length+' записей)';
-  const tbEl=document.getElementById('prod-tbody');
-  const monoSt='font-family:JetBrains Mono,monospace';
-  if(tbEl)tbEl.innerHTML=rows.map(function(r){
-    return '<tr>'
-      +'<td style="'+monoSt+';font-size:11px;white-space:nowrap;color:var(--txt)">'+r.date+'</td>'
-      +'<td style="font-size:12px;color:var(--txt);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+r.name+'">'+r.name+'</td>'
-      +'<td style="'+monoSt+';font-size:12px;font-weight:700;color:var(--acc);white-space:nowrap">'+r.qty.toLocaleString('ru-RU')+'</td>'
-      +'<td style="'+monoSt+';font-size:11px;color:var(--txt2)">'+r.norm+'</td>'
-      +'<td style="'+monoSt+';font-size:11px;color:var(--txt2)">'+r.fact+'</td>'
-      +'<td style="'+monoSt+';font-size:11px;color:'+(r.nedov>0?'var(--red)':'var(--txt3)')+';font-weight:'+(r.nedov>0?'700':'400')+'">'+(r.nedov>0?r.nedov.toFixed(2):'—')+'</td></tr>';
-  }).join('');
-}
-function selectProdProduct(el){
-  const name=decodeURIComponent(el.getAttribute('data-prod'));
-  const pf=document.getElementById('prod-product-filter');
-  if(pf)pf.value=name;
-  applyProdFilter();
-}
-function resetProdFilter(){
-  ['prod-date-from','prod-date-to','prod-product-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
-  const s=document.getElementById('prod-search');if(s)s.value='';
-  applyProdFilter();
-}
-
-
 function resetDelFilters() {
-  
+  document.getElementById('del-day-filter').value='';
   document.getElementById('del-point-filter').value='';
   document.getElementById('del-type-filter').value='';
   applyDelFilter();
@@ -1089,7 +815,7 @@ async function loadData(){
 
 function render(){
   const p=d(); if(!p){renderEmpty();return;}
-  renderKPIs(p); renderCards();
+  renderKPIs(p); renderPTabs(); renderCards();
 }
 function renderEmpty(){
   document.getElementById('krow').innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0;grid-column:1/-1">Нет данных. Загрузите JSON через «Управление».</div>';
@@ -1110,185 +836,81 @@ function renderKPIs(p){
     <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
 }
 
-// ── WRITEOFFS FILTERS ────────────────────────────────────────────────────────
-let WO_INDEX = null;
+function renderPTabs(){
+  const w=document.getElementById('ptabs-wrap');
+  if(periods.length<2){w.style.display='none';return;}
+  w.style.display='block';
+  document.getElementById('ptabs').innerHTML=periods.map((p,i)=>`<button class="ptab ${i===cur?'act':''}" onclick="cur=${i};render()">${p.period}</button>`).join('');
+}
 
-// Загружаем индекс с сервера (опционально — для фильтра по датам)
+// ── WRITEOFFS FILTERS (date + warehouse) ─────────────────────────────────────
+let WO_INDEX=null, WO_DAY_SEL='', WO_WH_SEL='';
+
 async function initWoDateFilter(){
-  try {
-    const r = await fetch('/api/writeoffs/index', {headers:{'X-View-Password':sessionPassword}});
-    if (!r.ok) throw new Error('no index');
-    WO_INDEX = await r.json();
-    if (!WO_INDEX) throw new Error('null');
-    _fillWoSelects();
-  } catch(e) {
-    // Индекс недоступен — заполним из загруженных periods
-    _fillWoSelectsFromPeriods();
-  }
-}
-
-function _fillWoSelects(){
-  const dateOpts = WO_INDEX.meta.dates.map(d=>
-    `<option value="${d.d}">${d.short} (${d.dow}) — ${Math.round(d.total/1000)}k ₽</option>`
-  ).join('');
-  const fF=document.getElementById('wo-date-from');
-  const tF=document.getElementById('wo-date-to');
-  if(fF) fF.innerHTML='<option value="">С даты...</option>'+dateOpts;
-  if(tF) tF.innerHTML='<option value="">По дату...</option>'+dateOpts;
-
+  const dSel=document.getElementById('wo-date-filter');
   const wSel=document.getElementById('wo-wh-filter');
-  if(wSel) wSel.innerHTML='<option value="">Все склады</option>'+
-    WO_INDEX.meta.warehouses.map(w=>
-      `<option value="${w.name}">${w.name} — ${Math.round(w.total/1000)}k ₽</option>`
-    ).join('');
-}
-
-function _fillWoSelectsFromPeriods(){
-  // Собираем список складов из загруженных периодов
-  const whSet = new Set();
-  periods.forEach(p => (p.warehouses||[]).forEach(w => whSet.add(w.name)));
-  const wSel = document.getElementById('wo-wh-filter');
-  if(wSel && whSet.size) {
-    wSel.innerHTML = '<option value="">Все склады</option>'+
-      [...whSet].sort().map(w=>`<option value="${w}">${w}</option>`).join('');
-  }
-  // Даты — если индекса нет, оставляем пустыми (нет данных по дням)
+  if(!dSel)return;
+  try{
+    const r=await fetch('/api/writeoffs/index',{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok)throw new Error('no index');
+    WO_INDEX=await r.json();
+    if(!WO_INDEX)throw new Error('null');
+    dSel.innerHTML='<option value="">Все даты (период)</option>'+
+      WO_INDEX.meta.dates.map(d=>
+        `<option value="${d.d}">${d.short} (${d.dow}) — ${Math.round(d.total/1000)}k ₽</option>`
+      ).join('');
+    if(wSel) wSel.innerHTML='<option value="">Все склады</option>'+
+      WO_INDEX.meta.warehouses.map(w=>
+        `<option value="${w.name}">${w.name} — ${Math.round(w.total/1000)}k ₽</option>`
+      ).join('');
+  }catch(e){console.log('WO index:',e.message);}
 }
 
 function applyWoDateFilter(){
-  const fromVal = document.getElementById('wo-date-from')?.value||'';
-  const toVal   = document.getElementById('wo-date-to')?.value||'';
-
-  // Сброс фильтра склада при выборе даты
-  const ws = document.getElementById('wo-wh-filter'); if(ws) ws.value='';
-  const rb = document.getElementById('wo-reset-btn');
-
-  if(!fromVal && !toVal){
-    // Сброс — убрать временный период
-    if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
-    if(rb) rb.style.display='none';
-    render(); return;
-  }
-
-  if(rb) rb.style.display='';
-
-  // Есть индекс — агрегируем из сырых данных
-  if(WO_INDEX){
-    const matchDates = WO_INDEX.meta.dates.filter(d=>
-      (!fromVal || d.d >= fromVal) && (!toVal || d.d <= toVal)
-    );
-    if(!matchDates.length){ ss('warn','Нет данных за выбранный период'); return; }
-
-    if(matchDates.length === 1){
-      const data = WO_INDEX.by_day[matchDates[0].d];
-      if(data){
-        pushTmpPeriod(data);
-        ss('ok', matchDates[0].short+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
-        render(); return;
-      }
-    }
-
-    const merged = mergeWoDays(matchDates.map(d=>d.d));
-    if(merged){
-      merged.period = matchDates[0].short+' — '+matchDates[matchDates.length-1].short;
-      pushTmpPeriod(merged);
-      ss('ok', merged.period+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
-      render(); return;
-    }
-  } else {
-    ss('warn','Фильтр по датам требует данных на сервере. Загрузите writeoffs_raw через сервер.');
-  }
-}
-
-function mergeWoDays(dateList){
-  if(!WO_INDEX) return null;
-  const byWh = {};
-  dateList.forEach(d=>{
-    const day = WO_INDEX.by_day[d]; if(!day) return;
-    day.warehouses.forEach(wh=>{
-      if(!byWh[wh.name]) byWh[wh.name] = {name:wh.name,total:0,n_items:wh.n_items,cats:wh.cats,top3:wh.top3,top10:wh.top10};
-      byWh[wh.name].total += wh.total;
-    });
-  });
-  const warehouses = Object.values(byWh).sort((a,b)=>b.total-a.total);
-  const grand = warehouses.reduce((s,w)=>s+w.total,0);
-  warehouses.forEach(w=>{ w.pct=grand?Math.round(w.total/grand*1000)/10:0; });
-  return {period:'', grand_total:Math.round(grand), warehouses};
+  WO_DAY_SEL=document.getElementById('wo-date-filter')?.value||'';
+  WO_WH_SEL='';
+  const ws=document.getElementById('wo-wh-filter'); if(ws)ws.value='';
+  _applyWoFilters();
 }
 
 function applyWoWhFilter(){
-  const whVal = document.getElementById('wo-wh-filter')?.value||'';
-  const rb = document.getElementById('wo-reset-btn');
-
-  // Сброс фильтра дат
-  const df=document.getElementById('wo-date-from'); if(df)df.value='';
-  const dt=document.getElementById('wo-date-to');   if(dt)dt.value='';
-
-  if(!whVal){
-    if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
-    if(rb) rb.style.display='none';
-    render(); return;
-  }
-
-  if(rb) rb.style.display='';
-
-  // Индекс есть — данные по складу
-  if(WO_INDEX && WO_INDEX.by_wh[whVal]){
-    pushTmpPeriod(WO_INDEX.by_wh[whVal]);
-    ss('ok', whVal+' · '+WO_INDEX.by_wh[whVal].grand_total.toLocaleString('ru-RU')+' ₽');
-    render(); return;
-  }
-
-  // Индекса нет — фильтруем из загруженных periods
-  const merged = mergeWhFromPeriods(whVal);
-  if(merged){
-    pushTmpPeriod(merged);
-    ss('ok', whVal+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
-    render();
-  }
-}
-
-function mergeWhFromPeriods(whName){
-  // Агрегируем один склад по всем загруженным периодам
-  const allItems = {}, allCats = {};
-  let total = 0;
-  periods.filter(p=>!p._tmp).forEach(p=>{
-    const wh = (p.warehouses||[]).find(w=>w.name===whName);
-    if(!wh) return;
-    total += wh.total;
-    (wh.top10||[]).forEach(it=>{
-      if(!allItems[it.name]) allItems[it.name]={name:it.name,cost:0,qty:it.qty,unit:it.unit};
-      allItems[it.name].cost += it.cost;
-    });
-    Object.entries(wh.cats||{}).forEach(([k,v])=>{ allCats[k]=(allCats[k]||0)+v; });
-  });
-  if(!total) return null;
-  const top10 = Object.values(allItems).sort((a,b)=>b.cost-a.cost).slice(0,10);
-  return {
-    period: whName,
-    grand_total: Math.round(total),
-    warehouses: [{
-      name: whName, total: Math.round(total), pct: 100,
-      n_items: top10.length, cats: allCats,
-      top3: top10.slice(0,3), top10
-    }]
-  };
-}
-
-function pushTmpPeriod(data){
-  if(periods[0]?._tmp) periods.shift();
-  periods.unshift({...data, _tmp:true});
-  cur = 0;
+  WO_WH_SEL=document.getElementById('wo-wh-filter')?.value||'';
+  WO_DAY_SEL='';
+  const ds=document.getElementById('wo-date-filter'); if(ds)ds.value='';
+  _applyWoFilters();
 }
 
 function resetWoFilters(){
-  ['wo-date-from','wo-date-to','wo-wh-filter'].forEach(id=>{
-    const el=document.getElementById(id); if(el)el.value='';
-  });
-  const rb=document.getElementById('wo-reset-btn'); if(rb)rb.style.display='none';
-  if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
+  WO_DAY_SEL=''; WO_WH_SEL='';
+  const ds=document.getElementById('wo-date-filter'); if(ds)ds.value='';
+  const ws=document.getElementById('wo-wh-filter');   if(ws)ws.value='';
+  const rb=document.getElementById('wo-reset-btn');   if(rb)rb.style.display='none';
+  if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
   render();
   ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
+}
+
+function _applyWoFilters(){
+  const rb=document.getElementById('wo-reset-btn');
+  if(!WO_DAY_SEL&&!WO_WH_SEL){
+    if(rb)rb.style.display='none';
+    if(periods[0]?._tmp){periods.shift();if(cur>0)cur--;}
+    render();return;
+  }
+  if(rb)rb.style.display='';
+  if(!WO_INDEX){ss('warn','Индекс не загружен — перезагрузите страницу');return;}
+  let data=null;
+  if(WO_DAY_SEL&&WO_INDEX.by_day[WO_DAY_SEL]){
+    data=WO_INDEX.by_day[WO_DAY_SEL];
+    ss('ok',WO_DAY_SEL.substring(0,5)+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
+  } else if(WO_WH_SEL&&WO_INDEX.by_wh[WO_WH_SEL]){
+    data=WO_INDEX.by_wh[WO_WH_SEL];
+    ss('ok',WO_WH_SEL+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
+  }
+  if(!data){ss('warn','Нет данных');return;}
+  if(periods[0]?._tmp)periods.shift();
+  periods.unshift({...data,_tmp:true});
+  cur=0; render();
 }
 
 
@@ -1446,137 +1068,71 @@ function renderStops(){
   if(empty)empty.style.display='none';
   if(wrap)wrap.style.display='block';
 
-  // Заполняем диапазон дат и точки
-  if(STOPS_DATA){
-    const dateOpts = STOPS_DATA.meta.all_dates.map(d=>
-      `<option value="${d.iso}">${d.d} (${d.dow}) — ${d.n} ст.</option>`).join('');
-    const fF=document.getElementById('stops-date-from');
-    const tF=document.getElementById('stops-date-to');
-    if(fF) fF.innerHTML='<option value="">С даты...</option>'+dateOpts;
-    if(tF) tF.innerHTML='<option value="">По дату...</option>'+dateOpts;
-    const ptF=document.getElementById('stops-point-filter');
-    if(ptF) ptF.innerHTML='<option value="">Все точки</option>'+
+  // Заполняем фильтр дат
+  const dayF=document.getElementById('stops-day-filter');
+  if(dayF && STOPS_DATA){
+    dayF.innerHTML='<option value="">Все даты</option>'+
+      STOPS_DATA.meta.all_dates.map(d=>
+        `<option value="${d.iso}">${d.d} (${d.dow}) — ${d.n} ст.</option>`
+      ).join('');
+  }
+  // Заполняем фильтр точек
+  const ptF=document.getElementById('stops-point-filter');
+  if(ptF && STOPS_DATA){
+    ptF.innerHTML='<option value="">Все точки</option>'+
       STOPS_DATA.meta.all_pts.map(p=>`<option value="${p}">${p}</option>`).join('');
   }
+  renderStopsPTabs();
   renderStopsContent();
 }
 function applyStopsFilter(){
-  const fromVal = document.getElementById('stops-date-from')?.value||'';
-  const toVal   = document.getElementById('stops-date-to')?.value||'';
-  const ptVal   = document.getElementById('stops-point-filter')?.value||'';
+  const dayVal=document.getElementById('stops-day-filter')?.value||'';
+  const ptVal =document.getElementById('stops-point-filter')?.value||'';
 
-  // Нет фильтров
-  if(!fromVal && !toVal && !ptVal){
-    renderStopsContent(); return;
-  }
-
-  // Фильтр по дате — нужен STOPS_DATA
-  if((fromVal || toVal) && STOPS_DATA){
-    const matchDays = STOPS_DATA.meta.all_dates.filter(d=>
-      (!fromVal || d.iso >= fromVal) && (!toVal || d.iso <= toVal)
-    );
-    if(!matchDays.length){
-      renderStopsContent(); return;
-    }
-    if(matchDays.length === 1){
-      let data = expandPeriod(STOPS_DATA.days[matchDays[0].iso]);
-      if(ptVal){
-        data = {...data,
-          by_point: data.by_point.filter(p=>p.name===ptVal),
-          active:   data.active.filter(a=>a.point===ptVal)
-        };
-      }
-      const lbl=document.getElementById('stops-period-label');
-      if(lbl) lbl.innerHTML=' · <b style="color:var(--txt)">'+data.period+'</b>';
-      renderStopsData(data); return;
-    }
-    // Несколько дней — объединяем
-    const merged = mergeStosDays(matchDays.map(d=>d.iso), ptVal);
-    const fromShort=matchDays[0].d, toShort=matchDays[matchDays.length-1].d;
-    merged.period = fromShort+' — '+toShort;
-    const lbl=document.getElementById('stops-period-label');
-    if(lbl) lbl.innerHTML=` · <b style="color:var(--txt)">${merged.period}</b>`;
-    renderStopsData(merged); return;
-  }
-
-  if((fromVal || toVal) && !STOPS_DATA){
-    ss('warn','Загрузите JSON стоп-листов для фильтра по датам');
-    return;
-  }
-
-  // Только точка
-  if(ptVal){
-    if(STOPS_DATA){
-      // Из всех данных по точке
-      const allDays = Object.values(STOPS_DATA.days);
-      const merged = mergeStosDays(
-        STOPS_DATA.meta.all_dates.map(d=>d.iso), ptVal
-      );
-      merged.period = ptVal;
-      const lbl=document.getElementById('stops-period-label');
-      if(lbl) lbl.innerHTML=` · <b style="color:var(--txt)">${ptVal}</b>`;
-      renderStopsData(merged);
-    } else {
-      const s = STOPS_PERIODS[stopsIdx];
-      const data = {...s,
-        by_point: s.by_point.filter(p=>p.name===ptVal),
-        active:   s.active.filter(a=>a.point===ptVal)
+  if(dayVal && STOPS_DATA && STOPS_DATA.days[dayVal]){
+    // Конкретный день из STOPS_DATA
+    let data = expandPeriod(STOPS_DATA.days[dayVal]);
+    if(ptVal){
+      data = {...data,
+        by_point: data.by_point.filter(p=>p.name===ptVal),
+        active:   data.active.filter(a=>a.point===ptVal)
       };
-      renderStopsData(data);
     }
+    // Обновить статус
+    const lbl=document.getElementById('stops-period-label');
+    if(lbl) lbl.innerHTML=' · <b style="color:var(--txt)">'+data.period+'</b>';
+    renderStopsData(data);
     return;
   }
 
+  if(ptVal && !dayVal){
+    // Только точка — фильтруем текущий период
+    const s=STOPS_PERIODS[stopsIdx];
+    const data={...s,
+      by_point: s.by_point.filter(p=>p.name===ptVal),
+      active:   s.active.filter(a=>a.point===ptVal)
+    };
+    renderStopsData(data);
+    return;
+  }
+
+  // Без фильтров — текущий период
   renderStopsContent();
-}
-function mergeStosDays(isoList, ptFilter){
-  // Объединяем данные нескольких дней из STOPS_DATA
-  const allByPt = {}, allActive = [], allByDate = [], allTop = {};
-  let totalN=0, totalDur=0, totalPts=new Set(), totalProds=new Set();
-
-  isoList.forEach(iso=>{
-    const day = STOPS_DATA.days[iso]; if(!day) return;
-    const expanded = expandPeriod(day);
-    totalN   += expanded.total_stops;
-    totalDur += expanded.avg_duration * expanded.total_stops;
-    expanded.by_date.forEach(d=>allByDate.push(d));
-    expanded.active.forEach(a=>{ if(!ptFilter||a.point===ptFilter) allActive.push(a); });
-    expanded.by_point.forEach(p=>{
-      if(ptFilter && p.name!==ptFilter) return;
-      totalPts.add(p.name);
-      if(!allByPt[p.name]) allByPt[p.name]={count:0,avg_dur:0,total_dur:0,top_products:p.top_products||[]};
-      allByPt[p.name].count     += p.count;
-      allByPt[p.name].total_dur += p.total_dur;
-      allByPt[p.name].avg_dur    = Math.round(allByPt[p.name].total_dur / allByPt[p.name].count);
-    });
-    expanded.top_products.forEach(p=>{
-      totalProds.add(p.name);
-      if(!allTop[p.name]) allTop[p.name]={count:0,avg_dur:p.avg_dur,points:p.points||[]};
-      allTop[p.name].count += p.count;
-    });
-  });
-
-  const fromD = allByDate[0]?.date||'';
-  const toD   = allByDate[allByDate.length-1]?.date||'';
-  return {
-    period: fromD+' — '+toD,
-    total_stops: totalN, total_points: totalPts.size,
-    total_products: totalProds.size,
-    avg_duration: totalN ? Math.round(totalDur/totalN) : 0,
-    by_date:  allByDate,
-    all_points: [...totalPts].sort(),
-    active:   allActive,
-    by_point: Object.entries(allByPt).map(([name,v])=>({name,...v})).sort((a,b)=>b.count-a.count),
-    top_products: Object.entries(allTop).map(([name,v])=>({name,...v})).sort((a,b)=>b.count-a.count).slice(0,15)
-  };
 }
 function resetStopsFilter(){
-  ['stops-date-from','stops-date-to','stops-point-filter'].forEach(id=>{
-    const el=document.getElementById(id); if(el)el.value='';
-  });
+  const d=document.getElementById('stops-day-filter');   if(d)d.value='';
+  const p=document.getElementById('stops-point-filter'); if(p)p.value='';
   renderStopsContent();
 }
-
+function renderStopsPTabs(){
+  document.getElementById('stops-ptabs').innerHTML=STOPS_PERIODS.map((p,i)=>{
+    const prev=STOPS_PERIODS[i-1];
+    const dt=prev?Math.round((p.total_stops-prev.total_stops)/prev.total_stops*100):null;
+    const de=dt!==null?`<span style="font-size:10px;color:${dt>0?'var(--red)':'var(--grn)'};margin-left:4px">${dt>0?'↑':'↓'}${Math.abs(dt)}%</span>`:'';
+    return `<button class="ptab ${i===stopsIdx?'act':''}" onclick="switchStopsPeriod(${i})">${p.period}${de}</button>`;
+  }).join('');
+}
+function switchStopsPeriod(i){stopsIdx=i;renderStopsPTabs();renderStopsContent();}
 function renderStopsData(s){
   // Рендер стопов из произвольного объекта (день или отфильтрованный период)
   const lbl = document.getElementById('stops-period-label');
@@ -1790,6 +1346,7 @@ function loadStopsDay(isoDate){
   if(idx>=0) STOPS_PERIODS[idx]=dayData;
   else STOPS_PERIODS.unshift(dayData);
   stopsIdx=0;
+  renderStopsPTabs();
   renderStopsContent();
 }
 
