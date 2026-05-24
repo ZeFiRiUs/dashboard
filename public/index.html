@@ -872,7 +872,7 @@ async function loadData(){
 
 function render(){
   const p=d(); if(!p){renderEmpty();return;}
-  renderKPIs(p); renderPTabs(); renderCards();
+  renderKPIs(p); renderCards();
 }
 function renderEmpty(){
   document.getElementById('krow').innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0;grid-column:1/-1">Нет данных. Загрузите JSON через «Управление».</div>';
