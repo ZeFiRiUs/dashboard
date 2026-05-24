@@ -609,7 +609,7 @@ let periods=[], cur=0, flt='all', adminPw='', stopsIdx=STOPS_PERIODS.length-1, s
 
 
 // ══ DELIVERIES ══════════════════════════════════════════════════════════════
-let DEL_DATA = null;
+let DEL_DATA = null, DEL_SORT_DESC = true;
 
 async function loadDeliveriesFromServer() {
   const sdot = document.getElementById('del-sdot');
