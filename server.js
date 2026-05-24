@@ -382,6 +382,51 @@ function rebuildWriteoffsIndex() {
 }
 
 
+// ── Production ────────────────────────────────────────────────────────────────
+const PROD_FILE_PATH  = 'data/production.json';
+const LOCAL_PROD_FILE = path.join(LOCAL_DATA_DIR, 'production.json');
+if (!fs.existsSync(LOCAL_PROD_FILE)) fs.writeFileSync(LOCAL_PROD_FILE, 'null');
+
+async function readProduction() {
+  if (GH_TOKEN && GH_OWNER) {
+    try {
+      const r = await ghRead(PROD_FILE_PATH);
+      if (r) { fs.writeFileSync(LOCAL_PROD_FILE, JSON.stringify(r.content)); return { data: r.content, sha: r.sha }; }
+    } catch(e) { console.error('Prod GitHub read:', e.message); }
+  }
+  try { return { data: JSON.parse(fs.readFileSync(LOCAL_PROD_FILE, 'utf8')), sha: null }; }
+  catch { return { data: null, sha: null }; }
+}
+
+async function writeProduction(data, sha) {
+  fs.writeFileSync(LOCAL_PROD_FILE, JSON.stringify(data));
+  if (GH_TOKEN && GH_OWNER) {
+    try {
+      let s = sha; if (!s) { const r = await ghRead(PROD_FILE_PATH); s = r?.sha; }
+      await ghWrite(PROD_FILE_PATH, data, s, 'Update production');
+      return 'github';
+    } catch(e) { console.error('Prod GitHub write:', e.message); }
+  }
+  return 'local';
+}
+
+app.get('/api/production', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const { data } = await readProduction();
+  res.json(data);
+});
+
+app.post('/api/production', upload.single('file'), async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
+    if (!data.meta || !data.rows) return res.status(400).json({ error: 'Неверный формат' });
+    const { sha } = await readProduction();
+    const dest = await writeProduction(data, sha);
+    res.json({ ok: true, rows: data.rows.length, saved_to: dest });
+  } catch(e) { res.status(400).json({ error: e.message }); }
+});
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
