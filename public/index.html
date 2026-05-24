@@ -969,67 +969,70 @@ async function clearAll(){if(!confirm('Удалить ВСЕ?'))return;for(let i
 
 // ═══ STOPS ═══
 function renderStops(){
-  const empty = document.getElementById('stops-empty');
-  const wrap  = document.getElementById('stops-data-wrap');
+  const empty=document.getElementById('stops-empty');
+  const wrap=document.getElementById('stops-data-wrap');
   if(!STOPS_PERIODS.length){
-    if(empty) empty.style.display='block';
-    if(wrap)  wrap.style.display='none';
+    if(empty)empty.style.display='block';
+    if(wrap)wrap.style.display='none';
     return;
   }
-  if(empty) empty.style.display='none';
-  if(wrap)  wrap.style.display='block';
-  // Заполнить фильтр дат из STOPS_DATA
-  const dayF   = document.getElementById('stops-day-filter');
-  const pointF = document.getElementById('stops-point-filter');
-  if(STOPS_DATA && dayF){
+  if(empty)empty.style.display='none';
+  if(wrap)wrap.style.display='block';
+
+  // Заполняем фильтр дат
+  const dayF=document.getElementById('stops-day-filter');
+  if(dayF && STOPS_DATA){
     dayF.innerHTML='<option value="">Все даты</option>'+
       STOPS_DATA.meta.all_dates.map(d=>
         `<option value="${d.iso}">${d.d} (${d.dow}) — ${d.n} ст.</option>`
       ).join('');
   }
-  if(STOPS_DATA && pointF){
-    const pts = STOPS_DATA.meta.all_pts || [];
-    pointF.innerHTML='<option value="">Все точки</option>'+
-      pts.map(p=>`<option value="${p}">${p}</option>`).join('');
+  // Заполняем фильтр точек
+  const ptF=document.getElementById('stops-point-filter');
+  if(ptF && STOPS_DATA){
+    ptF.innerHTML='<option value="">Все точки</option>'+
+      STOPS_DATA.meta.all_pts.map(p=>`<option value="${p}">${p}</option>`).join('');
   }
   renderStopsPTabs();
   renderStopsContent();
 }
-
 function applyStopsFilter(){
-  const dayVal   = document.getElementById('stops-day-filter')?.value   || '';
-  const pointVal = document.getElementById('stops-point-filter')?.value || '';
-  if(dayVal && STOPS_DATA){
-    // Загружаем конкретный день из STOPS_DATA
-    const dayData = STOPS_DATA.days[dayVal];
-    if(dayData){
-      const expanded = expandPeriod(dayData);
-      // Если точка выбрана — фильтруем внутри дня
-      if(pointVal){
-        expanded.by_pt = expanded.by_point?.filter(p=>p.name===pointVal) || expanded.by_pt?.filter(p=>p.name===pointVal) || [];
-        expanded.active = (expanded.active||[]).filter(a=>a.point===pointVal);
-      }
-      // Показываем без изменения stopsIdx
-      renderStopsData(expanded);
-      return;
+  const dayVal=document.getElementById('stops-day-filter')?.value||'';
+  const ptVal =document.getElementById('stops-point-filter')?.value||'';
+
+  if(dayVal && STOPS_DATA && STOPS_DATA.days[dayVal]){
+    // Конкретный день из STOPS_DATA
+    let data = expandPeriod(STOPS_DATA.days[dayVal]);
+    if(ptVal){
+      data = {...data,
+        by_point: data.by_point.filter(p=>p.name===ptVal),
+        active:   data.active.filter(a=>a.point===ptVal)
+      };
     }
-  }
-  if(pointVal){
-    // Фильтр по точке без фильтра дня — фильтруем текущий период
-    const s = STOPS_PERIODS[stopsIdx];
-    const filtered = JSON.parse(JSON.stringify(s));
-    filtered.by_point = (s.by_point||[]).filter(p=>p.name===pointVal);
-    filtered.active   = (s.active||[]).filter(a=>a.point===pointVal);
-    renderStopsData(filtered);
+    // Обновить статус
+    const lbl=document.getElementById('stops-period-label');
+    if(lbl) lbl.innerHTML=' · <b style="color:var(--txt)">'+data.period+'</b>';
+    renderStopsData(data);
     return;
   }
-  // Без фильтров — показываем текущий период
+
+  if(ptVal && !dayVal){
+    // Только точка — фильтруем текущий период
+    const s=STOPS_PERIODS[stopsIdx];
+    const data={...s,
+      by_point: s.by_point.filter(p=>p.name===ptVal),
+      active:   s.active.filter(a=>a.point===ptVal)
+    };
+    renderStopsData(data);
+    return;
+  }
+
+  // Без фильтров — текущий период
   renderStopsContent();
 }
-
 function resetStopsFilter(){
-  const d=document.getElementById('stops-day-filter');   if(d) d.value='';
-  const p=document.getElementById('stops-point-filter'); if(p) p.value='';
+  const d=document.getElementById('stops-day-filter');   if(d)d.value='';
+  const p=document.getElementById('stops-point-filter'); if(p)p.value='';
   renderStopsContent();
 }
 function renderStopsPTabs(){
