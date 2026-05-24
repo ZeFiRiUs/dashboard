@@ -20,10 +20,35 @@ const STOPS_PATH= 'data/stops_raw.json';
 // Local cache (in-memory + local fallback)
 const LOCAL_DATA_DIR  = path.join(__dirname, 'data');
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'periods.json');
-const LOCAL_STOPS_FILE= path.join(LOCAL_DATA_DIR, 'stops_raw.json');
+const LOCAL_STOPS_FILE = path.join(LOCAL_DATA_DIR, 'stops_raw.json');
+const LOCAL_STOPS_FULL = path.join(LOCAL_DATA_DIR, 'stops_full.json');
+if (!fs.existsSync(LOCAL_STOPS_FULL)) fs.writeFileSync(LOCAL_STOPS_FULL, 'null');
 fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
 if (!fs.existsSync(LOCAL_DATA_FILE))  fs.writeFileSync(LOCAL_DATA_FILE,  JSON.stringify([]));
 if (!fs.existsSync(LOCAL_STOPS_FILE)) fs.writeFileSync(LOCAL_STOPS_FILE, JSON.stringify({rows:[],min_date:'',max_date:''}));
+
+// При старте — пробуем загрузить данные из GitHub если токен есть
+async function initFromGitHub() {
+  if (!GH_TOKEN || !GH_OWNER) {
+    console.log('GitHub не настроен — данные только локальные');
+    return;
+  }
+  console.log('Загружаем данные из GitHub...');
+  const files = [
+    { path: DATA_PATH,       local: LOCAL_DATA_FILE,  def: '[]' },
+    { path: 'data/stops_full.json', local: path.join(LOCAL_DATA_DIR,'stops_full.json'), def: 'null' },
+    { path: 'data/deliveries.json', local: path.join(LOCAL_DATA_DIR,'deliveries.json'), def: 'null' },
+  ];
+  for (const f of files) {
+    try {
+      const r = await ghRead(f.path);
+      if (r && r.content) {
+        fs.writeFileSync(f.local, JSON.stringify(r.content));
+        console.log('✓', f.path);
+      }
+    } catch(e) { console.log('✗', f.path, e.message); }
+  }
+}
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 app.use(express.json({ limit: '10mb' }));
@@ -174,26 +199,26 @@ app.delete('/api/periods/:idx', async (req, res) => {
 });
 
 // ── Stops: read/write via GitHub (same pattern as periods) ──────────────────
-const STOPS_FILE_PATH = 'data/stops_full.json'; // GitHub path
+const STOPS_FILE_PATH  = 'data/stops_full.json';
 
 async function readStops() {
   if (GH_TOKEN && GH_OWNER) {
     try {
       const r = await ghRead(STOPS_FILE_PATH);
       if (r) {
-        fs.writeFileSync(LOCAL_STOPS_FILE, JSON.stringify(r.content));
+        fs.writeFileSync(LOCAL_STOPS_FULL, JSON.stringify(r.content));
         return { data: r.content, sha: r.sha, source: 'github' };
       }
-    } catch(e) { console.error('Stops GitHub read error:', e.message); }
+    } catch(e) { console.error('Stops GitHub read:', e.message); }
   }
   try {
-    const data = JSON.parse(fs.readFileSync(LOCAL_STOPS_FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(LOCAL_STOPS_FULL, 'utf8'));
     return { data, sha: null, source: 'local' };
   } catch { return { data: null, sha: null, source: 'local' }; }
 }
 
 async function writeStops(data, sha) {
-  fs.writeFileSync(LOCAL_STOPS_FILE, JSON.stringify(data));
+  fs.writeFileSync(LOCAL_STOPS_FULL, JSON.stringify(data));
   if (GH_TOKEN && GH_OWNER) {
     try {
       let currentSha = sha;
@@ -313,7 +338,10 @@ function aggregateStops(rows, period) {
   };
 }
 
-app.listen(PORT, () => console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`));
+app.listen(PORT, async () => {
+  console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
+  await initFromGitHub();
+});
 
 // ── WRITEOFFS RAW ─────────────────────────────────────────────────────────────
 const WO_RAW_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_raw.json');
