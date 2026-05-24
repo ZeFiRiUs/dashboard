@@ -575,6 +575,22 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 </div>
 </div><!-- /page-production -->
 
+<!-- Reason modal -->
+<div class="ov" id="reason-modal" onclick="if(event.target===this)cl('reason-modal')">
+  <div class="modal" style="max-width:580px">
+    <div class="mh">
+      <div>
+        <div class="mt" id="reason-modal-title"></div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:2px" id="reason-modal-sub"></div>
+      </div>
+      <button class="mx" onclick="cl('reason-modal')">✕</button>
+    </div>
+    <div class="mkpis" id="reason-modal-kpis" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px"></div>
+    <div class="st">Топ точек по этой причине</div>
+    <div class="tlist" id="reason-modal-wh-list"></div>
+  </div>
+</div>
+
 <!-- Warehouse modal -->
 <div class="ov" id="wm" onclick="if(event.target===this)cl('wm')">
   <div class="modal">
@@ -1293,6 +1309,60 @@ function buildPeriodFromRaw(rows,label){
            n_items:itemList.length,cats:cats,top3:top10.slice(0,3),top10:top10};
   });
   return{period:label,grand_total:Math.round(grand),warehouses};
+}
+
+
+// ── REASON MODAL ─────────────────────────────────────────────────────────────
+function openReasonModal(encName, clr){
+  const reason = decodeURIComponent(encName);
+  if(!WO_RAW_DATA||!WO_RAW_DATA.raw){ alert('Нет данных для анализа'); return; }
+
+  const rows = WO_RAW_DATA.raw.filter(function(r){ return r.reason===reason; });
+  const totalCost  = rows.reduce(function(s,r){ return s+r.cost; }, 0);
+  const totalCount = rows.length;
+
+  // Агрегация по складам
+  const byWh = {};
+  rows.forEach(function(r){
+    if(!byWh[r.wh]) byWh[r.wh]={name:r.wh,cost:0,count:0,items:{}};
+    byWh[r.wh].cost  += r.cost;
+    byWh[r.wh].count += 1;
+    const nm=r.nm||'';
+    if(nm){
+      if(!byWh[r.wh].items[nm]) byWh[r.wh].items[nm]=0;
+      byWh[r.wh].items[nm]+=r.cost;
+    }
+  });
+  const topWh = Object.values(byWh).sort(function(a,b){return b.cost-a.cost;});
+  const maxCost = topWh.length ? topWh[0].cost : 1;
+
+  document.getElementById('reason-modal-title').textContent = reason;
+  document.getElementById('reason-modal-sub').textContent =
+    'Всего: '+totalCost.toLocaleString('ru-RU')+' ₽ · '+totalCount+' записей';
+
+  document.getElementById('reason-modal-kpis').innerHTML =
+    '<div class="mk"><div class="mkl">Сумма</div><div class="mkv" style="color:'+clr+'">'+Math.round(totalCost/1000)+'k ₽</div></div>'+
+    '<div class="mk"><div class="mkl">Записей</div><div class="mkv">'+totalCount+'</div></div>'+
+    '<div class="mk"><div class="mkl">Точек</div><div class="mkv">'+topWh.length+'</div></div>';
+
+  document.getElementById('reason-modal-wh-list').innerHTML = topWh.map(function(wh,i){
+    const topItem = Object.entries(wh.items).sort(function(a,b){return b[1]-a[1];})[0];
+    const barW = Math.round(wh.cost/maxCost*100);
+    return '<div class="tr '+(i===0?'t1':'')+'">'
+      +'<span class="tn">'+(i+1)+'</span>'
+      +'<div class="mb"><div class="mf" style="width:'+barW+'%;background:'+(i===0?'var(--warn)':i<3?'var(--acc)':'var(--txt3)')+'"></div></div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="tname">'+wh.name+'</div>'
+      +(topItem?'<div style="font-size:10px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+topItem[0].substring(0,40)+'</div>':'')
+      +'</div>'
+      +'<div class="tright">'
+      +'<span class="tcost">'+Math.round(wh.cost).toLocaleString('ru-RU')+' ₽</span>'
+      +'<span class="tqty">'+wh.count+' зап.</span>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+
+  op('reason-modal');
 }
 
 function categorizeItem(name){
