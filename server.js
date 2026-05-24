@@ -178,13 +178,24 @@ app.get('/api/periods', async (req, res) => {
 app.post('/api/periods', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const newData = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
-    if (!newData.warehouses || !newData.period) return res.status(400).json({ error: 'Неверный формат' });
-    const { data: periods, sha } = await readPeriods();
-    const idx = periods.findIndex(p => p.period === newData.period);
-    if (idx >= 0) periods[idx] = newData; else periods.unshift(newData);
-    const dest = await writePeriods(periods, sha);
-    res.json({ ok: true, period: newData.period, total: periods.length, saved_to: dest });
+    const d = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
+    // Новый формат: {meta, periods, raw, top_reasons}
+    if (d.meta && d.periods && d.raw) {
+      const { sha } = await readPeriods();
+      await writePeriods(d, sha);
+      return res.json({ ok: true, period: `${d.meta.min} — ${d.meta.max}`,
+                        total: d.periods.length, rows: d.raw.length });
+    }
+    // Старый формат: одиночный период {period, grand_total, warehouses}
+    if (d.period && d.grand_total && d.warehouses) {
+      const { data: existing, sha } = await readPeriods();
+      let periods = Array.isArray(existing) ? existing : (existing?.periods || []);
+      const idx = periods.findIndex(p => p.period === d.period);
+      if (idx >= 0) periods[idx] = d; else periods.unshift(d);
+      await writePeriods(periods, sha);
+      return res.json({ ok: true, period: d.period, total: periods.length });
+    }
+    res.status(400).json({ error: 'Неверный формат. Ожидается {meta,periods,raw} или {period,grand_total,warehouses}' });
   } catch(e) { res.status(400).json({ error: e.message }); }
 });
 
