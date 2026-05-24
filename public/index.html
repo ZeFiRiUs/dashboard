@@ -342,6 +342,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   <button class="tab-nav-btn active" onclick="switchTab('wo',this)">📊 Аналитика списаний</button>
   <button class="tab-nav-btn" onclick="switchTab('stops',this)">🚫 Стоп листы</button>
   <button class="tab-nav-btn" onclick="switchTab('deliveries',this)">🚚 Довозы</button>
+  <button class="tab-nav-btn" onclick="switchTab('production',this)">🏭 Производство</button>
 </nav>
 
 <!-- ═══ WRITEOFFS TAB ═══ -->
@@ -499,6 +500,76 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 </div>
 </div>
 
+
+<!-- ═══ PRODUCTION TAB ═══ -->
+<div id="page-production" class="page">
+<div class="wrap">
+  <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="sdot ok" id="prod-sdot"></div>
+      <span>Производство<span id="prod-period-label"></span></span>
+    </div>
+    <span id="prod-upload-msg" style="font-size:11px;color:var(--grn)"></span>
+  </div>
+
+  <!-- Empty state -->
+  <div id="prod-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
+    <div style="font-size:48px;margin-bottom:16px;opacity:.3">🏭</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные производства не загружены</div>
+    <div style="font-size:13px;margin-bottom:24px">Загрузите JSON через «Управление»</div>
+  </div>
+
+  <!-- Data -->
+  <div id="prod-data-wrap" style="display:none">
+
+    <!-- KPIs -->
+    <div id="prod-kpis" class="kpis" style="margin-bottom:20px"></div>
+
+    <!-- Filters -->
+    <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
+      <select id="prod-date-from" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
+      <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
+      <select id="prod-date-to" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
+      <select id="prod-product-filter" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:180px"><option value="">Все продукты</option></select>
+      <button class="fbtn" onclick="resetProdFilter()">✕ Сбросить</button>
+    </div>
+
+    <!-- График по датам -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Выпуск по датам</div>
+      <div class="dow-row" id="prod-by-date" style="height:80px;overflow-x:auto"></div>
+    </div>
+
+    <!-- Топ продуктов -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🏆 Топ продуктов по выпуску</div>
+      <div id="prod-top-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px"></div>
+    </div>
+
+    <!-- Таблица -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700;color:var(--txt)">
+        Все записи <span id="prod-rows-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
+      </div>
+      <div class="sw" style="max-width:280px">
+        <span class="sic">🔍</span>
+        <input class="si" id="prod-search" type="text" placeholder="Поиск по продукту или документу..." oninput="applyProdFilter()">
+      </div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
+      <table class="stops-tbl">
+        <thead><tr>
+          <th style="cursor:pointer;user-select:none" onclick="toggleProdSort()" title="Сортировать"><span id="prod-sort-icon">↓</span> Дата</th>
+          <th>Продукт</th><th>Кол-во</th><th>Норма</th><th>Факт</th><th>Недовложения</th>
+        </tr></thead>
+        <tbody id="prod-tbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+</div><!-- /page-production -->
+
 <!-- Warehouse modal -->
 <div class="ov" id="wm" onclick="if(event.target===this)cl('wm')">
   <div class="modal">
@@ -531,7 +602,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </div>
     </div>
     <div id="apc" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
         <div class="uz" onclick="document.getElementById('jfu').click()" style="margin-bottom:0">
           <div style="font-size:22px;margin-bottom:6px">📊</div>
           <b>Списания</b><br>
@@ -547,10 +618,16 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
           <b>Довозы</b><br>
           <span style="font-size:11px;color:var(--txt3)">deliveries.json</span>
         </div>
+        <div class="uz" onclick="document.getElementById('prod-jfu').click()" style="margin-bottom:0">
+          <div style="font-size:22px;margin-bottom:6px">🏭</div>
+          <b>Производство</b><br>
+          <span style="font-size:11px;color:var(--txt3)">production.json</span>
+        </div>
       </div>
       <input type="file" id="jfu" accept=".json" style="display:none" onchange="upload(event)">
       <input type="file" id="stops-jfu" accept=".json" style="display:none" onchange="uploadStopsJson(event)">
       <input type="file" id="del-jfu" accept=".json" style="display:none" onchange="uploadDeliveriesJson(event)">
+      <input type="file" id="prod-jfu" accept=".json" style="display:none" onchange="uploadProductionJson(event)">
       <div id="upmsg"></div>
       <div class="st" style="margin-bottom:8px">Загруженные периоды</div>
       <div class="pl" id="apl"></div>
@@ -798,6 +875,135 @@ function openDelModal(idx){
     ?'<div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--grn)">✓ Внесено в реестр штрафов</div>'
     :'';
   op('del-modal');
+}
+
+
+
+// ══ PRODUCTION ═════════════════════════════════════════════════════════════
+let PROD_DATA = null, PROD_SORT_DESC = true;
+
+async function loadProductionFromServer(){
+  const sdot=document.getElementById('prod-sdot');
+  if(sdot)sdot.className='sdot spin';
+  try{
+    const r=await fetch('/api/production',{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(data&&data.meta){applyProductionData(data);return true;}
+    if(sdot)sdot.className='sdot warn';renderProduction();return false;
+  }catch(e){const s2=document.getElementById('prod-sdot');if(s2)s2.className='sdot warn';renderProduction();return false;}
+}
+function applyProductionData(data){
+  PROD_DATA=data;
+  const sdot=document.getElementById('prod-sdot');if(sdot)sdot.className='sdot ok';
+  const lbl=document.getElementById('prod-period-label');
+  if(lbl)lbl.innerHTML=' · <b style="color:var(--txt)">Синхронизировано</b>';
+  renderProduction();
+}
+async function uploadProductionJson(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.meta||!data.rows)throw new Error('Неверный формат');
+      const msg=document.getElementById('prod-upload-msg');if(msg)msg.textContent='Загрузка...';
+      const fd=new FormData();fd.append('file',file);
+      const r=await fetch('/api/production',{method:'POST',headers:{'X-Admin-Password':adminPw},body:fd});
+      const j=await r.json();
+      if(j.ok){applyProductionData(data);if(msg){msg.textContent='✅ '+j.rows+' записей';setTimeout(()=>msg.textContent='',4000);}}
+      else throw new Error(j.error);
+    }catch(err){alert('❌ '+err.message);}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+function renderProduction(){
+  const empty=document.getElementById('prod-empty');
+  const wrap=document.getElementById('prod-data-wrap');
+  if(!PROD_DATA){if(empty)empty.style.display='block';if(wrap)wrap.style.display='none';return;}
+  if(empty)empty.style.display='none';if(wrap)wrap.style.display='block';
+  const dateOpts=PROD_DATA.meta.all_dates.map(d=>'<option value="'+d.iso+'">'+d.d+' ('+d.dow+') — '+d.n_items+' поз.</option>').join('');
+  const fF=document.getElementById('prod-date-from');const tF=document.getElementById('prod-date-to');
+  if(fF)fF.innerHTML='<option value="">С даты...</option>'+dateOpts;
+  if(tF)tF.innerHTML='<option value="">По дату...</option>'+dateOpts;
+  const pF=document.getElementById('prod-product-filter');
+  if(pF)pF.innerHTML='<option value="">Все продукты</option>'+PROD_DATA.meta.all_products.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+  applyProdFilter();
+}
+function toggleProdSort(){
+  PROD_SORT_DESC=!PROD_SORT_DESC;
+  const ic=document.getElementById('prod-sort-icon');if(ic)ic.textContent=PROD_SORT_DESC?'↓':'↑';
+  applyProdFilter();
+}
+function applyProdFilter(){
+  if(!PROD_DATA)return;
+  const fromVal=document.getElementById('prod-date-from')?.value||'';
+  const toVal=document.getElementById('prod-date-to')?.value||'';
+  const prodVal=document.getElementById('prod-product-filter')?.value||'';
+  const searchVal=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
+  let rows=PROD_DATA.rows.filter(r=>
+    (!fromVal||r.iso>=fromVal)&&(!toVal||r.iso<=toVal)&&
+    (!prodVal||r.name===prodVal)&&
+    (!searchVal||r.name.toLowerCase().includes(searchVal)||r.doc.toLowerCase().includes(searchVal))
+  );
+  rows=[...rows].sort((a,b)=>PROD_SORT_DESC?b.iso.localeCompare(a.iso):a.iso.localeCompare(b.iso));
+  const totalQty=rows.reduce((s,r)=>s+r.qty,0);
+  const totalNedov=rows.reduce((s,r)=>s+r.nedov,0);
+  const uniqProds=new Set(rows.map(r=>r.name)).size;
+  const uniqDates=new Set(rows.map(r=>r.iso)).size;
+  const kEl=document.getElementById('prod-kpis');
+  if(kEl)kEl.innerHTML=
+    '<div class="kpi"><div class="kl">Позиций выпущено</div><div class="kv">'+rows.length+'</div><div class="ks">записей</div></div>'+
+    '<div class="kpi g"><div class="kl">Итого кол-во</div><div class="kv">'+totalQty.toLocaleString('ru-RU')+'</div><div class="ks">штук/кг</div></div>'+
+    '<div class="kpi w"><div class="kl">Недовложения</div><div class="kv">'+(totalNedov>0?totalNedov.toFixed(1):'—')+'</div><div class="ks">единиц</div></div>'+
+    '<div class="kpi"><div class="kl">Продуктов</div><div class="kv">'+uniqProds+'</div><div class="ks">за '+uniqDates+' дн.</div></div>';
+  const dateAgg={};rows.forEach(r=>{dateAgg[r.iso]=(dateAgg[r.iso]||0)+r.qty;});
+  const filtDates=PROD_DATA.meta.all_dates.filter(d=>(!fromVal||d.iso>=fromVal)&&(!toVal||d.iso<=toVal));
+  const maxN=filtDates.length?Math.max(...filtDates.map(d=>dateAgg[d.iso]||0),1):1;
+  const dEl=document.getElementById('prod-by-date');
+  if(dEl)dEl.innerHTML=filtDates.map(d=>{
+    const n=dateAgg[d.iso]||0;
+    const isWE=d.dow==='Сб'||d.dow==='Вс';
+    const barH=Math.max(6,Math.round(n/maxN*55));
+    const clr=n===maxN?'var(--acc)':isWE?'var(--warn)':'var(--grn)';
+    return '<div class="dow-col" style="min-width:34px" title="'+d.d+': '+n.toLocaleString('ru-RU')+'">'+
+      '<div class="dow-val" style="font-size:9px">'+(n>=1000?Math.round(n/1000)+'k':n)+'</div>'+
+      '<div class="dow-bar" style="height:'+barH+'px;background:'+clr+'"></div>'+
+      '<div class="dow-lbl">'+d.d+'</div><div class="dow-dow">'+d.dow+'</div></div>';
+  }).join('');
+  const prodAgg={};
+  rows.forEach(r=>{
+    if(!prodAgg[r.name])prodAgg[r.name]={qty:0,nedov:0,days:new Set()};
+    prodAgg[r.name].qty+=r.qty;prodAgg[r.name].nedov+=r.nedov;prodAgg[r.name].days.add(r.iso);
+  });
+  const topP=Object.entries(prodAgg).sort((a,b)=>b[1].qty-a[1].qty).slice(0,15);
+  const maxQ=topP.length?topP[0][1].qty:1;
+  const pEl=document.getElementById('prod-top-list');
+  if(pEl)pEl.innerHTML=topP.map(function(entry,i){
+    const name=entry[0],v=entry[1];
+    const safeName=name.replace(/\/g,'\\').replace(/'/g,"\'");
+    return '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer" onclick="document.getElementById('prod-product-filter').value=''+safeName+'';applyProdFilter()">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+      '<span style="font-size:11px;font-weight:700;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+name+'</span>'+
+      '<span style="font-size:14px;font-weight:800;color:'+(i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt)')+';font-family:'JetBrains Mono',monospace;margin-left:8px;flex-shrink:0">'+v.qty.toLocaleString('ru-RU')+'</span></div>'+
+      '<div style="background:var(--bd);border-radius:2px;height:3px;margin-bottom:4px">'+
+      '<div style="height:3px;border-radius:2px;background:'+(i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt3)')+';width:'+Math.round(v.qty/maxQ*100)+'%"></div></div>'+
+      '<div style="font-size:10px;color:var(--txt3)">'+v.days.size+' дн.'+(v.nedov>0?' · недовл: '+v.nedov.toFixed(1):'')+' </div></div>';
+  }).join('');
+  const rcEl=document.getElementById('prod-rows-count');if(rcEl)rcEl.textContent='('+rows.length+' записей)';
+  const tbEl=document.getElementById('prod-tbody');
+  if(tbEl)tbEl.innerHTML=rows.map(r=>'<tr>'+
+    '<td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;color:var(--txt)">'+r.date+'</td>'+
+    '<td style="font-size:12px;color:var(--txt);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+r.name+'">'+r.name+'</td>'+
+    '<td style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--acc);white-space:nowrap">'+r.qty.toLocaleString('ru-RU')+'</td>'+
+    '<td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt2)">'+r.norm+'</td>'+
+    '<td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt2)">'+r.fact+'</td>'+
+    '<td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:'+(r.nedov>0?'var(--red)':'var(--txt3)')+';font-weight:'+(r.nedov>0?'700':'400')+'">'+(r.nedov>0?r.nedov.toFixed(2):'—')+'</td></tr>').join('');
+}
+function resetProdFilter(){
+  ['prod-date-from','prod-date-to','prod-product-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
+  const s=document.getElementById('prod-search');if(s)s.value='';
+  applyProdFilter();
 }
 
 
