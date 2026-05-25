@@ -1358,8 +1358,14 @@ function renderSebes(){
   applySebesFilter();
 }
 
-function applySebesFilter(){
+const SEBES_PAGE_SIZE = 50;
+let _sebesPage = 1;
+let _sebesFilteredItems = [];
+
+function applySebesFilter(resetPage){
   if(!SEBES_DATA)return;
+  if(resetPage !== false) _sebesPage = 1; // сброс страницы при смене фильтра
+
   const catVal    =document.getElementById('sebes-cat-filter')?.value||'';
   const sortVal   =document.getElementById('sebes-sort')?.value||'cost_desc';
   const trendVal  =document.getElementById('sebes-trend-filter')?.value||'';
@@ -1380,12 +1386,27 @@ function applySebesFilter(){
     return SEBES_SORT_DESC?((b[col]||0)-(a[col]||0)):((a[col]||0)-(b[col]||0));
   });
 
+  _sebesFilteredItems = items;
+  _renderSebesTable();
+}
+
+function _renderSebesTable(){
+  const items = _sebesFilteredItems;
+  const total = items.length;
+  const shown = Math.min(_sebesPage * SEBES_PAGE_SIZE, total);
+  const visible = items.slice(0, shown);
+  const hasMore = shown < total;
+
   const cntEl=document.getElementById('sebes-count');
-  if(cntEl)cntEl.textContent='('+items.length+' позиций)';
+  if(cntEl) cntEl.textContent = shown < total
+    ? '(показано '+shown+' из '+total+')'
+    : '('+total+' позиций)';
 
   const monoSt='font-family:JetBrains Mono,monospace';
   const tbEl=document.getElementById('sebes-tbody');
-  if(tbEl)tbEl.innerHTML=items.map(function(it,idx){
+  if(!tbEl) return;
+
+  tbEl.innerHTML=visible.map(function(it,idx){
     const diffClr  =it.trend==='up'?'var(--red)':it.trend==='down'?'var(--grn)':'var(--txt3)';
     const diffText =it.diff_pct!==null?(it.trend==='up'?'+':'')+it.diff_pct+'%':'—';
     return '<tr class="sebes-row-hover" data-idx="'+idx+'" style="cursor:pointer">'
@@ -1397,11 +1418,45 @@ function applySebesFilter(){
   }).join('');
 
   // Обработчики кликов
-  if(tbEl)tbEl.querySelectorAll('tr[data-idx]').forEach(function(tr){
+  tbEl.querySelectorAll('tr[data-idx]').forEach(function(tr){
     const idx=parseInt(tr.getAttribute('data-idx'));
-    const it=items[idx];
+    const it=visible[idx];
     if(it) tr.addEventListener('click',function(){openSebesModal(it);});
   });
+
+  // Кнопка «Показать ещё»
+  let btnRow = document.getElementById('sebes-load-more-row');
+  if(hasMore){
+    if(!btnRow){
+      btnRow = document.createElement('tr');
+      btnRow.id = 'sebes-load-more-row';
+      tbEl.parentNode.insertAdjacentElement('afterend', btnRow);
+    }
+    btnRow.style.display='';
+    btnRow.innerHTML = '<td colspan="4" style="padding:0"></td>';
+    // рендерим кнопку вне таблицы — после неё
+    let loadMoreEl = document.getElementById('sebes-load-more');
+    if(!loadMoreEl){
+      loadMoreEl = document.createElement('div');
+      loadMoreEl.id = 'sebes-load-more';
+      tbEl.closest('.stops-tbl')
+        ? tbEl.closest('div').insertAdjacentElement('afterend', loadMoreEl)
+        : tbEl.insertAdjacentElement('afterend', loadMoreEl);
+    }
+    loadMoreEl.style.cssText='text-align:center;padding:14px 0 4px';
+    const remaining = total - shown;
+    loadMoreEl.innerHTML =
+      '<button onclick="_sebesLoadMore()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px 24px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;cursor:pointer;font-weight:600">'
+      +'Показать ещё '+Math.min(SEBES_PAGE_SIZE, remaining)+' <span style="color:var(--txt3);font-weight:400">/ осталось '+remaining+'</span></button>';
+  } else {
+    const loadMoreEl = document.getElementById('sebes-load-more');
+    if(loadMoreEl) loadMoreEl.style.display='none';
+  }
+}
+
+function _sebesLoadMore(){
+  _sebesPage++;
+  applySebesFilter(false); // false = не сбрасывать страницу
 }
 
 
@@ -1448,6 +1503,7 @@ function resetSebesFilter(){
   const s=document.getElementById('sebes-search');if(s)s.value='';
   const srt=document.getElementById('sebes-sort');if(srt)srt.value='cost_desc';
   SEBES_SORT_COL='cost';SEBES_SORT_DESC=true;
+  _sebesPage=1;
   applySebesFilter();
 }
 
