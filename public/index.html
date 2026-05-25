@@ -1711,10 +1711,22 @@ function _renderOverviewSections(){
   } else sections.push({icon:'🏭',title:'Производство',tab:'production',color:'var(--txt3)',empty:true});
 
   if(SEBES_DATA&&SEBES_DATA.meta){
-    const lowMargin=SEBES_DATA.all_items.filter(function(i){return i.markup>0&&i.markup<100;}).length;
+    const items = SEBES_DATA.all_items;
+    const growthCount = items.filter(function(i){return i.trend==='up';}).length;
+    const dropCount   = items.filter(function(i){return i.trend==='down';}).length;
+    const withCost    = items.filter(function(i){return i.cost>0;});
+    const avgCost     = withCost.length ? Math.round(withCost.reduce(function(s,i){return s+i.cost;},0)/withCost.length) : null;
+    const noCost      = items.filter(function(i){return !i.cost;}).length;
+    const badge = growthCount>0 ? {text:'↑'+growthCount+' выросло',color:'var(--red)'} : dropCount>0 ? {text:'↓'+dropCount+' снизилось',color:'var(--grn)'} : null;
     sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',color:'var(--warn)',
-      lines:[{label:'Позиций',value:SEBES_DATA.meta.total_items,bold:true},{label:'Ср. наценка',value:SEBES_DATA.meta.avg_markup+'%'},{label:'Без себест.',value:SEBES_DATA.meta.no_cost+' поз.'}],
-      badge:lowMargin>0?{text:lowMargin+' низкая наценка',color:'var(--red)'}:null});
+      lines:[
+        {label:'Позиций',      value:SEBES_DATA.meta.total_items, bold:true},
+        {label:'Ср. себест.',  value:avgCost ? avgCost.toLocaleString('ru-RU')+' ₽' : '—'},
+        {label:'↑ Рост',       value:growthCount, color:'var(--red)'},
+        {label:'↓ Снижение',   value:dropCount,   color:'var(--grn)'},
+        {label:'Без себест.',  value:noCost+' поз.'},
+      ],
+      badge:badge});
   } else sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',color:'var(--txt3)',empty:true});
 
   const el=document.getElementById('overview-sections');
@@ -1732,9 +1744,10 @@ function _renderOverviewSections(){
       +'</div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:10px">'+s.title+'</div>'
       +s.lines.map(function(l){
+        const valClr = l.color ? l.color : (l.bold ? 'var(--txt)' : 'var(--txt2)');
         return '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--bd)">'
           +'<span style="font-size:11px;color:var(--txt3)">'+l.label+'</span>'
-          +'<span style="font-size:'+(l.bold?'14px':'12px')+';font-weight:'+(l.bold?'800':'600')+';color:'+(l.bold?'var(--txt)':'var(--txt2)')+';'+monoSt+'">'+l.value+'</span>'
+          +'<span style="font-size:'+(l.bold?'14px':'12px')+';font-weight:'+(l.bold?'800':'600')+';color:'+valClr+';'+monoSt+'">'+l.value+'</span>'
           +'</div>';
       }).join('')
       +'</div>';
