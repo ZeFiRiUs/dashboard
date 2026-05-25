@@ -848,38 +848,16 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </div>
     </div>
     <div id="apc" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-        <div class="uz" onclick="document.getElementById('jfu').click()" style="margin-bottom:0">
-          <div style="font-size:22px;margin-bottom:6px">📊</div>
-          <b>Списания</b><br>
-          <span style="font-size:11px;color:var(--txt3)">period_*.json</span>
-        </div>
-        <div class="uz" onclick="document.getElementById('stops-jfu').click()" style="margin-bottom:0">
-          <div style="font-size:22px;margin-bottom:6px">🚫</div>
-          <b>Стоп листы</b><br>
-          <span style="font-size:11px;color:var(--txt3)">stops_full.json</span>
-        </div>
-        <div class="uz" onclick="document.getElementById('del-jfu').click()" style="margin-bottom:0">
-          <div style="font-size:22px;margin-bottom:6px">🚚</div>
-          <b>Довозы</b><br>
-          <span style="font-size:11px;color:var(--txt3)">deliveries.json</span>
-        </div>
-        <div class="uz" onclick="document.getElementById('prod-jfu').click()" style="margin-bottom:0">
-          <div style="font-size:22px;margin-bottom:6px">🏭</div>
-          <b>Производство</b><br>
-          <span style="font-size:11px;color:var(--txt3)">production.json</span>
-        </div>
-      </div>
+      <!-- Скрытые input файлов -->
       <input type="file" id="jfu" accept=".json" style="display:none" onchange="upload(event)">
       <input type="file" id="stops-jfu" accept=".json" style="display:none" onchange="uploadStopsJson(event)">
       <input type="file" id="del-jfu" accept=".json" style="display:none" onchange="uploadDeliveriesJson(event)">
       <input type="file" id="prod-jfu" accept=".json" style="display:none" onchange="uploadProductionJson(event)">
-      <div class="uz" onclick="document.getElementById('sebes-jfu').click()" style="margin-bottom:0">
-        <div style="font-size:22px;margin-bottom:6px">💰</div>
-        <b>Себестоимость</b><br>
-        <span style="font-size:11px;color:var(--txt3)">sebes.json</span>
-      </div>
       <input type="file" id="sebes-jfu" accept=".json" style="display:none" onchange="uploadSebesJson(event)">
+
+      <!-- Список разделов с кнопками загрузки/удаления -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px" id="admin-sections-list"></div>
+
       <div id="upmsg"></div>
       <div class="st" style="margin-bottom:8px">Загруженные периоды</div>
       <div class="pl" id="apl"></div>
@@ -2176,12 +2154,98 @@ async function auth(){
   const pw=document.getElementById('pwi').value;
   const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Password':pw},body:'{}'});
   const j=await r.json();
-  if(j.ok){adminPw=pw;document.getElementById('apw').style.display='none';document.getElementById('apc').style.display='block';document.getElementById('pwerr').style.display='none';renderAdminList();}
+  if(j.ok){adminPw=pw;document.getElementById('apw').style.display='none';document.getElementById('apc').style.display='block';document.getElementById('pwerr').style.display='none';renderAdminList();renderAdminSections();}
   else{document.getElementById('pwerr').style.display='block';}
 }
+
+// ── ADMIN PANEL ───────────────────────────────────────────────────────────────
+const ADMIN_SECTIONS = [
+  {key:'wo',      icon:'📊', label:'Списания',      fileId:'jfu',       hasData:function(){return periods&&periods.length>0;},
+   dataInfo:function(){return periods&&periods.length?periods.length+' период(ов)':''},
+   deleteFn:'deleteAdminData', deleteKey:'wo'},
+  {key:'stops',   icon:'🚫', label:'Стоп листы',    fileId:'stops-jfu', hasData:function(){return !!(STOPS_DATA);},
+   dataInfo:function(){return STOPS_DATA?(STOPS_DATA.meta.all_dates.length+' дней'):''},
+   deleteFn:'deleteAdminData', deleteKey:'stops'},
+  {key:'deliveries',icon:'🚚',label:'Довозы',       fileId:'del-jfu',   hasData:function(){return !!(DEL_DATA);},
+   dataInfo:function(){return DEL_DATA?(DEL_DATA.meta.total+' записей'):''},
+   deleteFn:'deleteAdminData', deleteKey:'deliveries'},
+  {key:'production',icon:'🏭',label:'Производство', fileId:'prod-jfu',  hasData:function(){return !!(PROD_DATA);},
+   dataInfo:function(){return PROD_DATA?(PROD_DATA.meta.total_rows+' строк'):''},
+   deleteFn:'deleteAdminData', deleteKey:'production'},
+  {key:'sebes',   icon:'💰', label:'Себестоимость', fileId:'sebes-jfu', hasData:function(){return !!(SEBES_DATA);},
+   dataInfo:function(){return SEBES_DATA?(SEBES_DATA.meta.total_items+' позиций'):''},
+   deleteFn:'deleteAdminData', deleteKey:'sebes'},
+];
+
+function renderAdminSections(){
+  const el=document.getElementById('admin-sections-list');
+  if(!el)return;
+  el.innerHTML=ADMIN_SECTIONS.map(function(s){
+    const loaded=s.hasData();
+    const info=s.dataInfo();
+    return '<div style="display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">'
+      // Иконка + название
+      +'<div style="font-size:20px;flex-shrink:0">'+s.icon+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:13px;font-weight:700;color:var(--txt)">'+s.label+'</div>'
+      +(loaded?'<div style="font-size:11px;color:var(--grn)">✓ Загружено · '+info+'</div>'
+              :'<div style="font-size:11px;color:var(--txt3)">Не загружено</div>')
+      +'</div>'
+      // Кнопки
+      +'<div style="display:flex;gap:6px;flex-shrink:0">'
+      +'<button class="btn admin-upload-btn" data-fileid="'+s.fileId+'" style="padding:5px 10px;font-size:11px">⬆ Загрузить</button>'
+      +(loaded?'<button class="btn admin-delete-btn" data-key="'+s.key+'" style="padding:5px 10px;font-size:11px;color:var(--red);border-color:var(--red)">🗑 Удалить</button>':'')
+      +'</div>'
+      +'</div>';
+  }).join('');
+  // Кнопки загрузки через делегирование
+  el.querySelectorAll('.admin-upload-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.getElementById(btn.getAttribute('data-fileid'))?.click();
+    });
+  });
+  // Кнопки удаления через делегирование
+  el.querySelectorAll('.admin-delete-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      deleteAdminData(btn.getAttribute('data-key'));
+    });
+  });
+}
+
+async function deleteAdminData(key){
+  const labels={wo:'Списания',stops:'Стоп листы',deliveries:'Довозы',production:'Производство',sebes:'Себестоимость'};
+  if(!confirm('Удалить данные раздела «'+labels[key]+'»?\nДействие необратимо.'))return;
+  try{
+    const r=await fetch('/api/data/'+key,{method:'DELETE',headers:{'X-Admin-Password':adminPw}});
+    const j=await r.json();
+    if(j.ok){
+      // Сбросить данные в памяти
+      if(key==='wo'){periods=[];cur=0;render();}
+      if(key==='stops'){STOPS_DATA=null;STOPS_PERIODS=[];renderStops();}
+      if(key==='deliveries'){DEL_DATA=null;renderDeliveries();}
+      if(key==='production'){PROD_DATA=null;renderProduction();}
+      if(key==='sebes'){SEBES_DATA=null;renderSebes();}
+      renderAdminSections();
+      renderAdminList();
+      // Обновить сводку если открыта
+      if(document.getElementById('page-overview')?.classList.contains('active'))renderOverview();
+    } else alert('Ошибка: '+j.error);
+  }catch(e){alert('Ошибка: '+e.message);}
+}
+
+
 function openAdmin(){
-  if(adminPw){document.getElementById('apw').style.display='none';document.getElementById('apc').style.display='block';renderAdminList();}
-  else{document.getElementById('apw').style.display='block';document.getElementById('apc').style.display='none';document.getElementById('pwi').value='';document.getElementById('pwerr').style.display='none';}
+  if(adminPw){
+    document.getElementById('apw').style.display='none';
+    document.getElementById('apc').style.display='block';
+    renderAdminList();
+    renderAdminSections();
+  } else {
+    document.getElementById('apw').style.display='block';
+    document.getElementById('apc').style.display='none';
+    document.getElementById('pwi').value='';
+    document.getElementById('pwerr').style.display='none';
+  }
   op('am');
 }
 async function upload(e){
