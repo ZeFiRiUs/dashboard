@@ -749,17 +749,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         <div id="sebes-top-drop"></div>
       </div>
     </div>
-    <!-- Топ наценки / низкая наценка -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">🏆 Топ наценки</div>
-        <div id="sebes-top-margin"></div>
-      </div>
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">⚠️ Низкая наценка</div>
-        <div id="sebes-low-margin"></div>
-      </div>
-    </div>
+
     <!-- Фильтры -->
     <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
       <select id="sebes-cat-filter" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:200px"><option value="">Все категории</option></select>
@@ -1391,19 +1381,7 @@ function renderSebes(){
     } else tdEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных об изменениях</div>';
   }
 
-  // Топ наценки
-  const tmEl=document.getElementById('sebes-top-margin');
-  if(tmEl){
-    tmEl.innerHTML=SEBES_DATA.top_margin.slice(0,8).map(function(it){return _sebesTrendRow(it,false);}).join('');
-    tmEl.querySelectorAll('.sebes-row-hover').forEach(function(el,i){el.addEventListener('click',function(){openSebesModal(SEBES_DATA.top_margin[i]);});});
-  }
 
-  // Низкая наценка
-  const lmEl=document.getElementById('sebes-low-margin');
-  if(lmEl){
-    lmEl.innerHTML=SEBES_DATA.low_margin.slice(0,8).map(function(it){return _sebesTrendRow(it,false);}).join('');
-    lmEl.querySelectorAll('.sebes-row-hover').forEach(function(el,i){el.addEventListener('click',function(){openSebesModal(SEBES_DATA.low_margin[i]);});});
-  }
 
   applySebesFilter();
 }
@@ -1444,14 +1422,13 @@ function applySebesFilter(){
     const markupBg =it.markup===0?'transparent':it.markup<50?'rgba(255,69,96,.08)':it.markup<100?'rgba(255,176,32,.08)':it.markup>300?'rgba(152,194,30,.08)':'rgba(163,216,244,.08)';
     const diffClr  =it.trend==='up'?'var(--red)':it.trend==='down'?'var(--grn)':'var(--txt3)';
     const diffText =it.diff_pct!==null?(it.trend==='up'?'+':'')+it.diff_pct+'%':'—';
-    const hasHist  =it.history&&it.history.length>1;
-    return '<tr class="sebes-row-hover" data-idx="'+idx+'" style="cursor:'+(hasHist?'pointer':'default')+'">'
+    return '<tr class="sebes-row-hover" data-idx="'+idx+'" style="cursor:pointer">'
       +'<td style="font-size:10px;color:var(--txt3);max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+it.cat+'">'+it.cat+'</td>'
       +'<td style="font-size:12px;color:var(--txt)">'+it.name+'</td>'
       +'<td style="'+monoSt+';font-size:12px;font-weight:600;color:var(--txt);text-align:right;white-space:nowrap">'+(it.price>0?it.price.toLocaleString('ru-RU')+' ₽':'—')+'</td>'
       +'<td style="'+monoSt+';font-size:12px;color:var(--txt2);text-align:right;white-space:nowrap">'+(it.cost?it.cost.toLocaleString('ru-RU')+' ₽':'—')+'</td>'
       +'<td style="text-align:right;padding:6px 14px"><span style="'+monoSt+';font-size:13px;font-weight:800;color:'+markupClr+';background:'+markupBg+';padding:2px 8px;border-radius:20px;white-space:nowrap">'+(it.markup>0?it.markup+'%':'—')+'</span></td>'
-      +'<td style="'+monoSt+';font-size:12px;font-weight:700;color:'+diffClr+';text-align:right;white-space:nowrap">'+diffText+(hasHist?' 📊':'')+'</td>'
+      +'<td style="'+monoSt+';font-size:12px;font-weight:700;color:'+diffClr+';text-align:right;white-space:nowrap">'+diffText+'</td>'
       +'</tr>';
   }).join('');
 
@@ -1459,9 +1436,7 @@ function applySebesFilter(){
   if(tbEl)tbEl.querySelectorAll('tr[data-idx]').forEach(function(tr){
     const idx=parseInt(tr.getAttribute('data-idx'));
     const it=items[idx];
-    if(it&&it.history&&it.history.length>1){
-      tr.addEventListener('click',function(){openSebesModal(it);});
-    }
+    if(it) tr.addEventListener('click',function(){openSebesModal(it);});
   });
 }
 
@@ -1475,7 +1450,7 @@ function resetSebesFilter(){
 
 // ── SEBES MODAL (история себестоимости) ──────────────────────────────────────
 function openSebesModal(it){
-  if(!it||!it.history||it.history.length<2)return;
+  if(!it)return;
   document.getElementById('sebes-modal-title').textContent=it.name;
   document.getElementById('sebes-modal-sub').textContent=it.cat;
 
