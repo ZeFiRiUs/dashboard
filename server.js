@@ -474,6 +474,37 @@ app.post('/api/sebes', upload.single('file'), async (req, res) => {
   } catch(e) { res.status(400).json({ error: e.message }); }
 });
 
+// ── DELETE data endpoints ─────────────────────────────────────────────────────
+const DATA_FILES = {
+  wo:           { local: LOCAL_DATA_FILE,                             gh: DATA_PATH,              empty: '[]' },
+  stops:        { local: path.join(LOCAL_DATA_DIR,'stops_full.json'), gh: 'data/stops_full.json', empty: 'null' },
+  deliveries:   { local: path.join(LOCAL_DATA_DIR,'deliveries.json'),gh: 'data/deliveries.json', empty: 'null' },
+  production:   { local: path.join(LOCAL_DATA_DIR,'production.json'),gh: 'data/production.json', empty: 'null' },
+  sebes:        { local: path.join(LOCAL_DATA_DIR,'sebes.json'),      gh: 'data/sebes.json',      empty: 'null' },
+};
+
+app.delete('/api/data/:key', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  const key = req.params.key;
+  const file = DATA_FILES[key];
+  if (!file) return res.status(400).json({ error: 'Неизвестный раздел: ' + key });
+  try {
+    // Очистить локальный файл
+    fs.writeFileSync(file.local, file.empty);
+    // Очистить в GitHub
+    if (GH_TOKEN && GH_OWNER) {
+      try {
+        const r = await ghRead(file.gh);
+        if (r && r.sha) {
+          await ghWrite(file.gh, JSON.parse(file.empty), r.sha, 'Delete ' + key + ' data');
+        }
+      } catch(e) { console.error('GitHub delete error:', e.message); }
+    }
+    console.log('Deleted:', key);
+    res.json({ ok: true, key });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
