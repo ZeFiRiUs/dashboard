@@ -968,10 +968,9 @@ function renderDeliveries(){
   const dayToF  =document.getElementById('del-date-to');
   const pointF=document.getElementById('del-point-filter');
   const reasonF=document.getElementById('del-reason-filter');
-  const dateOpts='<option value="">—</option>'+
-    DEL_DATA.meta.all_dates.map(d=>`<option value="${d.iso}">${d.d} (${d.dow})</option>`).join('');
-  if(dayFromF) dayFromF.innerHTML='<option value="">С даты...</option>'+dateOpts.slice('<option value="">—</option>'.length);
-  if(dayToF)   dayToF.innerHTML  ='<option value="">По дату...</option>'+dateOpts.slice('<option value="">—</option>'.length);
+  const dateOptItems = DEL_DATA.meta.all_dates.map(d=>`<option value="${d.iso}">${d.d} (${d.dow})</option>`).join('');
+  if(dayFromF) dayFromF.innerHTML='<option value="">С даты...</option>'+dateOptItems;
+  if(dayToF)   dayToF.innerHTML  ='<option value="">По дату...</option>'+dateOptItems;
   if(pointF)pointF.innerHTML='<option value="">Все точки</option>'+
     DEL_DATA.meta.all_points.map(p=>`<option value="${p}">${p}</option>`).join('');
   if(reasonF){
@@ -1478,32 +1477,52 @@ function openSebesModal(it){
 
   const monoSt='font-family:JetBrains Mono,monospace';
   const diffClr=it.trend==='up'?'var(--red)':it.trend==='down'?'var(--grn)':'var(--txt3)';
+  const history=it.history&&it.history.length?it.history:[];
   // KPI: последний vs первый период
-  const lastH  = it.history[it.history.length-1];
-  const firstH = it.history[0];
+  const lastH  = history.length ? history[history.length-1] : null;
+  const firstH = history.length ? history[0] : null;
   const kEl=document.getElementById('sebes-modal-kpis');
-  if(kEl)kEl.innerHTML=
-    '<div class="mk"><div class="mkl">'+lastH.period.substring(0,18)+'</div><div class="mkv" style="'+monoSt+'">'+(lastH.cost||'—')+' ₽</div></div>'+
-    '<div class="mk"><div class="mkl">'+firstH.period.substring(0,18)+'</div><div class="mkv" style="'+monoSt+';color:var(--txt2)">'+(firstH.cost||'—')+' ₽</div></div>'+
-    '<div class="mk"><div class="mkl">Изменение</div><div class="mkv" style="color:'+diffClr+';'+monoSt+'">'+(it.diff!==null?(it.diff>0?'+':'')+it.diff+' ₽':'—')+'</div></div>';
+  if(kEl){
+    if(lastH){
+      kEl.innerHTML=
+        '<div class="mk"><div class="mkl">'+(lastH.period||'').substring(0,18)+'</div><div class="mkv" style="'+monoSt+'">'+(lastH.cost||'—')+' ₽</div></div>'+
+        '<div class="mk"><div class="mkl">'+(firstH&&firstH!==lastH?(firstH.period||'').substring(0,18):'Базовый')+'</div><div class="mkv" style="'+monoSt+';color:var(--txt2)">'+(firstH?firstH.cost||'—':'—')+' ₽</div></div>'+
+        '<div class="mk"><div class="mkl">Изменение</div><div class="mkv" style="color:'+diffClr+';'+monoSt+'">'+(it.diff!==null&&it.diff!==undefined?(it.diff>0?'+':'')+it.diff+' ₽':'—')+'</div></div>';
+    } else {
+      kEl.innerHTML=
+        '<div class="mk"><div class="mkl">Себестоимость</div><div class="mkv" style="'+monoSt+'">'+(it.cost||'—')+' ₽</div></div>'+
+        '<div class="mk"><div class="mkl">Наценка</div><div class="mkv" style="'+monoSt+'">'+(it.markup>0?it.markup+'%':'—')+'</div></div>'+
+        '<div class="mk"><div class="mkl">Изменение</div><div class="mkv" style="color:var(--txt3)">—</div></div>';
+    }
+  }
 
   // История в виде таблицы
   const histEl=document.getElementById('sebes-modal-history');
-  if(histEl)histEl.innerHTML=it.history.map(function(h,i){
-    const isLast=i===it.history.length-1;
-    const prev=i>0?it.history[i-1]:null;
-    const d=prev?round2(h.cost-prev.cost):null;
-    const dp=prev&&prev.cost?round2((h.cost-prev.cost)/prev.cost*100):null;
-    const clr=d===null?'var(--txt2)':d>0?'var(--red)':d<0?'var(--grn)':'var(--txt3)';
-    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:'+(isLast?'rgba(163,216,244,.07)':'transparent')+';border-bottom:1px solid var(--bd)">'
-      +'<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--txt)">'+h.period+'</div></div>'
-      +'<div style="font-size:16px;font-weight:800;color:'+(isLast?'var(--txt)':'var(--txt2)')+';'+monoSt+'">'+h.cost+' ₽</div>'
-      +(d!==null?'<div style="font-size:11px;font-weight:700;color:'+clr+';'+monoSt+';width:70px;text-align:right">'+(d>0?'+':'')+d+' ₽<br><span style="font-size:10px">'+(dp>0?'+':'')+dp+'%</span></div>':'<div style="width:70px"></div>')
-      +'</div>';
-  }).join('');
+  if(histEl){
+    if(history.length){
+      histEl.innerHTML=history.map(function(h,i){
+        const isLast=i===history.length-1;
+        const prev=i>0?history[i-1]:null;
+        const d=prev?round2(h.cost-prev.cost):null;
+        const dp=prev&&prev.cost?round2((h.cost-prev.cost)/prev.cost*100):null;
+        const clr=d===null?'var(--txt2)':d>0?'var(--red)':d<0?'var(--grn)':'var(--txt3)';
+        return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:'+(isLast?'rgba(163,216,244,.07)':'transparent')+';border-bottom:1px solid var(--bd)">'
+          +'<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--txt)">'+h.period+'</div></div>'
+          +'<div style="font-size:16px;font-weight:800;color:'+(isLast?'var(--txt)':'var(--txt2)')+';'+monoSt+'">'+h.cost+' ₽</div>'
+          +(d!==null?'<div style="font-size:11px;font-weight:700;color:'+clr+';'+monoSt+';width:70px;text-align:right">'+(d>0?'+':'')+d+' ₽<br><span style="font-size:10px">'+(dp>0?'+':'')+dp+'%</span></div>':'<div style="width:70px"></div>')
+          +'</div>';
+      }).join('');
+    } else {
+      histEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:16px;text-align:center">История отсутствует — только один период</div>';
+    }
+  }
 
   // Мини линейный график
-  _renderSebesChart(it.history);
+  if(history.length>1) _renderSebesChart(history);
+  else {
+    const canvas=document.getElementById('sebes-chart-canvas');
+    if(canvas) canvas.innerHTML='<text x="240" y="55" text-anchor="middle" font-size="12" fill="var(--txt3)">Недостаточно данных для графика</text>';
+  }
   op('sebes-modal');
 }
 
@@ -1551,9 +1570,10 @@ function resetProdFilter(){
 
 
 function resetDelFilters() {
-  
-  document.getElementById('del-point-filter').value='';
-  document.getElementById('del-type-filter').value='';
+  ['del-date-from','del-date-to','del-point-filter','del-reason-filter','del-dept-filter'].forEach(function(id){
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const s=document.getElementById('del-search'); if(s) s.value='';
   applyDelFilter();
 }
 
@@ -2336,7 +2356,7 @@ async function delP(i){
   if(j.ok){await loadData();renderAdminList();}
 }
 function expAll(){const b=new Blob([JSON.stringify(periods,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='periods.json';a.click();}
-async function clearAll(){if(!confirm('Удалить ВСЕ?'))return;for(let i=periods.length-1;i>=0;i--)await fetch('/api/periods/'+i,{method:'DELETE',headers:{'X-Admin-Password':adminPw}});await loadData();renderAdminList();}
+async function clearAll(){if(!confirm('Удалить ВСЕ?'))return;const n=periods.length;for(let i=0;i<n;i++)await fetch('/api/periods/0',{method:'DELETE',headers:{'X-Admin-Password':adminPw}});await loadData();renderAdminList();}
 
 // ═══ STOPS ═══
 function renderStops(){
@@ -2518,6 +2538,7 @@ function renderStopsData(s){
     </div>`).join('');
   // Карточки точек
   const pts=s.by_point||s.by_pt||[];
+  _currentStopsByPoint = pts; // сохраняем для openStopModal
   const mx=pts.length?Math.max(...pts.map(p=>p.count||p.n||0)):1;
   document.getElementById('stops-grid').innerHTML=pts.map(p=>{
     const cnt=p.count||p.n||0;
@@ -2593,8 +2614,12 @@ function renderActiveStops(){
       }).join('')
     :'<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--txt3)">Нет стопов по выбранной точке</td></tr>';
 }
+// Хранит by_point текущего отрендеренного состояния (может быть отфильтровано)
+let _currentStopsByPoint = null;
+
 function openStopModal(name){
-  const p=STOPS_PERIODS[stopsIdx].by_point.find(x=>x.name===name);if(!p)return;
+  const source = _currentStopsByPoint || (STOPS_PERIODS[stopsIdx]||{}).by_point || [];
+  const p=source.find(x=>x.name===name);if(!p)return;
   const avgH=Math.floor(p.avg_dur/60),avgM=p.avg_dur%60;
   document.getElementById('wmt').textContent='🚫 '+name;
   document.getElementById('wmk').innerHTML=`
@@ -2705,7 +2730,7 @@ async function doLogin(){
   try{
     const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':pw},body:'{}'});
     const j=await r.json();
-    if(j.ok){sessionPassword=pw;sessionStorage.setItem('dash_pw',pw);document.getElementById('ls').style.display='none';loadData();setInterval(loadData,30000);}
+    if(j.ok){sessionPassword=pw;sessionStorage.setItem('dash_pw',pw);document.getElementById('ls').style.display='none';loadData();startAutoReload();}
     else{err.textContent='❌ Неверный пароль';btn.disabled=false;btn.textContent='Войти →';document.getElementById('lpw').value='';document.getElementById('lpw').focus();}
   }catch(e){err.textContent='❌ Ошибка соединения';btn.disabled=false;btn.textContent='Войти →';}
 }
@@ -2735,6 +2760,12 @@ function toggleMobMenu(){
 // Мобильная синхронизация встроена в switchTab ниже
 
 
+let _autoReloadInterval = null;
+function startAutoReload(){
+  if(_autoReloadInterval) return; // уже запущен — не создавать второй
+  _autoReloadInterval = setInterval(loadData, 30000);
+}
+
 // INIT
 function op(id){document.getElementById(id).classList.add('open');}
 function cl(id){document.getElementById(id).classList.remove('open');}
@@ -2742,7 +2773,7 @@ function cl(id){document.getElementById(id).classList.remove('open');}
 if(sessionPassword){
   fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':sessionPassword},body:'{}'})
     .then(r=>r.json()).then(j=>{
-      if(j.ok){document.getElementById('ls').style.display='none';loadData();setInterval(loadData,30000);}
+      if(j.ok){document.getElementById('ls').style.display='none';loadData();startAutoReload();}
       else{sessionStorage.removeItem('dash_pw');sessionPassword='';}
     }).catch(()=>{document.getElementById('ls').style.display='none';loadData();});
 } 
