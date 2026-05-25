@@ -854,6 +854,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <input type="file" id="del-jfu" accept=".json" style="display:none" onchange="uploadDeliveriesJson(event)">
       <input type="file" id="prod-jfu" accept=".json" style="display:none" onchange="uploadProductionJson(event)">
       <input type="file" id="sebes-jfu" accept=".json" style="display:none" onchange="uploadSebesJson(event)">
+      <input type="file" id="sebes-merge-jfu" accept=".json" style="display:none" onchange="uploadSebesMerge(event)">
 
       <!-- Список разделов с кнопками загрузки/удаления -->
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px" id="admin-sections-list"></div>
@@ -1420,6 +1421,45 @@ function applySebesFilter(){
     const it=items[idx];
     if(it) tr.addEventListener('click',function(){openSebesModal(it);});
   });
+}
+
+
+async function uploadSebesMerge(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.meta||!data.all_items)throw new Error('Неверный формат JSON');
+
+      // Проверим — есть ли новые периоды
+      const existPeriods=SEBES_DATA?SEBES_DATA.meta.periods||[]:[];
+      const newPeriods=data.meta.periods||[];
+      const addPeriods=newPeriods.filter(function(p){return !existPeriods.includes(p);});
+
+      if(!addPeriods.length){
+        if(!confirm('Новых периодов не обнаружено.\nЗаменить текущие данные полностью?'))return;
+      } else {
+        if(!confirm('Добавить период(ы):\n'+addPeriods.join('\n')+'\n\nК существующим: '+existPeriods.join(', ')+'?'))return;
+      }
+
+      const msg=document.getElementById('upmsg');
+      if(msg)msg.innerHTML='<div style="color:var(--txt2);font-size:12px">Объединение периодов...</div>';
+
+      const fd=new FormData(); fd.append('file',file);
+      const r=await fetch('/api/sebes?mode=merge',{method:'POST',headers:{'X-Admin-Password':adminPw},body:fd});
+      const j=await r.json();
+
+      if(j.ok){
+        if(msg)msg.innerHTML='<div class="success-msg">✅ Добавлено · '+j.periods.length+' периодов · '+j.items+' позиций</div>';
+        // Перезагружаем данные с сервера
+        await loadSebesFromServer();
+        renderAdminSections();
+        setTimeout(function(){if(msg)msg.innerHTML='';},4000);
+      } else throw new Error(j.error);
+    }catch(err){alert('❌ '+err.message);}
+  };
+  reader.readAsText(file); e.target.value='';
 }
 
 function resetSebesFilter(){
@@ -2180,7 +2220,11 @@ const ADMIN_SECTIONS = [
    dataInfo:function(){return PROD_DATA?(PROD_DATA.meta.total_rows+' строк'):''},
    deleteFn:'deleteAdminData', deleteKey:'production'},
   {key:'sebes',   icon:'💰', label:'Себестоимость', fileId:'sebes-jfu', hasData:function(){return !!(SEBES_DATA);},
-   dataInfo:function(){return SEBES_DATA?(SEBES_DATA.meta.total_items+' позиций'):''},
+   dataInfo:function(){
+     if(!SEBES_DATA)return '';
+     const ps=SEBES_DATA.meta.periods||[];
+     return SEBES_DATA.meta.total_items+' поз. · '+ps.length+' период'+(ps.length===1?'':'а');
+   },
    deleteFn:'deleteAdminData', deleteKey:'sebes'},
 ];
 
@@ -2199,7 +2243,10 @@ function renderAdminSections(){
               :'<div style="font-size:11px;color:var(--txt3)">Не загружено</div>')
       +'</div>'
       // Кнопки
-      +'<div style="display:flex;gap:6px;flex-shrink:0">'
+      +'<div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">'
+      +(s.key==='sebes'&&loaded
+        ?'<button class="btn admin-merge-btn" data-fileid="sebes-merge-jfu" style="padding:5px 10px;font-size:11px;color:var(--grn);border-color:var(--grn)">➕ Добавить период</button>'
+        :'')
       +'<button class="btn admin-upload-btn" data-fileid="'+s.fileId+'" style="padding:5px 10px;font-size:11px">⬆ Загрузить</button>'
       +(loaded?'<button class="btn admin-delete-btn" data-key="'+s.key+'" style="padding:5px 10px;font-size:11px;color:var(--red);border-color:var(--red)">🗑 Удалить</button>':'')
       +'</div>'
@@ -2215,6 +2262,12 @@ function renderAdminSections(){
   el.querySelectorAll('.admin-delete-btn').forEach(function(btn){
     btn.addEventListener('click',function(){
       deleteAdminData(btn.getAttribute('data-key'));
+    });
+  });
+  // Кнопки добавления периода
+  el.querySelectorAll('.admin-merge-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.getElementById('sebes-merge-jfu')?.click();
     });
   });
 }
