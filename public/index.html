@@ -730,44 +730,27 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     </div>
     <span id="sebes-upload-msg" style="font-size:11px;color:var(--grn)"></span>
   </div>
-
   <div id="sebes-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
     <div style="font-size:48px;margin-bottom:16px;opacity:.3">💰</div>
     <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные себестоимости не загружены</div>
     <div style="font-size:13px;margin-bottom:24px">Загрузите JSON через «Управление»</div>
   </div>
-
   <div id="sebes-data-wrap" style="display:none">
     <!-- KPIs -->
     <div id="sebes-kpis" class="kpis" style="margin-bottom:20px"></div>
-
-    <!-- Фильтры -->
-    <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
-      <select id="sebes-cat-filter" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:200px"><option value="">Все категории</option></select>
-      <select id="sebes-sort" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:170px">
-        <option value="markup_desc">Наценка ↓</option>
-        <option value="markup_asc">Наценка ↑</option>
-        <option value="price_desc">Цена ↓</option>
-        <option value="price_asc">Цена ↑</option>
-        <option value="cost_desc">Себестоимость ↓</option>
-      </select>
-      <!-- Фильтр диапазона наценки -->
-      <select id="sebes-margin-filter" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
-        <option value="">Любая наценка</option>
-        <option value="low">⚠️ Низкая (&lt;100%)</option>
-        <option value="mid">🟡 Средняя (100–300%)</option>
-        <option value="high">🟢 Высокая (&gt;300%)</option>
-        <option value="none">❌ Нет себестоимости</option>
-      </select>
-      <div class="sw" style="max-width:260px">
-        <span class="sic">🔍</span>
-        <input class="si" id="sebes-search" type="text" placeholder="Поиск по позиции..." oninput="applySebesFilter()">
+    <!-- Топ роста / снижения -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">📈 Топ роста себестоимости</div>
+        <div id="sebes-top-growth"></div>
       </div>
-      <button class="fbtn" onclick="resetSebesFilter()">✕ Сбросить</button>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">📉 Топ снижения себестоимости</div>
+        <div id="sebes-top-drop"></div>
+      </div>
     </div>
-
-    <!-- Топы: две карточки -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="sebes-tops-row">
+    <!-- Топ наценки / низкая наценка -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
       <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
         <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">🏆 Топ наценки</div>
         <div id="sebes-top-margin"></div>
@@ -777,21 +760,45 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         <div id="sebes-low-margin"></div>
       </div>
     </div>
-
-    <!-- Таблица позиций -->
+    <!-- Фильтры -->
+    <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
+      <select id="sebes-cat-filter" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:200px"><option value="">Все категории</option></select>
+      <select id="sebes-sort" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:170px">
+        <option value="markup_desc">Наценка ↓</option>
+        <option value="markup_asc">Наценка ↑</option>
+        <option value="price_desc">Цена ↓</option>
+        <option value="cost_desc">Себестоимость ↓</option>
+        <option value="diff_desc">Рост ↓</option>
+        <option value="diff_asc">Снижение ↓</option>
+      </select>
+      <select id="sebes-margin-filter" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
+        <option value="">Любая наценка</option>
+        <option value="low">⚠️ Низкая (&lt;100%)</option>
+        <option value="mid">🟡 Средняя (100–300%)</option>
+        <option value="high">🟢 Высокая (&gt;300%)</option>
+        <option value="none">❌ Нет себестоимости</option>
+      </select>
+      <select id="sebes-trend-filter" onchange="applySebesFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px">
+        <option value="">Все изменения</option>
+        <option value="up">📈 Выросла</option>
+        <option value="down">📉 Снизилась</option>
+        <option value="same">➡️ Без изменений</option>
+      </select>
+      <div class="sw" style="max-width:260px"><span class="sic">🔍</span><input class="si" id="sebes-search" type="text" placeholder="Поиск по позиции..." oninput="applySebesFilter()"></div>
+      <button class="fbtn" onclick="resetSebesFilter()">✕ Сбросить</button>
+    </div>
+    <!-- Таблица -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-      <div style="font-size:14px;font-weight:700;color:var(--txt)">
-        Все позиции <span id="sebes-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
-      </div>
+      <div style="font-size:14px;font-weight:700;color:var(--txt)">Все позиции <span id="sebes-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
       <table class="stops-tbl" id="sebes-table">
         <thead><tr>
-          <th>Категория</th>
-          <th>Позиция</th>
+          <th>Категория</th><th>Позиция</th>
           <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('price')">Цена <span id="sebes-price-icon"></span></th>
           <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('cost')">Себест. <span id="sebes-cost-icon"></span></th>
-          <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('markup')">Наценка % <span id="sebes-markup-icon">↓</span></th>
+          <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('markup')">Наценка <span id="sebes-markup-icon">↓</span></th>
+          <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('diff_pct')">Изменение <span id="sebes-diff_pct-icon"></span></th>
         </tr></thead>
         <tbody id="sebes-tbody"></tbody>
       </table>
@@ -799,6 +806,25 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
 </div>
 </div><!-- /page-sebes -->
+
+
+<!-- Sebes history modal -->
+<div class="ov" id="sebes-modal" onclick="if(event.target===this)cl('sebes-modal')">
+  <div class="modal" style="max-width:560px">
+    <div class="mh">
+      <div>
+        <div class="mt" id="sebes-modal-title"></div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:2px" id="sebes-modal-sub"></div>
+      </div>
+      <button class="mx" onclick="cl('sebes-modal')">✕</button>
+    </div>
+    <div class="mkpis" id="sebes-modal-kpis" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px"></div>
+    <div class="st" style="margin-bottom:8px">Динамика себестоимости</div>
+    <svg id="sebes-chart-canvas" style="width:100%;height:100px;margin-bottom:16px;overflow:visible" viewBox="0 0 480 100"></svg>
+    <div class="st" style="margin-bottom:8px">История изменений</div>
+    <div id="sebes-modal-history" style="background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden"></div>
+  </div>
+</div>
 
 <!-- Warehouse modal -->
 <div class="ov" id="wm" onclick="if(event.target===this)cl('wm')">
@@ -1272,17 +1298,15 @@ async function loadSebesFromServer(){
     const data=await r.json();
     if(data&&data.meta){applySebesData(data);return true;}
     if(sdot)sdot.className='sdot warn';renderSebes();return false;
-  }catch(e){
-    const s2=document.getElementById('sebes-sdot');if(s2)s2.className='sdot warn';
-    renderSebes();return false;
-  }
+  }catch(e){const s2=document.getElementById('sebes-sdot');if(s2)s2.className='sdot warn';renderSebes();return false;}
 }
 
 function applySebesData(data){
   SEBES_DATA=data;
   const sdot=document.getElementById('sebes-sdot');if(sdot)sdot.className='sdot ok';
   const lbl=document.getElementById('sebes-period-label');
-  if(lbl)lbl.innerHTML=' · <b style="color:var(--txt)">'+data.meta.total_items+' позиций</b>';
+  const periods=(data.meta&&data.meta.periods)?data.meta.periods:[];
+  if(lbl)lbl.innerHTML=' · <b style="color:var(--txt)">'+(periods.length>1?periods[0]+' vs '+periods[1]:data.meta.total_items+' позиций')+'</b>';
   renderSebes();
 }
 
@@ -1297,27 +1321,38 @@ async function uploadSebesJson(e){
       const fd=new FormData();fd.append('file',file);
       const r=await fetch('/api/sebes',{method:'POST',headers:{'X-Admin-Password':adminPw},body:fd});
       const j=await r.json();
-      if(j.ok){
-        applySebesData(data);
-        if(msg){msg.textContent='✅ '+j.items+' позиций';setTimeout(function(){msg.textContent='';},4000);}
-      }else throw new Error(j.error);
+      if(j.ok){applySebesData(data);if(msg){msg.textContent='✅ '+j.items+' позиций';setTimeout(function(){msg.textContent='';},4000);}}
+      else throw new Error(j.error);
     }catch(err){alert('❌ '+err.message);}
   };
   reader.readAsText(file);e.target.value='';
 }
 
 function sebesSortBy(col){
-  if(SEBES_SORT_COL===col){ SEBES_SORT_DESC=!SEBES_SORT_DESC; }
-  else { SEBES_SORT_COL=col; SEBES_SORT_DESC=true; }
-  // Обновить иконки
-  ['price','cost','markup'].forEach(function(c){
+  if(SEBES_SORT_COL===col){SEBES_SORT_DESC=!SEBES_SORT_DESC;}
+  else{SEBES_SORT_COL=col;SEBES_SORT_DESC=true;}
+  ['price','cost','markup','diff_pct'].forEach(function(c){
     const el=document.getElementById('sebes-'+c+'-icon');
     if(el)el.textContent=(c===SEBES_SORT_COL)?(SEBES_SORT_DESC?'↓':'↑'):'';
   });
-  // Синхронизировать select сортировки
-  const srt=document.getElementById('sebes-sort');
-  if(srt)srt.value=SEBES_SORT_COL+'_'+(SEBES_SORT_DESC?'desc':'asc');
   applySebesFilter();
+}
+
+function _sebesTrendRow(it, showDiff){
+  const monoSt='font-family:JetBrains Mono,monospace';
+  const hasHistory=it.history&&it.history.length>1;
+  const diffClr=it.trend==='up'?'var(--red)':it.trend==='down'?'var(--grn)':'var(--txt3)';
+  const diffIcon=it.trend==='up'?'↑':it.trend==='down'?'↓':'—';
+  return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;transition:background .15s;cursor:'+(hasHistory?'pointer':'default')+'" class="sebes-row-hover">'
+    +'<div style="flex:1;min-width:0">'
+    +'<div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+it.name+'">'+it.name+'</div>'
+    +'<div style="font-size:10px;color:var(--txt3)">'+it.cat+'</div>'
+    +'</div>'
+    +(showDiff&&it.diff_pct!==null?'<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:'+diffClr+';'+monoSt+'">'+diffIcon+Math.abs(it.diff_pct)+'%</div>'
+      +'<div style="font-size:10px;color:var(--txt3)">'+it.cost+' ₽</div></div>'
+    :'<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--txt);'+monoSt+'">'+it.markup+'%</div>'
+      +'<div style="font-size:10px;color:var(--txt3)">'+(it.cost||'—')+' ₽</div></div>')
+    +'</div>';
 }
 
 function renderSebes(){
@@ -1326,57 +1361,49 @@ function renderSebes(){
   if(!SEBES_DATA){if(empty)empty.style.display='block';if(wrap)wrap.style.display='none';return;}
   if(empty)empty.style.display='none';if(wrap)wrap.style.display='block';
 
-  // Заполнить фильтр категорий
   const catF=document.getElementById('sebes-cat-filter');
   if(catF)catF.innerHTML='<option value="">Все категории</option>'+
     SEBES_DATA.meta.all_cats.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
 
-  // KPIs
   const m=SEBES_DATA.meta;
   const kEl=document.getElementById('sebes-kpis');
   if(kEl)kEl.innerHTML=
     '<div class="kpi g"><div class="kl">Позиций</div><div class="kv">'+m.total_items+'</div><div class="ks">'+m.total_cats+' категорий</div></div>'+
     '<div class="kpi"><div class="kl">Ср. наценка</div><div class="kv">'+m.avg_markup+'%</div><div class="ks">по меню</div></div>'+
-    '<div class="kpi w"><div class="kl">С себестоимостью</div><div class="kv">'+m.with_cost+'</div><div class="ks">из '+m.total_items+'</div></div>'+
-    '<div class="kpi r"><div class="kl">Без себестоимости</div><div class="kv">'+m.no_cost+'</div><div class="ks">позиций</div></div>';
+    '<div class="kpi r"><div class="kl">Рост себест.</div><div class="kv" style="color:var(--red)">'+m.growth_count+'</div><div class="ks">позиций</div></div>'+
+    '<div class="kpi g"><div class="kl">Снижение себест.</div><div class="kv" style="color:var(--grn)">'+m.drop_count+'</div><div class="ks">позиций</div></div>';
+
+  // Топ роста
+  const tgEl=document.getElementById('sebes-top-growth');
+  if(tgEl){
+    if(SEBES_DATA.top_growth&&SEBES_DATA.top_growth.length){
+      tgEl.innerHTML=SEBES_DATA.top_growth.slice(0,8).map(function(it){return _sebesTrendRow(it,true);}).join('');
+      tgEl.querySelectorAll('.sebes-row-hover').forEach(function(el,i){el.addEventListener('click',function(){openSebesModal(SEBES_DATA.top_growth[i]);});});
+    } else tgEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных об изменениях</div>';
+  }
+
+  // Топ снижения
+  const tdEl=document.getElementById('sebes-top-drop');
+  if(tdEl){
+    if(SEBES_DATA.top_drop&&SEBES_DATA.top_drop.length){
+      tdEl.innerHTML=SEBES_DATA.top_drop.slice(0,8).map(function(it){return _sebesTrendRow(it,true);}).join('');
+      tdEl.querySelectorAll('.sebes-row-hover').forEach(function(el,i){el.addEventListener('click',function(){openSebesModal(SEBES_DATA.top_drop[i]);});});
+    } else tdEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных об изменениях</div>';
+  }
 
   // Топ наценки
-  const monoSt='font-family:JetBrains Mono,monospace';
-  const maxM=SEBES_DATA.top_margin[0]?SEBES_DATA.top_margin[0].markup:1;
   const tmEl=document.getElementById('sebes-top-margin');
-  if(tmEl)tmEl.innerHTML=SEBES_DATA.top_margin.slice(0,10).map(function(it,i){
-    const barW=Math.round(it.markup/maxM*100);
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:default;transition:background .15s" '
-      +">"
-      +'<span style="font-size:10px;color:var(--txt3);width:16px;text-align:right;'+monoSt+';flex-shrink:0">'+(i+1)+'</span>'
-      +'<div style="flex:1;min-width:0">'
-      +'<div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+it.name+'">'+it.name+'</div>'
-      +'<div style="background:var(--bd);border-radius:2px;height:3px;margin-top:4px"><div style="height:3px;border-radius:2px;background:var(--grn);width:'+barW+'%;transition:width .4s"></div></div>'
-      +'</div>'
-      +'<div style="text-align:right;flex-shrink:0">'
-      +'<div style="font-size:13px;font-weight:800;color:var(--grn);'+monoSt+'">'+it.markup+'%</div>'
-      +'<div style="font-size:10px;color:var(--txt3)">'+it.price+'₽</div>'
-      +'</div>'
-      +'</div>';
-  }).join('');
+  if(tmEl){
+    tmEl.innerHTML=SEBES_DATA.top_margin.slice(0,8).map(function(it){return _sebesTrendRow(it,false);}).join('');
+    tmEl.querySelectorAll('.sebes-row-hover').forEach(function(el,i){el.addEventListener('click',function(){openSebesModal(SEBES_DATA.top_margin[i]);});});
+  }
 
   // Низкая наценка
   const lmEl=document.getElementById('sebes-low-margin');
-  if(lmEl)lmEl.innerHTML=SEBES_DATA.low_margin.slice(0,10).map(function(it,i){
-    const clr=it.markup<50?'var(--red)':it.markup<100?'var(--warn)':'var(--txt2)';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:default;transition:background .15s" '
-      +">"
-      +'<span style="font-size:10px;color:var(--txt3);width:16px;text-align:right;'+monoSt+';flex-shrink:0">'+(i+1)+'</span>'
-      +'<div style="flex:1;min-width:0">'
-      +'<div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+it.name+'">'+it.name+'</div>'
-      +'<div style="font-size:10px;color:var(--txt3)">'+it.cat+'</div>'
-      +'</div>'
-      +'<div style="text-align:right;flex-shrink:0">'
-      +'<div style="font-size:13px;font-weight:800;color:'+clr+';'+monoSt+'">'+it.markup+'%</div>'
-      +'<div style="font-size:10px;color:var(--txt3)">'+it.price+'₽ / '+it.cost+'₽</div>'
-      +'</div>'
-      +'</div>';
-  }).join('');
+  if(lmEl){
+    lmEl.innerHTML=SEBES_DATA.low_margin.slice(0,8).map(function(it){return _sebesTrendRow(it,false);}).join('');
+    lmEl.querySelectorAll('.sebes-row-hover').forEach(function(el,i){el.addEventListener('click',function(){openSebesModal(SEBES_DATA.low_margin[i]);});});
+  }
 
   applySebesFilter();
 }
@@ -1386,29 +1413,25 @@ function applySebesFilter(){
   const catVal    =document.getElementById('sebes-cat-filter')?.value||'';
   const sortVal   =document.getElementById('sebes-sort')?.value||'markup_desc';
   const marginVal =document.getElementById('sebes-margin-filter')?.value||'';
+  const trendVal  =document.getElementById('sebes-trend-filter')?.value||'';
   const searchVal =(document.getElementById('sebes-search')?.value||'').toLowerCase().trim();
 
-  // Синхронизировать SEBES_SORT_COL с select
-  if(sortVal){
-    const parts=sortVal.split('_');
-    SEBES_SORT_COL=parts.slice(0,-1).join('_');
-    SEBES_SORT_DESC=parts[parts.length-1]==='desc';
-  }
+  if(sortVal){const parts=sortVal.split('_');const col=parts.slice(0,-1).join('_');const desc=parts[parts.length-1]==='desc';SEBES_SORT_COL=col;SEBES_SORT_DESC=desc;}
 
   let items=SEBES_DATA.all_items.filter(function(it){
-    if(catVal && it.cat!==catVal) return false;
-    if(searchVal && !it.name.toLowerCase().includes(searchVal) && !it.cat.toLowerCase().includes(searchVal)) return false;
-    if(marginVal==='low'  && !(it.markup>0&&it.markup<100))  return false;
-    if(marginVal==='mid'  && !(it.markup>=100&&it.markup<=300)) return false;
-    if(marginVal==='high' && !(it.markup>300))  return false;
-    if(marginVal==='none' && it.cost>0)          return false;
+    if(catVal&&it.cat!==catVal)return false;
+    if(searchVal&&!it.name.toLowerCase().includes(searchVal)&&!it.cat.toLowerCase().includes(searchVal))return false;
+    if(marginVal==='low'&&!(it.markup>0&&it.markup<100))return false;
+    if(marginVal==='mid'&&!(it.markup>=100&&it.markup<=300))return false;
+    if(marginVal==='high'&&!(it.markup>300))return false;
+    if(marginVal==='none'&&it.cost>0)return false;
+    if(trendVal&&it.trend!==trendVal)return false;
     return true;
   });
 
   items=[...items].sort(function(a,b){
     const col=SEBES_SORT_COL||'markup';
-    const diff=SEBES_SORT_DESC?(b[col]||0)-(a[col]||0):(a[col]||0)-(b[col]||0);
-    return diff;
+    return SEBES_SORT_DESC?((b[col]||0)-(a[col]||0)):((a[col]||0)-(b[col]||0));
   });
 
   const cntEl=document.getElementById('sebes-count');
@@ -1416,27 +1439,107 @@ function applySebesFilter(){
 
   const monoSt='font-family:JetBrains Mono,monospace';
   const tbEl=document.getElementById('sebes-tbody');
-  if(tbEl)tbEl.innerHTML=items.map(function(it){
+  if(tbEl)tbEl.innerHTML=items.map(function(it,idx){
     const markupClr=it.markup===0?'var(--txt3)':it.markup<50?'var(--red)':it.markup<100?'var(--warn)':it.markup>300?'var(--grn)':'var(--acc)';
     const markupBg =it.markup===0?'transparent':it.markup<50?'rgba(255,69,96,.08)':it.markup<100?'rgba(255,176,32,.08)':it.markup>300?'rgba(152,194,30,.08)':'rgba(163,216,244,.08)';
-    return '<tr class="sebes-row-hover">'
+    const diffClr  =it.trend==='up'?'var(--red)':it.trend==='down'?'var(--grn)':'var(--txt3)';
+    const diffText =it.diff_pct!==null?(it.trend==='up'?'+':'')+it.diff_pct+'%':'—';
+    const hasHist  =it.history&&it.history.length>1;
+    return '<tr class="sebes-row-hover" data-idx="'+idx+'" style="cursor:'+(hasHist?'pointer':'default')+'">'
       +'<td style="font-size:10px;color:var(--txt3);max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+it.cat+'">'+it.cat+'</td>'
       +'<td style="font-size:12px;color:var(--txt)">'+it.name+'</td>'
-      +'<td style="'+monoSt+';font-size:12px;font-weight:600;color:var(--txt);text-align:right;white-space:nowrap">'+it.price.toLocaleString('ru-RU')+' ₽</td>'
-      +'<td style="'+monoSt+';font-size:12px;color:var(--txt2);text-align:right;white-space:nowrap">'+(it.cost>0?it.cost.toLocaleString('ru-RU')+' ₽':'—')+'</td>'
-      +'<td style="text-align:right;padding:6px 14px">'
-      +'<span style="'+monoSt+';font-size:13px;font-weight:800;color:'+markupClr+';background:'+markupBg+';padding:2px 8px;border-radius:20px;white-space:nowrap">'+(it.markup>0?it.markup+'%':'—')+'</span>'
-      +'</td>'
+      +'<td style="'+monoSt+';font-size:12px;font-weight:600;color:var(--txt);text-align:right;white-space:nowrap">'+(it.price>0?it.price.toLocaleString('ru-RU')+' ₽':'—')+'</td>'
+      +'<td style="'+monoSt+';font-size:12px;color:var(--txt2);text-align:right;white-space:nowrap">'+(it.cost?it.cost.toLocaleString('ru-RU')+' ₽':'—')+'</td>'
+      +'<td style="text-align:right;padding:6px 14px"><span style="'+monoSt+';font-size:13px;font-weight:800;color:'+markupClr+';background:'+markupBg+';padding:2px 8px;border-radius:20px;white-space:nowrap">'+(it.markup>0?it.markup+'%':'—')+'</span></td>'
+      +'<td style="'+monoSt+';font-size:12px;font-weight:700;color:'+diffClr+';text-align:right;white-space:nowrap">'+diffText+(hasHist?' 📊':'')+'</td>'
       +'</tr>';
   }).join('');
+
+  // Обработчики кликов
+  if(tbEl)tbEl.querySelectorAll('tr[data-idx]').forEach(function(tr){
+    const idx=parseInt(tr.getAttribute('data-idx'));
+    const it=items[idx];
+    if(it&&it.history&&it.history.length>1){
+      tr.addEventListener('click',function(){openSebesModal(it);});
+    }
+  });
 }
 
 function resetSebesFilter(){
-  ['sebes-cat-filter','sebes-margin-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
+  ['sebes-cat-filter','sebes-margin-filter','sebes-trend-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
   const s=document.getElementById('sebes-search');if(s)s.value='';
   const srt=document.getElementById('sebes-sort');if(srt)srt.value='markup_desc';
   SEBES_SORT_COL='markup';SEBES_SORT_DESC=true;
   applySebesFilter();
+}
+
+// ── SEBES MODAL (история себестоимости) ──────────────────────────────────────
+function openSebesModal(it){
+  if(!it||!it.history||it.history.length<2)return;
+  document.getElementById('sebes-modal-title').textContent=it.name;
+  document.getElementById('sebes-modal-sub').textContent=it.cat;
+
+  const monoSt='font-family:JetBrains Mono,monospace';
+  const diffClr=it.trend==='up'?'var(--red)':it.trend==='down'?'var(--grn)':'var(--txt3)';
+  const kEl=document.getElementById('sebes-modal-kpis');
+  if(kEl)kEl.innerHTML=
+    '<div class="mk"><div class="mkl">Сейчас</div><div class="mkv" style="'+monoSt+'">'+(it.cost||'—')+' ₽</div></div>'+
+    '<div class="mk"><div class="mkl">Было</div><div class="mkv" style="'+monoSt+';color:var(--txt2)">'+(it.cost_old||'—')+' ₽</div></div>'+
+    '<div class="mk"><div class="mkl">Изменение</div><div class="mkv" style="color:'+diffClr+';'+monoSt+'">'+(it.diff!==null?(it.diff>0?'+':'')+it.diff+'₽':'—')+'</div></div>';
+
+  // История в виде таблицы
+  const histEl=document.getElementById('sebes-modal-history');
+  if(histEl)histEl.innerHTML=it.history.map(function(h,i){
+    const isLast=i===it.history.length-1;
+    const prev=i>0?it.history[i-1]:null;
+    const d=prev?round2(h.cost-prev.cost):null;
+    const dp=prev&&prev.cost?round2((h.cost-prev.cost)/prev.cost*100):null;
+    const clr=d===null?'var(--txt2)':d>0?'var(--red)':d<0?'var(--grn)':'var(--txt3)';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:'+(isLast?'rgba(163,216,244,.07)':'transparent')+';border-bottom:1px solid var(--bd)">'
+      +'<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--txt)">'+h.period+'</div></div>'
+      +'<div style="font-size:16px;font-weight:800;color:'+(isLast?'var(--txt)':'var(--txt2)')+';'+monoSt+'">'+h.cost+' ₽</div>'
+      +(d!==null?'<div style="font-size:11px;font-weight:700;color:'+clr+';'+monoSt+';width:70px;text-align:right">'+(d>0?'+':'')+d+' ₽<br><span style="font-size:10px">'+(dp>0?'+':'')+dp+'%</span></div>':'<div style="width:70px"></div>')
+      +'</div>';
+  }).join('');
+
+  // Мини линейный график
+  _renderSebesChart(it.history);
+  op('sebes-modal');
+}
+
+function round2(n){return Math.round(n*100)/100;}
+
+function _renderSebesChart(history){
+  const canvas=document.getElementById('sebes-chart-canvas');
+  if(!canvas)return;
+  const W=canvas.offsetWidth||480, H=100;
+  canvas.setAttribute('viewBox','0 0 '+W+' '+H);
+
+  const costs=history.map(function(h){return h.cost;});
+  const minC=Math.min(...costs), maxC=Math.max(...costs);
+  const pad=20, range=maxC-minC||1;
+  const pts=costs.map(function(c,i){
+    const x=pad+(W-pad*2)*i/Math.max(1,costs.length-1);
+    const y=H-pad-(c-minC)/range*(H-pad*2);
+    return {x:x,y:y,c:c,p:history[i].period};
+  });
+
+  let path='M'+pts[0].x+','+pts[0].y;
+  for(let i=1;i<pts.length;i++){
+    const cp1x=(pts[i-1].x+pts[i].x)/2;
+    path+=' C'+cp1x+','+pts[i-1].y+' '+cp1x+','+pts[i].y+' '+pts[i].x+','+pts[i].y;
+  }
+
+  const lineClr=costs[costs.length-1]>costs[0]?'#ff4560':'#98c21e';
+  let svg='<line x1="'+pad+'" y1="'+(H-pad)+'" x2="'+(W-pad)+'" y2="'+(H-pad)+'" stroke="var(--bd)" stroke-width="1"/>';
+  svg+='<path d="'+path+'" fill="none" stroke="'+lineClr+'" stroke-width="2.5" stroke-linecap="round"/>';
+  pts.forEach(function(pt,i){
+    const isLast=i===pts.length-1;
+    svg+='<circle cx="'+pt.x+'" cy="'+pt.y+'" r="'+(isLast?5:3)+'" fill="'+(isLast?lineClr:'var(--surf)')+'" stroke="'+lineClr+'" stroke-width="2"/>';
+    svg+='<text x="'+pt.x+'" y="'+(pt.y-8)+'" text-anchor="middle" font-size="9" fill="var(--txt3)">'+pt.c+'</text>';
+    if(i===0||isLast)svg+='<text x="'+pt.x+'" y="'+(H-6)+'" text-anchor="'+(i===0?'start':isLast?'end':'middle')+'" font-size="9" fill="var(--txt3)">'+pt.p.substring(0,12)+'</text>';
+  });
+  canvas.innerHTML=svg;
 }
 
 
