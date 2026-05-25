@@ -466,13 +466,120 @@ app.get('/api/sebes', async (req, res) => {
 app.post('/api/sebes', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const data = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
-    if (!data.meta || !data.all_items) return res.status(400).json({ error: 'Неверный формат' });
-    const { sha } = await readSebes();
-    const dest = await writeSebes(data, sha);
-    res.json({ ok: true, items: data.all_items.length, saved_to: dest });
+    const incoming = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
+    if (!incoming.meta || !incoming.all_items) return res.status(400).json({ error: 'Неверный формат' });
+
+    const mode = req.query.mode || 'replace'; // replace | merge
+    const { data: existing, sha } = await readSebes();
+
+    let finalData = incoming;
+
+    if (mode === 'merge' && existing && existing.meta && existing.all_items) {
+      finalData = mergeSebesPeriods(existing, incoming);
+    }
+
+    const dest = await writeSebes(finalData, sha);
+    res.json({
+      ok: true,
+      items: finalData.all_items.length,
+      periods: finalData.meta.periods,
+      mode,
+      saved_to: dest
+    });
   } catch(e) { res.status(400).json({ error: e.message }); }
 });
+
+// Объединяем два sebes JSON — добавляем новый период к истории
+function mergeSebesPeriods(existing, incoming) {
+  const norm = s => String(s).substring(0,40).trim().toLowerCase();
+
+  // Все периоды из нового файла которых ещё нет в текущем
+  const existPeriods = existing.meta.periods || [];
+  const newPeriods   = incoming.meta.periods || [];
+  const addPeriods   = newPeriods.filter(p => !existPeriods.includes(p));
+
+  if (!addPeriods.length) {
+    // Нет новых периодов — просто заменяем
+    return incoming;
+  }
+
+  // Строим карту существующих позиций
+  const existMap = {};
+  existing.all_items.forEach(it => { existMap[norm(it.name)] = it; });
+
+  // Строим карту новых позиций — только для добавляемых периодов
+  const incomingMap = {};
+  incoming.all_items.forEach(it => { incomingMap[norm(it.name)] = it; });
+
+  // Объединяем
+  const allKeys = new Set([...Object.keys(existMap), ...Object.keys(incomingMap)]);
+  const merged = [];
+
+  allKeys.forEach(key => {
+    const ex  = existMap[key];
+    const inc = incomingMap[key];
+
+    if (!ex && inc) { merged.push(inc); return; }
+    if (ex && !inc) { merged.push(ex); return; }
+
+    // Есть в обоих — объединяем историю
+    const exHistory  = ex.history  || [];
+    const incHistory = inc.history || [];
+
+    // Добавляем только новые периоды из incoming
+    const existHistPeriods = new Set(exHistory.map(h => h.period));
+    const newHistEntries   = incHistory.filter(h => !existHistPeriods.has(h.period));
+    const fullHistory      = [...exHistory, ...newHistEntries];
+
+    // Пересчитываем diff: предпоследний → последний
+    const costs = fullHistory.filter(h => h.cost).map(h => h.cost);
+    const diff     = costs.length >= 2 ? Math.round((costs[costs.length-1]-costs[costs.length-2])*100)/100 : null;
+    const diff_pct = costs.length >= 2 && costs[costs.length-2]
+      ? Math.round((costs[costs.length-1]-costs[costs.length-2])/costs[costs.length-2]*10000)/100 : null;
+
+    const totalDiff    = costs.length >= 2 ? Math.round((costs[costs.length-1]-costs[0])*100)/100 : null;
+    const totalDiffPct = costs.length >= 2 && costs[0]
+      ? Math.round((costs[costs.length-1]-costs[0])/costs[0]*10000)/100 : null;
+
+    const trend = diff === null ? 'same' : diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
+
+    merged.push({
+      ...ex,
+      cost:      costs[costs.length-1] || ex.cost,
+      cost_old:  costs.length >= 2 ? costs[costs.length-2] : ex.cost_old,
+      diff, diff_pct,
+      total_diff: totalDiff, total_diff_pct: totalDiffPct,
+      history: fullHistory, trend,
+    });
+  });
+
+  merged.sort((a,b) => a.name.localeCompare(b.name, 'ru'));
+
+  // Пересчитываем топы
+  const topGrowth = merged.filter(i=>i.diff&&i.diff>0).sort((a,b)=>b.diff_pct-a.diff_pct).slice(0,15);
+  const topDrop   = merged.filter(i=>i.diff&&i.diff<0).sort((a,b)=>a.diff_pct-b.diff_pct).slice(0,15);
+  const allCats   = [...new Set(merged.map(i=>i.cat).filter(Boolean))].sort();
+
+  const allPeriods = [...existPeriods, ...addPeriods];
+
+  return {
+    meta: {
+      ...existing.meta,
+      periods:      allPeriods,
+      total_items:  merged.length,
+      total_cats:   allCats.length,
+      with_history: merged.filter(i=>i.history&&i.history.length>1).length,
+      growth_count: topGrowth.length,
+      drop_count:   topDrop.length,
+      all_cats:     allCats,
+    },
+    top_growth: topGrowth,
+    top_drop:   topDrop,
+    top_margin: [],
+    low_margin: [],
+    all_items:  merged,
+  };
+}
 
 // ── DELETE data endpoints ─────────────────────────────────────────────────────
 const DATA_FILES = {
