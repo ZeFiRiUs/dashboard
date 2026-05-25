@@ -1273,8 +1273,11 @@ function applySebesData(data){
   SEBES_DATA=data;
   const sdot=document.getElementById('sebes-sdot');if(sdot)sdot.className='sdot ok';
   const lbl=document.getElementById('sebes-period-label');
-  const periods=(data.meta&&data.meta.periods)?data.meta.periods:[];
-  if(lbl)lbl.innerHTML=' · <b style="color:var(--txt)">'+(periods.length>1?periods[0]+' vs '+periods[1]:data.meta.total_items+' позиций')+'</b>';
+  const ps=(data.meta&&data.meta.periods)?data.meta.periods:[];
+  if(lbl){
+    if(ps.length>1) lbl.innerHTML=' · <b style="color:var(--txt)">'+ps.length+' периода · '+ps[ps.length-1]+'</b>';
+    else lbl.innerHTML=' · <b style="color:var(--txt)">'+data.meta.total_items+' позиций</b>';
+  }
   renderSebes();
 }
 
@@ -1335,9 +1338,10 @@ function renderSebes(){
 
   const m=SEBES_DATA.meta;
   const kEl=document.getElementById('sebes-kpis');
+  const periodsStr=m.periods&&m.periods.length>1?m.periods.join(' → '):m.periods&&m.periods[0]?m.periods[0]:'';
   if(kEl)kEl.innerHTML=
     '<div class="kpi g"><div class="kl">Позиций</div><div class="kv">'+m.total_items+'</div><div class="ks">'+m.total_cats+' категорий</div></div>'+
-    '<div class="kpi"><div class="kl">Ср. наценка</div><div class="kv">'+m.avg_markup+'%</div><div class="ks">по меню</div></div>'+
+    '<div class="kpi"><div class="kl">С историей</div><div class="kv">'+m.with_history+'</div><div class="ks">из '+m.total_items+'</div></div>'+
     '<div class="kpi r"><div class="kl">Рост себест.</div><div class="kv" style="color:var(--red)">'+m.growth_count+'</div><div class="ks">позиций</div></div>'+
     '<div class="kpi g"><div class="kl">Снижение себест.</div><div class="kv" style="color:var(--grn)">'+m.drop_count+'</div><div class="ks">позиций</div></div>';
 
@@ -1434,11 +1438,14 @@ function openSebesModal(it){
 
   const monoSt='font-family:JetBrains Mono,monospace';
   const diffClr=it.trend==='up'?'var(--red)':it.trend==='down'?'var(--grn)':'var(--txt3)';
+  // KPI: последний vs первый период
+  const lastH  = it.history[it.history.length-1];
+  const firstH = it.history[0];
   const kEl=document.getElementById('sebes-modal-kpis');
   if(kEl)kEl.innerHTML=
-    '<div class="mk"><div class="mkl">Сейчас</div><div class="mkv" style="'+monoSt+'">'+(it.cost||'—')+' ₽</div></div>'+
-    '<div class="mk"><div class="mkl">Было</div><div class="mkv" style="'+monoSt+';color:var(--txt2)">'+(it.cost_old||'—')+' ₽</div></div>'+
-    '<div class="mk"><div class="mkl">Изменение</div><div class="mkv" style="color:'+diffClr+';'+monoSt+'">'+(it.diff!==null?(it.diff>0?'+':'')+it.diff+'₽':'—')+'</div></div>';
+    '<div class="mk"><div class="mkl">'+lastH.period.substring(0,18)+'</div><div class="mkv" style="'+monoSt+'">'+(lastH.cost||'—')+' ₽</div></div>'+
+    '<div class="mk"><div class="mkl">'+firstH.period.substring(0,18)+'</div><div class="mkv" style="'+monoSt+';color:var(--txt2)">'+(firstH.cost||'—')+' ₽</div></div>'+
+    '<div class="mk"><div class="mkl">Изменение</div><div class="mkv" style="color:'+diffClr+';'+monoSt+'">'+(it.diff!==null?(it.diff>0?'+':'')+it.diff+' ₽':'—')+'</div></div>';
 
   // История в виде таблицы
   const histEl=document.getElementById('sebes-modal-history');
