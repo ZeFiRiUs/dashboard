@@ -463,6 +463,18 @@ app.get('/api/sebes', async (req, res) => {
   res.json(data);
 });
 
+// ── GET writeoffs_by_point ────────────────────────────────────────────────────
+app.get('/api/data/writeoffs_by_point', async (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    const localPath = path.join(LOCAL_DATA_DIR, 'writeoffs_by_point.json');
+    if (fs.existsSync(localPath)) {
+      return res.json(JSON.parse(fs.readFileSync(localPath, 'utf8')));
+    }
+    res.json(null);
+  } catch(e) { res.json(null); }
+});
+
 app.post('/api/sebes', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
