@@ -511,9 +511,51 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <button class="fbtn" onclick="setF('ok',this)">🟢 &lt;45k</button>
     <div class="sw"><span class="sic">🔍</span><input class="si" id="si" type="text" placeholder="Поиск по складу или позиции..." oninput="renderCards()"></div>
   </div>
+  <!-- Блоки аналитики статей и точек -->
+  <div id="wo-articles-section" style="display:none;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <!-- Группы статей -->
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Группы статей</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--txt2)" id="wo-groups-legend"></div>
+        <div id="wo-groups-bars"></div>
+      </div>
+      <!-- Статьи детально -->
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Статьи (детально)</div>
+        <div id="wo-articles-bars"></div>
+      </div>
+    </div>
+    <!-- Таблица точек -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em">Точки: выручка vs списания</div>
+        <select id="wo-points-sort" onchange="renderWoPointsTable()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:5px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
+          <option value="name">По названию</option>
+          <option value="pct">По % списаний ↓</option>
+          <option value="wo">По сумме списаний ↓</option>
+          <option value="rev">По выручке ↓</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="wo-points-table">
+          <thead><tr style="border-bottom:1px solid var(--bd)">
+            <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Точка</th>
+            <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Выручка</th>
+            <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Списания</th>
+            <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">%</th>
+            <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Главная статья</th>
+          </tr></thead>
+          <tbody id="wo-points-tbody"></tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:8px">~ — выручка подставлена как заглушка 228 228 ₽</div>
+    </div>
+  </div>
+
   <div class="cc" id="cc"></div>
   <div class="grid" id="grid"></div>
-  </div><!-- /page-stops wrap -->
+  </div><!-- /page-wo wrap -->
 </div>
 
 <!-- ═══ STOPS TAB ═══ -->
@@ -1694,6 +1736,7 @@ async function loadData(){
     ss('warn','Ошибка загрузки: '+e.message);
   }
   cur=0; render();
+  loadWoByPoint();
 }
 
 function render(){
@@ -1719,7 +1762,112 @@ function renderKPIs(p){
     <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
 }
 
-// ══ OVERVIEW (Сводный дашборд) ═════════════════════════════════════════════
+// ══ WO BY POINT (статьи + выручка vs списания) ════════════════════════════
+let WO_BY_POINT = null;
+
+async function loadWoByPoint(){
+  try {
+    const r = await fetch('/api/data/writeoffs_by_point', {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) return;
+    WO_BY_POINT = await r.json();
+    renderWoArticlesSection();
+  } catch(e){}
+}
+
+const WO_GRP_COLOR = {
+  'Потери':      '#E24B4A',
+  'Плановые':    '#EF9F27',
+  'Хоз. расходы':'#378ADD',
+  'Маркетинг':   '#1D9E75',
+  'Прочее':      '#888780',
+};
+
+function renderWoArticlesSection(){
+  if(!WO_BY_POINT) return;
+  const sec = document.getElementById('wo-articles-section');
+  if(sec) sec.style.display = '';
+
+  const meta = WO_BY_POINT.meta;
+  const monoSt = 'font-family:JetBrains Mono,monospace';
+
+  // ─ Группы статей ─
+  const grpTotals = meta.group_totals || {};
+  const grpTotal  = Object.values(grpTotals).reduce((s,v)=>s+v,0);
+  const grpOrder  = ['Потери','Плановые','Хоз. расходы','Маркетинг','Прочее'];
+
+  const legendEl = document.getElementById('wo-groups-legend');
+  if(legendEl) legendEl.innerHTML = grpOrder.filter(g=>grpTotals[g])
+    .map(g=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${WO_GRP_COLOR[g]};display:inline-block"></span>${g}</span>`).join('');
+
+  const barsEl = document.getElementById('wo-groups-bars');
+  if(barsEl) barsEl.innerHTML = grpOrder.filter(g=>grpTotals[g]).map(g=>{
+    const v = grpTotals[g];
+    const pct = grpTotal ? Math.round(v/grpTotal*1000)/10 : 0;
+    const barW = grpTotal ? Math.round(v/grpTotal*100) : 0;
+    const label = g==='Хоз. расходы'?'Хоз. расходы':g==='Плановые'?'Плановые (питание, отраб.)':g;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="flex:0 0 190px;font-size:12px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+      <div style="flex:1;height:7px;background:var(--bg);border-radius:4px;overflow:hidden">
+        <div style="width:${barW}%;height:100%;background:${WO_GRP_COLOR[g]};border-radius:4px"></div>
+      </div>
+      <div style="${monoSt};font-size:11px;color:var(--txt2);flex:0 0 75px;text-align:right">${v.toLocaleString('ru-RU')} ₽</div>
+      <div style="${monoSt};font-size:11px;color:var(--txt3);flex:0 0 38px;text-align:right">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  // ─ Статьи детально ─
+  const arts = meta.articles_summary || [];
+  const artMax = arts[0]?.sum || 1;
+  const artBarsEl = document.getElementById('wo-articles-bars');
+  if(artBarsEl) artBarsEl.innerHTML = arts.slice(0,10).map(a=>{
+    const barW = Math.round(a.sum/artMax*100);
+    const clr = WO_GRP_COLOR[a.group] || '#888780';
+    const label = a.name.length > 20 ? a.name.slice(0,19)+'…' : a.name;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+      <div style="flex:0 0 140px;font-size:11px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${a.name}">${label}</div>
+      <div style="flex:1;height:7px;background:var(--bg);border-radius:4px;overflow:hidden">
+        <div style="width:${barW}%;height:100%;background:${clr};border-radius:4px"></div>
+      </div>
+      <div style="${monoSt};font-size:11px;color:var(--txt2);flex:0 0 68px;text-align:right">${Math.round(a.sum).toLocaleString('ru-RU')} ₽</div>
+    </div>`;
+  }).join('');
+
+  renderWoPointsTable();
+}
+
+function renderWoPointsTable(){
+  if(!WO_BY_POINT) return;
+  const sortVal = document.getElementById('wo-points-sort')?.value || 'name';
+  const monoSt = 'font-family:JetBrains Mono,monospace';
+
+  let pts = [...WO_BY_POINT.by_point];
+  if(sortVal==='pct')  pts.sort((a,b)=>b.wo_rev_pct-a.wo_rev_pct);
+  else if(sortVal==='wo')  pts.sort((a,b)=>b.wo_total-a.wo_total);
+  else if(sortVal==='rev') pts.sort((a,b)=>b.sales_rev-a.sales_rev);
+  else pts.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+
+  const tbody = document.getElementById('wo-points-tbody');
+  if(!tbody) return;
+
+  tbody.innerHTML = pts.map(p=>{
+    const pct = p.wo_rev_pct;
+    const pctClr = p.rev_is_placeholder ? 'var(--txt3)' : pct>=10 ? 'var(--red)' : pct>=5 ? 'var(--warn)' : 'var(--grn)';
+    const pctBg  = p.rev_is_placeholder ? 'var(--bg)' : pct>=10 ? 'rgba(255,69,96,.1)' : pct>=5 ? 'rgba(255,176,32,.1)' : 'rgba(152,194,30,.1)';
+    const pctTxt = pct+'%'+(p.rev_is_placeholder?'~':'');
+    const revTxt = p.rev_is_placeholder
+      ? `<span style="color:var(--txt3);${monoSt}">${p.sales_rev.toLocaleString('ru-RU')} ₽ ~</span>`
+      : `<span style="font-weight:700;${monoSt}">${p.sales_rev.toLocaleString('ru-RU')} ₽</span>`;
+    return `<tr style="border-bottom:.5px solid var(--bd)">
+      <td style="padding:7px 8px;font-size:12px;font-weight:500;color:var(--txt)">${p.name}</td>
+      <td style="padding:7px 8px;text-align:right">${revTxt}</td>
+      <td style="padding:7px 8px;text-align:right;${monoSt};font-size:12px;color:var(--red)">${p.wo_total.toLocaleString('ru-RU')} ₽</td>
+      <td style="padding:7px 8px;text-align:right">
+        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;${monoSt};color:${pctClr};background:${pctBg}">${pctTxt}</span>
+      </td>
+      <td style="padding:7px 8px;font-size:11px;color:var(--txt3)">${p.top_article||'—'}</td>
+    </tr>`;
+  }).join('');
+}
 function renderOverview(){
   const monoSt = 'font-family:JetBrains Mono,monospace';
   const now = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
