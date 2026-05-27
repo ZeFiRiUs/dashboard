@@ -887,10 +887,6 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <input type="file" id="prod-jfu" accept=".json" style="display:none" onchange="uploadProductionJson(event)">
       <input type="file" id="sebes-jfu" accept=".json" style="display:none" onchange="uploadSebesJson(event)">
       <input type="file" id="sebes-merge-jfu" accept=".json" style="display:none" onchange="uploadSebesMerge(event)">
-      <!-- XLSX inputs -->
-      <input type="file" id="stops-xlsx-jfu" accept=".xlsx,.xls" style="display:none" onchange="uploadXlsx('stops',event)">
-      <input type="file" id="sebes-xlsx-jfu" accept=".xlsx,.xls" style="display:none" onchange="uploadXlsx('sebes',event)">
-      <input type="file" id="wo-xlsx-jfu" accept=".xlsx,.xls" style="display:none" onchange="uploadXlsx('wo',event)">
 
       <!-- Список разделов с кнопками загрузки/удаления -->
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px" id="admin-sections-list"></div>
@@ -2454,41 +2450,44 @@ const ADMIN_SECTIONS = [
 function renderAdminSections(){
   const el=document.getElementById('admin-sections-list');
   if(!el)return;
-  const XLSX_KEYS = new Set(['stops','sebes','wo']);
   el.innerHTML=ADMIN_SECTIONS.map(function(s){
     const loaded=s.hasData();
     const info=s.dataInfo();
-    const xlsxId=s.key+'-xlsx-jfu';
     return '<div style="display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">'
+      // Иконка + название
       +'<div style="font-size:20px;flex-shrink:0">'+s.icon+'</div>'
       +'<div style="flex:1;min-width:0">'
       +'<div style="font-size:13px;font-weight:700;color:var(--txt)">'+s.label+'</div>'
       +(loaded?'<div style="font-size:11px;color:var(--grn)">✓ Загружено · '+info+'</div>'
               :'<div style="font-size:11px;color:var(--txt3)">Не загружено</div>')
       +'</div>'
+      // Кнопки
       +'<div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">'
       +(s.key==='sebes'&&loaded
-        ?'<button class="btn admin-merge-btn" data-fileid="sebes-merge-jfu" style="padding:5px 10px;font-size:11px;color:var(--grn);border-color:var(--grn)">➕ Период</button>'
+        ?'<button class="btn admin-merge-btn" data-fileid="sebes-merge-jfu" style="padding:5px 10px;font-size:11px;color:var(--grn);border-color:var(--grn)">➕ Добавить период</button>'
         :'')
-      +(XLSX_KEYS.has(s.key)
-        ?'<button class="btn admin-xlsx-btn" data-key="'+s.key+'" data-fileid="'+xlsxId+'" style="padding:5px 10px;font-size:11px;color:var(--acc);border-color:var(--acc)">📊 XLSX</button>'
-        :'')
-      +'<button class="btn admin-upload-btn" data-fileid="'+s.fileId+'" style="padding:5px 10px;font-size:11px">⬆ JSON</button>'
-      +(loaded?'<button class="btn admin-delete-btn" data-key="'+s.key+'" style="padding:5px 10px;font-size:11px;color:var(--red);border-color:var(--red)">🗑</button>':'')
+      +'<button class="btn admin-upload-btn" data-fileid="'+s.fileId+'" style="padding:5px 10px;font-size:11px">⬆ Загрузить</button>'
+      +(loaded?'<button class="btn admin-delete-btn" data-key="'+s.key+'" style="padding:5px 10px;font-size:11px;color:var(--red);border-color:var(--red)">🗑 Удалить</button>':'')
       +'</div>'
       +'</div>';
   }).join('');
+  // Кнопки загрузки через делегирование
   el.querySelectorAll('.admin-upload-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){ document.getElementById(btn.getAttribute('data-fileid'))?.click(); });
+    btn.addEventListener('click',function(){
+      document.getElementById(btn.getAttribute('data-fileid'))?.click();
+    });
   });
+  // Кнопки удаления через делегирование
   el.querySelectorAll('.admin-delete-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){ deleteAdminData(btn.getAttribute('data-key')); });
+    btn.addEventListener('click',function(){
+      deleteAdminData(btn.getAttribute('data-key'));
+    });
   });
+  // Кнопки добавления периода
   el.querySelectorAll('.admin-merge-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){ document.getElementById('sebes-merge-jfu')?.click(); });
-  });
-  el.querySelectorAll('.admin-xlsx-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){ document.getElementById(btn.getAttribute('data-fileid'))?.click(); });
+    btn.addEventListener('click',function(){
+      document.getElementById('sebes-merge-jfu')?.click();
+    });
   });
 }
 
@@ -2864,63 +2863,6 @@ function applyStopsData(data) {
   if(sdot) sdot.className='sdot ok';
   renderStops();
 }
-
-// ══ XLSX upload ════════════════════════════════════════════════════════════════
-async function uploadXlsx(key, e){
-  const file = e.target.files[0]; if(!file) return;
-  e.target.value = '';
-
-  const ENDPOINT = { stops:'/api/stops/xlsx', sebes:'/api/sebes/xlsx', wo:'/api/writeoffs/xlsx' };
-  const LABEL    = { stops:'Стоп листы', sebes:'Себестоимость', wo:'Списания' };
-
-  // Для себестоимости — спросим название периода
-  let url = ENDPOINT[key];
-  if(key === 'sebes'){
-    const p = prompt('Название периода (например «Июнь 2026»):', new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'}));
-    if(p) url += '?period='+encodeURIComponent(p);
-  }
-  if(key === 'wo'){
-    const p = prompt('Название периода (например «Май 2026»):', new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'}));
-    if(p) url += '?period='+encodeURIComponent(p);
-  }
-
-  // Показываем спиннер
-  const toast = _showToast('⏳ Загружаем '+LABEL[key]+'...', 'info', 30000);
-
-  try {
-    const fd = new FormData(); fd.append('file', file);
-    const r = await fetch(url, { method:'POST', headers:{'X-Admin-Password':adminPw}, body:fd });
-    const j = await r.json();
-    _hideToast(toast);
-    if(!r.ok || j.error) throw new Error(j.error||'Ошибка сервера');
-    _showToast('✅ '+LABEL[key]+' загружен из XLSX', 'success');
-    await loadData();
-    renderAdminSections();
-  } catch(err){
-    _hideToast(toast);
-    _showToast('❌ '+err.message, 'error');
-  }
-}
-
-// Тост-уведомления (минимальные, без зависимостей)
-function _showToast(msg, type, dur){
-  let wrap = document.getElementById('toast-wrap');
-  if(!wrap){
-    wrap = document.createElement('div');
-    wrap.id = 'toast-wrap';
-    wrap.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none';
-    document.body.appendChild(wrap);
-  }
-  const t = document.createElement('div');
-  const bg = type==='success'?'var(--grn)':type==='error'?'var(--red)':type==='info'?'var(--acc)':'var(--txt3)';
-  t.style.cssText = 'background:'+bg+';color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-family:Manrope,sans-serif;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.3);opacity:0;transition:opacity .2s';
-  t.textContent = msg;
-  wrap.appendChild(t);
-  requestAnimationFrame(()=>{ t.style.opacity='1'; });
-  if(dur !== 30000) setTimeout(()=>_hideToast(t), dur||3500);
-  return t;
-}
-function _hideToast(t){ if(!t) return; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }
 
 // Upload new stops JSON — saves to server (admin only)
 async function uploadStopsJson(e) {
