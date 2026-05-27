@@ -52,7 +52,7 @@ async function initFromGitHub() {
   }
 }
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 app.use(express.json({ limit: '10mb' }));
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -977,6 +977,16 @@ app.listen(PORT, async () => {
   await initFromGitHub();
   rebuildWriteoffsIndex();
 });
+
+// ── Глобальный обработчик ошибок Express ──────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('Express error:', err.message);
+  if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл слишком большой (макс. 25MB)' });
+  res.status(500).json({ error: err.message || 'Внутренняя ошибка сервера' });
+});
+
+process.on('uncaughtException', err => { console.error('uncaughtException:', err.message); });
+process.on('unhandledRejection', err => { console.error('unhandledRejection:', err?.message || err); });
 
 // ── WRITEOFFS RAW ─────────────────────────────────────────────────────────────
 const WO_RAW_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_raw.json');
