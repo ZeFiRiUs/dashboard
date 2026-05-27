@@ -2922,7 +2922,8 @@ function _showToast(msg, type, dur){
 }
 function _hideToast(t){ if(!t) return; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }
 
-
+// Upload new stops JSON — saves to server (admin only)
+async function uploadStopsJson(e) {
   const file = e.target.files[0]; if(!file) return;
   const reader = new FileReader();
   reader.onload = async ev => {
