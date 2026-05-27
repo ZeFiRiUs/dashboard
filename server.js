@@ -598,7 +598,10 @@ function mergeSebesPeriods(existing, incoming) {
 // ══════════════════════════════════════════════════════════════════════════════
 let XLSX_LIB = null;
 function getXlsx() {
-  if (!XLSX_LIB) XLSX_LIB = require('xlsx');
+  if (!XLSX_LIB) {
+    try { XLSX_LIB = require('xlsx'); }
+    catch(e) { throw new Error('Пакет xlsx не установлен. Выполните npm install на сервере.'); }
+  }
   return XLSX_LIB;
 }
 
