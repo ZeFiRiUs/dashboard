@@ -805,7 +805,35 @@ app.put('/api/sebes/sheets', express.json(), (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-const STOPS_SHEET_ID = '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY';
+// ── Deliveries CSV proxy (Google Sheets) ─────────────────────────────────────
+const DELIVERIES_SHEET_ID = '1Rfwer4_rEocp7wPb-NLYsFbkWYkq5SVrO7mkYbCoflw';
+let _delCsvCache = null;
+let _delCsvCacheTs = 0;
+const DEL_CSV_CACHE_TTL = 5 * 60 * 1000;
+
+app.get('/api/deliveries/csv', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const now = Date.now();
+  const noCache = req.query.nocache === '1';
+  if (!noCache && _delCsvCache && (now - _delCsvCacheTs) < DEL_CSV_CACHE_TTL) {
+    return res.type('text/csv').send(_delCsvCache);
+  }
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${DELIVERIES_SHEET_ID}/export?format=csv&gid=0`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    _delCsvCache   = csv;
+    _delCsvCacheTs = now;
+    res.type('text/csv').send(csv);
+  } catch(e) {
+    console.error('Deliveries CSV fetch error:', e.message);
+    if (_delCsvCache) return res.type('text/csv').send(_delCsvCache);
+    res.status(502).json({ error: 'Не удалось получить данные: ' + e.message });
+  }
+});
+
+
 let _stopsCsvCache = null;
 let _stopsCsvCacheTs = 0;
 const STOPS_CSV_CACHE_TTL = 5 * 60 * 1000;
