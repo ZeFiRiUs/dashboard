@@ -872,10 +872,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </select>
       <select id="supply-status-filter" onchange="renderSupplyTable()" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer">
         <option value="">Все статусы</option>
-        <option value="critical">🔴 Критично (&lt;30 дней)</option>
-        <option value="warning">🟡 Мало (30–90 дней)</option>
-        <option value="ok">🟢 В норме (&gt;90 дней)</option>
-        <option value="ordered">📦 Заказано</option>
+        <option value="critical">Критично (&lt;30 дней)</option>
+        <option value="warning">Мало (30–90 дней)</option>
+        <option value="ok">В норме (&gt;90 дней)</option>
+        <option value="ordered">Заказано</option>
       </select>
       <div class="sw" style="flex:2;min-width:160px"><span class="sic">🔍</span><input class="si" id="supply-search" type="text" placeholder="Поиск позиции..." oninput="renderSupplyTable()"></div>
       <button class="fbtn" onclick="resetSupplyFilter()">✕ Сбросить</button>
@@ -2451,37 +2451,49 @@ function renderSupplyTable(){
   }
   if(empty) empty.style.display = 'none';
 
-  // Группируем по поставщику
-  const bySupplier = {};
-  items.forEach(i=>{ (bySupplier[i.supplier]=bySupplier[i.supplier]||[]).push(i); });
+  // Чистим наименование от артикулов вида "086с " в начале
+  const cleanName = n => n.replace(/^\d{2,4}[а-яёa-z]\s+/i, '').trim();
 
+  // Бейдж без эмодзи — просто цветная точка + текст
   const statusBadge = s => {
-    if(s==='critical') return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,69,96,.12);color:var(--red);font-weight:600">🔴 Критично</span>';
-    if(s==='warning')  return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,176,32,.12);color:var(--warn);font-weight:600">🟡 Мало</span>';
-    if(s==='ordered')  return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(163,216,244,.12);color:var(--acc);font-weight:600">📦 Заказ</span>';
-    return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(152,194,30,.12);color:var(--grn);font-weight:600">🟢 Норма</span>';
+    const cfg = {
+      critical: { clr:'var(--red)',  bg:'rgba(255,69,96,.1)',  txt:'Критично' },
+      warning:  { clr:'var(--warn)', bg:'rgba(255,176,32,.1)', txt:'Мало' },
+      ordered:  { clr:'var(--acc)',  bg:'rgba(163,216,244,.1)',txt:'Заказ' },
+      ok:       { clr:'var(--grn)',  bg:'rgba(152,194,30,.1)', txt:'Норма' },
+    };
+    const c = cfg[s] || cfg.ok;
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:20px;background:${c.bg};color:${c.clr};font-weight:600">
+      <span style="width:5px;height:5px;border-radius:50%;background:${c.clr};flex-shrink:0"></span>${c.txt}</span>`;
   };
 
   const fmtN = v => v !== null && v !== undefined ? v.toLocaleString('ru-RU') : '—';
 
+  // Цвет колонки "Дней"
+  const daysClr = d => d===null ? 'var(--txt3)' : d<30 ? 'var(--red)' : d<90 ? 'var(--warn)' : 'var(--grn)';
+
+  // Группируем по поставщику
+  const bySupplier = {};
+  items.forEach(i=>{ (bySupplier[i.supplier]=bySupplier[i.supplier]||[]).push(i); });
+
   tbody.innerHTML = Object.entries(bySupplier).map(([sup, rows])=>`
     <tr>
-      <td colspan="9" style="padding:10px 10px 4px;font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--bd);background:var(--bg)">${sup}</td>
+      <td colspan="9" style="padding:12px 12px 5px;font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--bd);background:var(--bg)">${sup}</td>
     </tr>
-    ${rows.map(i=>`
-      <tr style="border-bottom:.5px solid var(--bd)" class="supply-row">
-      <td style="padding:8px 10px;font-size:12px;color:var(--txt);max-width:260px">
-        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${i.name}">${i.name}</div>
+    ${rows.map((i,idx)=>`
+      <tr style="border-bottom:.5px solid var(--bd);transition:background .12s" onmouseover="this.style.background='var(--surf)'" onmouseout="this.style.background=''">
+      <td style="padding:9px 12px;max-width:240px">
+        <div style="font-size:12px;font-weight:500;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${i.name}">${cleanName(i.name)}</div>
         <div style="margin-top:3px">${statusBadge(i.status)}</div>
       </td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--txt3);white-space:nowrap">${i.phone||'—'}</td>
-      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt2);white-space:nowrap">${i.price ? i.price.toLocaleString('ru-RU')+' ₽' : '—'}</td>
-      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${fmtN(i.monthQty)}</td>
-      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;font-weight:${i.status==='critical'?'700':'400'};color:${i.status==='critical'?'var(--red)':i.status==='warning'?'var(--warn)':'var(--txt)'}">${fmtN(i.stock)}</td>
-      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt3)">${fmtN(i.atSupplier)}</td>
-      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;font-weight:600;color:${i.days===null?'var(--txt3)':i.days<30?'var(--red)':i.days<90?'var(--warn)':'var(--grn)'}">${i.days !== null ? i.days : '—'}</td>
-      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:${i.ordered?'var(--acc)':'var(--txt3)'}">${i.ordered ? fmtN(i.ordered) : '—'}</td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--txt3);white-space:nowrap">${i.eta||'—'}</td>
+      <td style="padding:9px 12px;font-size:11px;color:var(--txt3)">${i.phone||'—'}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${i.price ? i.price.toLocaleString('ru-RU')+' ₽' : '—'}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${fmtN(i.monthQty)}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:13px;font-weight:${i.status==='critical'||i.status==='warning'?'700':'400'};color:${i.status==='critical'?'var(--red)':i.status==='warning'?'var(--warn)':'var(--txt)'}">${fmtN(i.stock)}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt3)">${fmtN(i.atSupplier)}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:13px;font-weight:700;color:${daysClr(i.days)}">${i.days !== null ? i.days : '—'}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:${i.ordered?'var(--acc)':'var(--txt3)'};font-weight:${i.ordered?'600':'400'}">${i.ordered ? fmtN(i.ordered) : '—'}</td>
+      <td style="padding:9px 12px;font-size:11px;color:var(--txt3);white-space:nowrap">${i.eta||'—'}</td>
     </tr>`).join('')}
   `).join('');
 }
