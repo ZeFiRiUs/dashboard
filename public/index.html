@@ -1946,7 +1946,7 @@ async function loadSebesSheetsList(){
     const r = await fetch('/api/sebes/sheets', {headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) return;
     const j = await r.json();
-    _sebesSheets = j.sheets || [];
+    _sebesSheets = j.sheets || [];  // только dated для отображения
     renderSebesSheetsList();
   } catch(e){ console.error(e); }
 }
@@ -1955,7 +1955,7 @@ function renderSebesSheetsList(){
   const el = document.getElementById('sebes-sheets-list');
   if(!el) return;
   if(!_sebesSheets.length){
-    el.innerHTML='<div style="font-size:11px;color:var(--txt3)">Нет листов</div>';
+    el.innerHTML='<div style="font-size:11px;color:var(--txt3)">Нет листов. Нажмите "+ Добавить лист"</div>';
     return;
   }
   el.innerHTML = _sebesSheets.map((s,i) => `
@@ -1966,10 +1966,10 @@ function renderSebesSheetsList(){
     </div>`).join('');
 }
 
-function addSebesSheet(){
-  const name = prompt('Название листа (формат ДД.ММ, например 28.05):');
+async function addSebesSheet(){
+  const name = prompt('Название листа (формат ДД.ММ, например 29.05):');
   if(!name || !name.match(/^\d{1,2}\.\d{1,2}(\.\d{2,4})?$/)) {
-    alert('Неверный формат. Используй ДД.ММ (например 28.05)');
+    alert('Неверный формат. Используй ДД.ММ (например 29.05)');
     return;
   }
   const gid = prompt('GID листа (число из URL после ?gid=):');
@@ -1977,12 +1977,22 @@ function addSebesSheet(){
     alert('GID должен быть числом');
     return;
   }
+  // Сначала получаем актуальный список с сервера чтобы не потерять существующие листы
+  try {
+    const r = await fetch('/api/sebes/sheets', {headers:{'X-View-Password':sessionPassword}});
+    if(r.ok){ const j=await r.json(); _sebesSheets = j.sheets||[]; }
+  } catch(e){}
+  // Проверяем дубликат
+  if(_sebesSheets.find(s=>s.name===name.trim())){
+    alert('Лист "'+name+'" уже есть в списке');
+    return;
+  }
   _sebesSheets = [..._sebesSheets, {name: name.trim(), gid: gid.trim()}]
     .sort((a,b) => {
       const da = parseSebesSheetDate(a.name), db = parseSebesSheetDate(b.name);
       return da && db ? da-db : 0;
     });
-  saveSebesSheetsToServer();
+  await saveSebesSheetsToServer();
 }
 
 function removeSebesSheet(i){
