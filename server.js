@@ -467,91 +467,37 @@ app.get('/api/sebes', async (req, res) => {
 const SEBES_SHEET_ID = '1gsS8IhZvNLrPojda-3uCJM_5VtcdlQ-f4V-g9w7DYqg';
 // Листы: название → gid. Ключ используется как метка периода.
 // Формат названия листа: DD.MM или DD.MM.YYYY → сортируем по дате
-// Кэш списка листов
+// ── Список листов себестоимости — хранится в файле, управляется через UI ──────
+const SEBES_SHEETS_FILE = path.join(LOCAL_DATA_DIR, 'sebes_sheets.json');
+const SEBES_SHEETS_DEFAULT = [
+  { name: '25.03', gid: '136450477' },
+  { name: '25.05', gid: '0' },
+  { name: '28.05', gid: '1829232600' },
+];
 let _sebesSheetsCache = null;
 let _sebesSheetsCacheTs = 0;
-const SEBES_SHEETS_TTL = 10 * 60 * 1000; // 10 минут
+const SEBES_SHEETS_TTL = 5 * 60 * 1000;
+
+function readSebesSheets() {
+  try {
+    if (fs.existsSync(SEBES_SHEETS_FILE))
+      return JSON.parse(fs.readFileSync(SEBES_SHEETS_FILE, 'utf8'));
+  } catch(e) { console.error('readSebesSheets:', e.message); }
+  return SEBES_SHEETS_DEFAULT;
+}
+
+function saveSebesSheets(sheets) {
+  fs.writeFileSync(SEBES_SHEETS_FILE, JSON.stringify(sheets, null, 2));
+  _sebesSheetsCache = sheets;
+  _sebesSheetsCacheTs = Date.now();
+}
 
 async function discoverSebesSheets() {
   const now = Date.now();
-  if (_sebesSheetsCache && (now - _sebesSheetsCacheTs) < SEBES_SHEETS_TTL) {
-    return _sebesSheetsCache;
-  }
-
-  // Google Sheets отдаёт список листов в JSON через feeds API (публичный, без ключа)
-  const feedUrl = `https://spreadsheets.google.com/feeds/worksheets/${SEBES_SHEET_ID}/public/basic?alt=json`;
-  try {
-    const r = await fetch(feedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (r.ok) {
-      const json = await r.json();
-      const entries = json.feed?.entry || [];
-      const sheets = [];
-      for (const entry of entries) {
-        const name = entry.title?.$t || '';
-        // gid берём из ссылки: ...worksheets/ID/gid/NUMBER/...
-        const linkHref = (entry.link || []).find(l => l.rel === 'self')?.href || '';
-        const gidM = linkHref.match(/\/(\d+)(?:\/|$)/);
-        // Альтернативно — из id: .../worksheets/ID/private/full/odXXXXX
-        // Проще — из ссылки на cellsfeed
-        const cellsHref = (entry.link || []).find(l => l.rel?.includes('cells'))?.href || '';
-        const gidFromCells = cellsHref.match(/\/(\d+)(?:\/|$)/);
-        // gid в Google Sheets — это числовой id листа, берём из worksheetId
-        const wsId = entry.id?.$t?.split('/').pop() || '';
-        // wsId вида "odXXXXXX" — нужно конвертировать в числовой gid
-        // Самый надёжный способ — взять из ссылки на визуализацию
-        const vizHref = (entry.link || []).find(l => l.type?.includes('html'))?.href || '';
-        const gidFromViz = vizHref.match(/gid=(\d+)/)?.[1];
-        if (gidFromViz !== undefined) {
-          sheets.push({ name, gid: gidFromViz });
-        }
-      }
-      if (sheets.length) {
-        console.log('Sebes sheets discovered:', sheets.map(s => `${s.name}(${s.gid})`).join(', '));
-        _sebesSheetsCache = sheets;
-        _sebesSheetsCacheTs = now;
-        return sheets;
-      }
-    }
-  } catch(e) {
-    console.warn('Feeds API failed:', e.message);
-  }
-
-  // Fallback: парсим HTML страницы — вкладки листов в нижней навигации
-  try {
-    const htmlUrl = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/edit`;
-    const r = await fetch(htmlUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (r.ok) {
-      const html = await r.text();
-      // Ищем паттерны вида: "name":"25.03","id":"136450477" или аналогичные в JSON-данных страницы
-      const sheets = [];
-      // Паттерн 1: gid в URL якоря вкладки
-      const re1 = /gid=(\d+)[^"]*"[^"]*"([^"]+)"/g;
-      // Паттерн 2: data-sheet-id и название
-      const re2 = /data-id="(\d+)"[^>]*>([^<]+)</g;
-      let m;
-      while ((m = re2.exec(html)) !== null) {
-        sheets.push({ name: m[2].trim(), gid: m[1] });
-      }
-      if (sheets.length) {
-        console.log('Sebes sheets (html fallback):', sheets.map(s=>`${s.name}(${s.gid})`).join(', '));
-        _sebesSheetsCache = sheets;
-        _sebesSheetsCacheTs = now;
-        return sheets;
-      }
-    }
-  } catch(e) {
-    console.warn('HTML fallback failed:', e.message);
-  }
-
-  // Последний fallback — известные нам листы
-  console.warn('Using hardcoded sebes sheets');
-  const fallback = [
-    { name: '25.03', gid: '136450477' },
-    { name: '25.05', gid: '0' },
-  ];
-  _sebesSheetsCache = fallback;
-  _sebesSheetsCacheTs = now;
-  return fallback;
+  if (_sebesSheetsCache && (now - _sebesSheetsCacheTs) < SEBES_SHEETS_TTL) return _sebesSheetsCache;
+  const sheets = readSebesSheets();
+  _sebesSheetsCache = sheets; _sebesSheetsCacheTs = now;
+  return sheets;
 }
 
 
@@ -814,6 +760,16 @@ app.get('/api/sebes/sheets', async (req, res) => {
     const dated = sheets.filter(s => parseSheetDate(s.name) !== null)
                         .sort((a,b) => parseSheetDate(a.name) - parseSheetDate(b.name));
     res.json({ sheets: dated, all: sheets });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sebes/sheets', express.json(), (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const { sheets } = req.body;
+    if (!Array.isArray(sheets)) return res.status(400).json({ error: 'sheets must be array' });
+    saveSebesSheets(sheets);
+    res.json({ ok: true, sheets });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1326,9 +1282,13 @@ app.delete('/api/data/:key', async (req, res) => {
   const file = DATA_FILES[key];
   if (!file) return res.status(400).json({ error: 'Неизвестный раздел: ' + key });
   try {
-    // Очистить локальный файл
     fs.writeFileSync(file.local, file.empty);
-    // Очистить в GitHub
+    // При удалении списаний — чистим также индекс и raw
+    if (key === 'wo') {
+      const indexFile = path.join(LOCAL_DATA_DIR, 'writeoffs_index.json');
+      if (fs.existsSync(indexFile)) fs.writeFileSync(indexFile, '[]');
+      rebuildWriteoffsIndex();
+    }
     if (GH_TOKEN && GH_OWNER) {
       try {
         const r = await ghRead(file.gh);
