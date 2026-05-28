@@ -463,7 +463,35 @@ app.get('/api/sebes', async (req, res) => {
   res.json(data);
 });
 
-// ── Supply CSV proxy (Google Sheets) ─────────────────────────────────────────
+// ── Stops CSV proxy (Google Sheets) ──────────────────────────────────────────
+const STOPS_SHEET_ID = '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY';
+let _stopsCsvCache = null;
+let _stopsCsvCacheTs = 0;
+const STOPS_CSV_CACHE_TTL = 5 * 60 * 1000;
+
+app.get('/api/stops/csv', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const now = Date.now();
+  const noCache = req.query.nocache === '1';
+  if (!noCache && _stopsCsvCache && (now - _stopsCsvCacheTs) < STOPS_CSV_CACHE_TTL) {
+    return res.type('text/csv').send(_stopsCsvCache);
+  }
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=csv&gid=0`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    _stopsCsvCache   = csv;
+    _stopsCsvCacheTs = now;
+    res.type('text/csv').send(csv);
+  } catch(e) {
+    console.error('Stops CSV fetch error:', e.message);
+    if (_stopsCsvCache) return res.type('text/csv').send(_stopsCsvCache);
+    res.status(502).json({ error: 'Не удалось получить данные: ' + e.message });
+  }
+});
+
+
 const SUPPLY_SHEET_ID = '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
 let _supplyCache = null;
 let _supplyCacheTs = 0;
@@ -472,7 +500,8 @@ const SUPPLY_CACHE_TTL = 5 * 60 * 1000; // 5 минут
 app.get('/api/supply/csv', async (req, res) => {
   if (!checkView(req, res)) return;
   const now = Date.now();
-  if (_supplyCache && (now - _supplyCacheTs) < SUPPLY_CACHE_TTL) {
+  const noCache = req.query.nocache === '1';
+  if (!noCache && _supplyCache && (now - _supplyCacheTs) < SUPPLY_CACHE_TTL) {
     return res.type('text/csv').send(_supplyCache);
   }
   try {
