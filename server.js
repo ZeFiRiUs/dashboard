@@ -465,6 +465,148 @@ app.get('/api/sebes', async (req, res) => {
 
 // ── Sebes CSV proxy (Google Sheets) ──────────────────────────────────────────
 const SEBES_SHEET_ID = '1gsS8IhZvNLrPojda-3uCJM_5VtcdlQ-f4V-g9w7DYqg';
+// Листы: название → gid. Ключ используется как метка периода.
+// Формат названия листа: DD.MM или DD.MM.YYYY → сортируем по дате
+// Кэш списка листов
+let _sebesSheetsCache = null;
+let _sebesSheetsCacheTs = 0;
+const SEBES_SHEETS_TTL = 10 * 60 * 1000; // 10 минут
+
+async function discoverSebesSheets() {
+  const now = Date.now();
+  if (_sebesSheetsCache && (now - _sebesSheetsCacheTs) < SEBES_SHEETS_TTL) {
+    return _sebesSheetsCache;
+  }
+
+  // Google Sheets отдаёт список листов в JSON через feeds API (публичный, без ключа)
+  const feedUrl = `https://spreadsheets.google.com/feeds/worksheets/${SEBES_SHEET_ID}/public/basic?alt=json`;
+  try {
+    const r = await fetch(feedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (r.ok) {
+      const json = await r.json();
+      const entries = json.feed?.entry || [];
+      const sheets = [];
+      for (const entry of entries) {
+        const name = entry.title?.$t || '';
+        // gid берём из ссылки: ...worksheets/ID/gid/NUMBER/...
+        const linkHref = (entry.link || []).find(l => l.rel === 'self')?.href || '';
+        const gidM = linkHref.match(/\/(\d+)(?:\/|$)/);
+        // Альтернативно — из id: .../worksheets/ID/private/full/odXXXXX
+        // Проще — из ссылки на cellsfeed
+        const cellsHref = (entry.link || []).find(l => l.rel?.includes('cells'))?.href || '';
+        const gidFromCells = cellsHref.match(/\/(\d+)(?:\/|$)/);
+        // gid в Google Sheets — это числовой id листа, берём из worksheetId
+        const wsId = entry.id?.$t?.split('/').pop() || '';
+        // wsId вида "odXXXXXX" — нужно конвертировать в числовой gid
+        // Самый надёжный способ — взять из ссылки на визуализацию
+        const vizHref = (entry.link || []).find(l => l.type?.includes('html'))?.href || '';
+        const gidFromViz = vizHref.match(/gid=(\d+)/)?.[1];
+        if (gidFromViz !== undefined) {
+          sheets.push({ name, gid: gidFromViz });
+        }
+      }
+      if (sheets.length) {
+        console.log('Sebes sheets discovered:', sheets.map(s => `${s.name}(${s.gid})`).join(', '));
+        _sebesSheetsCache = sheets;
+        _sebesSheetsCacheTs = now;
+        return sheets;
+      }
+    }
+  } catch(e) {
+    console.warn('Feeds API failed:', e.message);
+  }
+
+  // Fallback: парсим HTML страницы — вкладки листов в нижней навигации
+  try {
+    const htmlUrl = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/edit`;
+    const r = await fetch(htmlUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (r.ok) {
+      const html = await r.text();
+      // Ищем паттерны вида: "name":"25.03","id":"136450477" или аналогичные в JSON-данных страницы
+      const sheets = [];
+      // Паттерн 1: gid в URL якоря вкладки
+      const re1 = /gid=(\d+)[^"]*"[^"]*"([^"]+)"/g;
+      // Паттерн 2: data-sheet-id и название
+      const re2 = /data-id="(\d+)"[^>]*>([^<]+)</g;
+      let m;
+      while ((m = re2.exec(html)) !== null) {
+        sheets.push({ name: m[2].trim(), gid: m[1] });
+      }
+      if (sheets.length) {
+        console.log('Sebes sheets (html fallback):', sheets.map(s=>`${s.name}(${s.gid})`).join(', '));
+        _sebesSheetsCache = sheets;
+        _sebesSheetsCacheTs = now;
+        return sheets;
+      }
+    }
+  } catch(e) {
+    console.warn('HTML fallback failed:', e.message);
+  }
+
+  // Последний fallback — известные нам листы
+  console.warn('Using hardcoded sebes sheets');
+  const fallback = [
+    { name: '25.03', gid: '136450477' },
+    { name: '25.05', gid: '0' },
+  ];
+  _sebesSheetsCache = fallback;
+  _sebesSheetsCacheTs = now;
+  return fallback;
+}
+
+
+
+function parseSheetDate(name) {
+  // DD.MM или DD.MM.YY или DD.MM.YYYY
+  const m = name.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/);
+  if (!m) return null;
+  const year = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : 2026;
+  return new Date(year, +m[2] - 1, +m[1]);
+}
+
+function parseCsvSimple(csv) {
+  const result = [];
+  const lines = csv.split('\n');
+  for (const line of lines) {
+    const row = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { row.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    row.push(cur.trim());
+    result.push(row);
+  }
+  return result;
+}
+
+function parseSebesSheet(csv, periodLabel) {
+  const rows = parseCsvSimple(csv).filter(r => r.some(c => c));
+  if (!rows.length) return {};
+  const headers = rows[0].map(h => h.toLowerCase());
+  const iName = headers.findIndex(h => h.includes('номенкл') || h.includes('наимен'));
+  const iCost = headers.findIndex(h => h.includes('стоим') || h.includes('себест') || h.includes('цена'));
+  if (iName < 0 || iCost < 0) return {};
+  const SKIP = new Set(['итого', '', 'nan']);
+  const map = {}; // name → {cost, cat, unit}
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const raw = (r[iName] || '').trim();
+    if (!raw || SKIP.has(raw.toLowerCase())) continue;
+    const costRaw = (r[iCost] || '').replace(',', '.').replace(/\s/g, '');
+    const cost = costRaw && !isNaN(+costRaw) ? Math.round(+costRaw * 100) / 100 : null;
+    const iCat2 = headers.findIndex(h => h.includes('катег'));
+    const cat = iCat2 >= 0 ? (r[iCat2] || '').trim() || 'Прочее' : 'Прочее';
+    const nameUnitM = raw.match(/^(.+?),\s*(порц|шт|л|кг|мл|г)\.?\s*$/i);
+    const name = nameUnitM ? nameUnitM[1].trim() : raw;
+    const unit = nameUnitM ? nameUnitM[2] : 'порц';
+    if (name) map[name] = { cost, cat, unit, period: periodLabel };
+  }
+  return map;
+}
+
 let _sebesCsvCache = null;
 let _sebesCsvCacheTs = 0;
 const SEBES_CSV_CACHE_TTL = 5 * 60 * 1000;
@@ -474,23 +616,116 @@ app.get('/api/sebes/csv', async (req, res) => {
   const now = Date.now();
   const noCache = req.query.nocache === '1';
   if (!noCache && _sebesCsvCache && (now - _sebesCsvCacheTs) < SEBES_CSV_CACHE_TTL) {
-    return res.type('text/csv').send(_sebesCsvCache);
+    return res.json(_sebesCsvCache);
   }
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&gid=0`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
-    const csv = await r.text();
-    _sebesCsvCache   = csv;
+    // Автодискавери листов
+    const allSheets = await discoverSebesSheets();
+
+    // Берём только листы с датой в названии (DD.MM или DD.MM.YYYY), сортируем
+    const sheets = allSheets
+      .filter(s => parseSheetDate(s.name) !== null)
+      .sort((a, b) => parseSheetDate(a.name) - parseSheetDate(b.name));
+
+    if (!sheets.length) throw new Error('Нет листов с датой в названии (ожидается формат ДД.ММ)');
+    console.log(`Sebes: загружаем ${sheets.length} листов:`, sheets.map(s => s.name).join(', '));
+
+    // Скачиваем все листы
+    const sheetData = [];
+    for (const sheet of sheets) {
+      const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!r.ok) { console.warn(`Sheet ${sheet.name} HTTP ${r.status}`); continue; }
+      const csv = await r.text();
+      const map = parseSebesSheet(csv, sheet.name);
+      if (Object.keys(map).length) sheetData.push({ label: sheet.name, map });
+    }
+
+    if (!sheetData.length) throw new Error('Не удалось загрузить ни одного листа');
+
+    // Последний лист — текущий период, остальные — история
+    const latest = sheetData[sheetData.length - 1];
+    const allNames = new Set();
+    sheetData.forEach(s => Object.keys(s.map).forEach(n => allNames.add(n)));
+
+    const items = [];
+    for (const name of allNames) {
+      const latestEntry = latest.map[name];
+      const cost = latestEntry ? latestEntry.cost : null;
+
+      // История от старого к новому
+      const history = sheetData
+        .map(s => s.map[name] ? { period: s.label, cost: s.map[name].cost } : null)
+        .filter(Boolean);
+
+      // Diff — сравниваем последний с предпоследним
+      let diff = null, diff_pct = null, trend = 'same';
+      if (history.length >= 2) {
+        const prev = history[history.length - 2].cost;
+        const curr = history[history.length - 1].cost;
+        if (prev !== null && curr !== null) {
+          diff = Math.round((curr - prev) * 100) / 100;
+          diff_pct = prev !== 0 ? Math.round((curr - prev) / prev * 1000) / 10 : null;
+          trend = diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
+        }
+      }
+
+      // Категория и единица — из последнего листа где есть позиция
+      let cat = 'Прочее', unit = 'порц';
+      for (let si = sheetData.length - 1; si >= 0; si--) {
+        const entry = sheetData[si].map[name];
+        if (entry) { cat = entry.cat || 'Прочее'; unit = entry.unit || 'порц'; break; }
+      }
+
+      items.push({ name, cat, unit, cost, price: null, markup: null,
+                   trend, diff, diff_pct, total_diff: diff, total_diff_pct: diff_pct,
+                   history });
+    }
+
+    // Топы
+    const withDiff = items.filter(i => i.diff !== null);
+    const top_growth = [...withDiff].sort((a,b) => b.diff - a.diff).slice(0, 10);
+    const top_drop   = [...withDiff].sort((a,b) => a.diff - b.diff).slice(0, 10);
+    const periods    = sheetData.map(s => s.label);
+    const allCats    = [...new Set(items.map(i => i.cat).filter(Boolean))].sort();
+
+    const result = {
+      meta: {
+        source: 'Себес парс (Google Sheets)',
+        periods,
+        total_items: items.length,
+        total_cats: allCats.length,
+        with_history: items.filter(i => i.history.length > 1).length,
+        growth_count: items.filter(i => i.trend === 'up').length,
+        drop_count: items.filter(i => i.trend === 'down').length,
+        all_cats: allCats, avg_markup: null,
+        no_cost: items.filter(i => !i.cost).length,
+        created_at: new Date().toISOString().slice(0, 10),
+      },
+      top_growth, top_drop, top_margin: [], low_margin: [],
+      all_items: items,
+    };
+
+    _sebesCsvCache = result;
     _sebesCsvCacheTs = now;
-    res.type('text/csv').send(csv);
+    res.json(result);
   } catch(e) {
     console.error('Sebes CSV fetch error:', e.message);
-    if (_sebesCsvCache) return res.type('text/csv').send(_sebesCsvCache);
+    if (_sebesCsvCache) return res.json(_sebesCsvCache);
     res.status(502).json({ error: 'Не удалось получить данные: ' + e.message });
   }
 });
 
+// ── Список листов себестоимости ───────────────────────────────────────────────
+app.get('/api/sebes/sheets', async (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    const sheets = await discoverSebesSheets();
+    const dated = sheets.filter(s => parseSheetDate(s.name) !== null)
+                        .sort((a,b) => parseSheetDate(a.name) - parseSheetDate(b.name));
+    res.json({ sheets: dated, all: sheets });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 const STOPS_SHEET_ID = '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY';
 let _stopsCsvCache = null;
