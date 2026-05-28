@@ -488,8 +488,8 @@ function readSebesSheets() {
 
 function saveSebesSheets(sheets) {
   fs.writeFileSync(SEBES_SHEETS_FILE, JSON.stringify(sheets, null, 2));
-  _sebesSheetsCache = sheets;
-  _sebesSheetsCacheTs = Date.now();
+  _sebesSheetsCache = null;   // полный сброс — при следующем запросе перечитает файл
+  _sebesSheetsCacheTs = 0;
 }
 
 async function discoverSebesSheets() {
@@ -666,8 +666,10 @@ app.get('/api/sebes/csv', async (req, res) => {
 app.post('/api/sebes/sync', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    // Принудительно сбрасываем кэш
+    // Сбрасываем кэши
     _sebesCsvCache = null;
+    _sebesCsvCacheTs = 0;
+    _sebesSheetsCache = null;
     _sebesSheetsCacheTs = 0;
 
     const allSheets = await discoverSebesSheets();
@@ -718,7 +720,7 @@ app.post('/api/sebes/sync', async (req, res) => {
                    trend, diff, diff_pct, total_diff: diff, total_diff_pct: diff_pct, history });
     }
 
-    const withDiff = items.filter(i => i.diff !== null);
+    const withDiff = items.filter(i => i.diff !== null && i.diff_pct !== null);
     const allCats = [...new Set(items.map(i => i.cat).filter(Boolean))].sort();
     const result = {
       meta: {
@@ -732,8 +734,8 @@ app.post('/api/sebes/sync', async (req, res) => {
         no_cost: items.filter(i => !i.cost).length,
         created_at: new Date().toISOString().slice(0, 10),
       },
-      top_growth: [...withDiff].sort((a,b) => b.diff - a.diff).slice(0, 10),
-      top_drop:   [...withDiff].sort((a,b) => a.diff - b.diff).slice(0, 10),
+      top_growth: [...withDiff].sort((a,b) => b.diff_pct - a.diff_pct).slice(0, 10),
+      top_drop:   [...withDiff].sort((a,b) => a.diff_pct - b.diff_pct).slice(0, 10),
       top_margin: [], low_margin: [], all_items: items,
     };
 
