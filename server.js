@@ -832,6 +832,103 @@ app.get('/api/deliveries/csv', async (req, res) => {
   }
 });
 
+// ── POST /api/deliveries/sync — синхронизация из Google Sheets ───────────────
+app.post('/api/deliveries/sync', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    _delCsvCache = null; _delCsvCacheTs = 0;
+    const url = `https://docs.google.com/spreadsheets/d/${DELIVERIES_SHEET_ID}/export?format=csv&gid=0`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    _delCsvCache = csv; _delCsvCacheTs = Date.now();
+    // Парсинг CSV — те же колонки что в таблице
+    const { data, rows } = parseDeliveriesCsvServer(csv);
+    if (!data || !rows) return res.status(400).json({ error: 'Нет данных' });
+    // Сохраняем
+    const { sha } = await readDeliveries();
+    const dest = await writeDeliveries(data, sha);
+    res.json({ ok: true, rows: rows, saved_to: dest });
+  } catch(e) {
+    console.error('Deliveries sync error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+function parseDeliveriesCsvServer(csv) {
+  const lines = csv.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return { data: null };
+  function parseLine(line) {
+    const res = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { res.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    res.push(cur.trim()); return res;
+  }
+  const headers = parseLine(lines[0]).map(h => h.toLowerCase().trim());
+  const col = (patterns, fallback) => {
+    const idx = headers.findIndex(h => patterns.some(p => h.includes(p)));
+    return idx >= 0 ? idx : fallback;
+  };
+  const C = {
+    date:   col(['столб','дат'], 0),
+    point:  col(['точк'], 1),
+    dept:   col(['подразд'], 2),
+    type:   col(['довоз','добав'], 3),
+    guilty: col(['фио','виновн'], 4),
+    items:  col(['список','пояснен'], 5),
+    reason: col(['причин'], 6),
+    cost:   col(['стоим'], 7),
+    reg:    col(['реестр','внесен'], 8),
+  };
+  const DOW = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const fmtD = d => { const [y,mo,day] = d.split('-'); return `${day}.${mo}.${y}`; };
+  const parseDateStr = s => {
+    if (!s) return null;
+    let m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : null;
+  };
+  const parseCost = s => {
+    if (!s) return 0;
+    const n = parseFloat(s.replace(/[^\d.,]/g,'').replace(',','.'));
+    return isNaN(n) ? 0 : n;
+  };
+  const rowsList = [], byDate = {}, allPoints = new Set();
+  for (let i = 1; i < lines.length; i++) {
+    const r = parseLine(lines[i]);
+    const iso = parseDateStr(r[C.date] || '');
+    const point = (r[C.point] || '').trim();
+    if (!iso || !point) continue;
+    allPoints.add(point);
+    const cost = parseCost(r[C.cost] || '');
+    rowsList.push({ iso, date: iso, point, dept: (r[C.dept]||'').trim(),
+      type: (r[C.type]||'').trim(), guilty: (r[C.guilty]||'').trim(),
+      items: (r[C.items]||'').trim(), reason: (r[C.reason]||'').trim(),
+      cost, registered: (r[C.reg]||'').trim().toLowerCase().includes('внесено') });
+    if (!byDate[iso]) byDate[iso] = { n: 0, cost: 0 };
+    byDate[iso].n++; byDate[iso].cost += cost;
+  }
+  if (!rowsList.length) return { data: null };
+  const dates = Object.keys(byDate).sort();
+  const data = {
+    meta: {
+      source: 'Довозы парс (Google Sheets)',
+      total: rowsList.length,
+      total_cost: Math.round(rowsList.reduce((s,r)=>s+r.cost,0)),
+      min: dates[0], max: dates[dates.length-1],
+      all_dates: dates.map(d => ({ iso:d, d:fmtD(d), dow:DOW[new Date(d).getDay()], n:byDate[d].n, cost:Math.round(byDate[d].cost) })),
+      all_points: [...allPoints].sort(),
+    },
+    rows: rowsList,
+  };
+  return { data, rows: rowsList.length };
+}
+
 // ── Stops CSV proxy (Google Sheets) ──────────────────────────────────────────
 const STOPS_SHEET_ID = '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY';
 let _stopsCsvCache = null;
