@@ -716,7 +716,97 @@ app.get('/api/sebes/csv', async (req, res) => {
   }
 });
 
-// ── Список листов себестоимости ───────────────────────────────────────────────
+// ── POST /api/sebes/sync — синхронизация из Google Sheets ────────────────────
+app.post('/api/sebes/sync', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    // Принудительно сбрасываем кэш
+    _sebesCsvCache = null;
+    _sebesSheetsCacheTs = 0;
+
+    const allSheets = await discoverSebesSheets();
+    const sheets = allSheets
+      .filter(s => parseSheetDate(s.name) !== null)
+      .sort((a, b) => parseSheetDate(a.name) - parseSheetDate(b.name));
+
+    if (!sheets.length) return res.status(400).json({ error: 'Нет листов с датой в названии (формат ДД.ММ)' });
+
+    const sheetData = [];
+    for (const sheet of sheets) {
+      const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!r.ok) { console.warn(`Sheet ${sheet.name} HTTP ${r.status}`); continue; }
+      const csv = await r.text();
+      const map = parseSebesSheet(csv, sheet.name);
+      if (Object.keys(map).length) sheetData.push({ label: sheet.name, map });
+    }
+
+    if (!sheetData.length) return res.status(502).json({ error: 'Не удалось загрузить данные листов' });
+
+    // Строим итоговый JSON (та же логика что в GET /api/sebes/csv)
+    const latest = sheetData[sheetData.length - 1];
+    const allNames = new Set();
+    sheetData.forEach(s => Object.keys(s.map).forEach(n => allNames.add(n)));
+
+    const items = [];
+    for (const name of allNames) {
+      const latestEntry = latest.map[name];
+      const cost = latestEntry ? latestEntry.cost : null;
+      const history = sheetData.map(s => s.map[name] ? { period: s.label, cost: s.map[name].cost } : null).filter(Boolean);
+      let diff = null, diff_pct = null, trend = 'same';
+      if (history.length >= 2) {
+        const prev = history[history.length - 2].cost;
+        const curr = history[history.length - 1].cost;
+        if (prev !== null && curr !== null) {
+          diff = Math.round((curr - prev) * 100) / 100;
+          diff_pct = prev !== 0 ? Math.round((curr - prev) / prev * 1000) / 10 : null;
+          trend = diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
+        }
+      }
+      let cat = 'Прочее', unit = 'порц';
+      for (let si = sheetData.length - 1; si >= 0; si--) {
+        const e = sheetData[si].map[name];
+        if (e) { cat = e.cat || 'Прочее'; unit = e.unit || 'порц'; break; }
+      }
+      items.push({ name, cat, unit, cost, price: null, markup: null,
+                   trend, diff, diff_pct, total_diff: diff, total_diff_pct: diff_pct, history });
+    }
+
+    const withDiff = items.filter(i => i.diff !== null);
+    const allCats = [...new Set(items.map(i => i.cat).filter(Boolean))].sort();
+    const result = {
+      meta: {
+        source: 'Себес парс (Google Sheets)',
+        periods: sheetData.map(s => s.label),
+        total_items: items.length, total_cats: allCats.length,
+        with_history: items.filter(i => i.history.length > 1).length,
+        growth_count: items.filter(i => i.trend === 'up').length,
+        drop_count: items.filter(i => i.trend === 'down').length,
+        all_cats: allCats, avg_markup: null,
+        no_cost: items.filter(i => !i.cost).length,
+        created_at: new Date().toISOString().slice(0, 10),
+      },
+      top_growth: [...withDiff].sort((a,b) => b.diff - a.diff).slice(0, 10),
+      top_drop:   [...withDiff].sort((a,b) => a.diff - b.diff).slice(0, 10),
+      top_margin: [], low_margin: [], all_items: items,
+    };
+
+    // Обновляем GET-кэш тоже
+    _sebesCsvCache = result;
+    _sebesCsvCacheTs = Date.now();
+
+    const { sha } = await readSebes();
+    const dest = await writeSebes(result, sha);
+
+    res.json({ ok: true, sheets: sheetData.length, periods: result.meta.periods,
+               items: items.length, saved_to: dest });
+  } catch(e) {
+    console.error('Sebes sync error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 app.get('/api/sebes/sheets', async (req, res) => {
   if (!checkView(req, res)) return;
   try {
