@@ -2027,7 +2027,15 @@ function parseDeliveriesCsv(csv){
 
   function parseCost(s){
     if(!s) return 0;
-    const n = parseFloat(s.replace(/[^\d.,]/g,'').replace(',','.'));
+    // Убираем всё кроме цифр, запятой и точки
+    let c = s.replace(/[^\d.,]/g,'');
+    // Убираем ведущую точку (артефакт от "р.")
+    c = c.replace(/^\.*/, '');
+    // Заменяем пробелы-разделители тысяч (1 100 -> 1100)
+    c = c.replace(/\s/g, '');
+    // Заменяем запятую на точку
+    c = c.replace(',', '.');
+    const n = parseFloat(c);
     return isNaN(n) ? 0 : n;
   }
 
