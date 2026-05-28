@@ -1927,6 +1927,69 @@ const SUPPLY_CSV_URL  = `https://docs.google.com/spreadsheets/d/${SUPPLY_SHEET_I
 let SUPPLY_DATA = null;
 let _supplyLastSync = null;
 
+// ══ SEBES GOOGLE SHEETS SYNC ═══════════════════════════════════════════════════
+async function loadSebesFromSheets(force){
+  try {
+    const url='/api/sebes/csv'+(force?'?nocache=1':'');
+    const r=await fetch(url,{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const csv=await r.text();
+    const data=parseSebesCsv(csv);
+    if(!data||!data.all_items) throw new Error('Нет данных');
+    const fd=new FormData();
+    fd.append('file',new Blob([JSON.stringify(data)],{type:'application/json'}),'sebes.json');
+    const sr=await fetch('/api/sebes',{method:'POST',headers:{'X-Admin-Password':adminPw},body:fd});
+    const sj=await sr.json();
+    if(!sr.ok) throw new Error(sj.error||'Ошибка сохранения');
+    await loadSebesFromServer(); renderSebes();
+  } catch(e){ console.error('loadSebesFromSheets:',e.message); throw e; }
+}
+
+function parseSebesCsv(csv){
+  function parseLine(line){
+    const res=[]; let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    res.push(cur.trim()); return res;
+  }
+  const lines=csv.split('\n').filter(l=>l.trim());
+  if(lines.length<2) throw new Error('Пустой файл');
+  const headers=parseLine(lines[0]).map(h=>h.toLowerCase());
+  const iName=headers.findIndex(h=>h.includes('номенкл')||h.includes('наимен'));
+  const iCat =headers.findIndex(h=>h.includes('катег'));
+  const iCost=headers.findIndex(h=>h.includes('стоим')||h.includes('себест')||h.includes('цена'));
+  if(iName<0||iCost<0) throw new Error('Не найдены колонки');
+  const SKIP=new Set(['итого','','nan']);
+  const nameUnitRe=/^(.+?),\s*(порц|шт|л|кг|мл|г)\.?\s*$/i;
+  const period=new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  const items=[];
+  for(let i=1;i<lines.length;i++){
+    const r=parseLine(lines[i]);
+    const raw=(r[iName]||'').trim();
+    if(!raw||SKIP.has(raw.toLowerCase()))continue;
+    const costRaw=r[iCost];
+    const cost=costRaw!==null&&!isNaN(+String(costRaw).replace(',','.'))?Math.round(+String(costRaw).replace(',','.')*100)/100:null;
+    const cat=iCat>=0?(r[iCat]||'').trim()||'Прочее':'Прочее';
+    const m=raw.match(nameUnitRe);
+    items.push({name:m?m[1].trim():raw,cat,unit:m?m[2]:'порц',cost,price:null,markup:null,
+                trend:'same',diff:null,diff_pct:null,total_diff:null,total_diff_pct:null,
+                history:cost!==null?[{period,cost}]:[]});
+  }
+  if(!items.length) throw new Error('Нет позиций');
+  const allCats=[...new Set(items.map(i=>i.cat).filter(Boolean))].sort();
+  return {
+    meta:{source:'Себес парс (Google Sheets)',periods:[period],total_items:items.length,
+          total_cats:allCats.length,with_history:0,growth_count:0,drop_count:0,
+          all_cats:allCats,avg_markup:null,no_cost:items.filter(i=>!i.cost).length,
+          created_at:new Date().toISOString().slice(0,10)},
+    top_growth:[],top_drop:[],top_margin:[],low_margin:[],all_items:items,
+  };
+}
+
 async function loadSupplyData(force){
   if(!force && SUPPLY_DATA) return;
   try {
@@ -2898,44 +2961,48 @@ const ADMIN_SECTIONS = [
    deleteFn:'deleteAdminData', deleteKey:'sebes'},
 ];
 
+// Метаданные синхронизаций
+const SYNC_META = {
+  stops: { sheetId:'1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY', label:'Стоп листы парс' },
+  sebes: { sheetId:'1gsS8IhZvNLrPojda-3uCJM_5VtcdlQ-f4V-g9w7DYqg',  label:'Себес парс' },
+};
+const _syncLog = {};
+function logSync(key,source,info){ _syncLog[key]={ts:new Date().toLocaleString('ru-RU'),source,info}; renderAdminSections(); renderAdminDetailedList(); }
+
 function renderAdminSections(){
   const el=document.getElementById('admin-sections-list');
   if(!el)return;
-  const XLSX_KEYS = new Set(['stops','sebes','wo']);
+  const SHEETS_KEYS=new Set(['stops','sebes']);
   el.innerHTML=ADMIN_SECTIONS.map(function(s){
-    const loaded=s.hasData();
-    const info=s.dataInfo();
-    const xlsxId=s.key+'-xlsx-jfu';
+    const loaded=s.hasData(), info=s.dataInfo(), sync=_syncLog[s.key];
     return '<div style="display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">'
       +'<div style="font-size:20px;flex-shrink:0">'+s.icon+'</div>'
       +'<div style="flex:1;min-width:0">'
       +'<div style="font-size:13px;font-weight:700;color:var(--txt)">'+s.label+'</div>'
-      +(loaded?'<div style="font-size:11px;color:var(--grn)">✓ Загружено · '+info+'</div>'
+      +(loaded?'<div style="font-size:11px;color:var(--grn)">✓ '+info+(sync?' · 🔄 '+sync.ts:'')+'</div>'
               :'<div style="font-size:11px;color:var(--txt3)">Не загружено</div>')
       +'</div>'
       +'<div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">'
-      +(s.key==='sebes'&&loaded
-        ?'<button class="btn admin-merge-btn" data-fileid="sebes-merge-jfu" style="padding:5px 10px;font-size:11px;color:var(--grn);border-color:var(--grn)">➕ Период</button>'
-        :'')
-      +(XLSX_KEYS.has(s.key)
-        ?'<button class="btn admin-xlsx-btn" data-key="'+s.key+'" data-fileid="'+xlsxId+'" style="padding:5px 10px;font-size:11px;color:var(--acc);border-color:var(--acc)">📊 XLSX</button>'
-        :'')
+      +(s.key==='sebes'&&loaded?'<button class="btn admin-merge-btn" data-fileid="sebes-merge-jfu" style="padding:5px 10px;font-size:11px;color:var(--grn);border-color:var(--grn)">➕ Период</button>':'')
+      +(SHEETS_KEYS.has(s.key)?'<button class="btn admin-sheets-btn" data-key="'+s.key+'" style="padding:5px 10px;font-size:11px;color:var(--acc);border-color:var(--acc)">🔄 Sheets</button>':'')
       +'<button class="btn admin-upload-btn" data-fileid="'+s.fileId+'" style="padding:5px 10px;font-size:11px">⬆ JSON</button>'
       +(loaded?'<button class="btn admin-delete-btn" data-key="'+s.key+'" style="padding:5px 10px;font-size:11px;color:var(--red);border-color:var(--red)">🗑</button>':'')
-      +'</div>'
-      +'</div>';
+      +'</div></div>';
   }).join('');
-  el.querySelectorAll('.admin-upload-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){ document.getElementById(btn.getAttribute('data-fileid'))?.click(); });
-  });
-  el.querySelectorAll('.admin-delete-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){ deleteAdminData(btn.getAttribute('data-key')); });
-  });
-  el.querySelectorAll('.admin-merge-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){ document.getElementById('sebes-merge-jfu')?.click(); });
-  });
-  el.querySelectorAll('.admin-xlsx-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){ document.getElementById(btn.getAttribute('data-fileid'))?.click(); });
+  el.querySelectorAll('.admin-upload-btn').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.getAttribute('data-fileid'))?.click()));
+  el.querySelectorAll('.admin-delete-btn').forEach(b=>b.addEventListener('click',()=>deleteAdminData(b.getAttribute('data-key'))));
+  el.querySelectorAll('.admin-merge-btn').forEach(b=>b.addEventListener('click',()=>document.getElementById('sebes-merge-jfu')?.click()));
+  el.querySelectorAll('.admin-sheets-btn').forEach(function(b){
+    const key=b.getAttribute('data-key');
+    b.addEventListener('click',async function(){
+      b.textContent='⏳'; b.disabled=true;
+      try{
+        if(key==='stops') await loadStopsFromSheets(true);
+        if(key==='sebes') await loadSebesFromSheets(true);
+        logSync(key,'Google Sheets',SYNC_META[key]?.label||'');
+      }catch(e){console.error(e);}
+      b.textContent='🔄 Sheets'; b.disabled=false;
+    });
   });
 }
 
@@ -2988,14 +3055,76 @@ async function upload(e){
   }catch(err){msg.innerHTML=`<div style="color:var(--red);font-size:12px">❌ ${err.message}</div>`;}
   e.target.value='';
 }
-function renderAdminList(){
-  const el=document.getElementById('apl');
-  if(!periods.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--txt3);font-size:12px">Нет периодов</div>';return;}
-  el.innerHTML=periods.map((p,i)=>`<div class="pi">
-    <div><div class="pp">${p.period}</div><div class="ps">${fmtR(p.grand_total)} · ${p.warehouses.length} складов</div></div>
-    <div class="pbs"><button class="pb" onclick="cur=${i};render();cl('am')">Открыть</button><button class="pb del" onclick="delP(${i})">🗑</button></div>
-  </div>`).join('');
+function renderAdminDetailedList(){
+  const el=document.getElementById('apl'); if(!el)return;
+  const mono='font-family:JetBrains Mono,monospace';
+  const SH='<span style="font-size:10px;color:var(--acc)">🔄 Sheets</span>';
+  const FI='<span style="font-size:10px;color:var(--txt3)">📁 JSON</span>';
+  let h='';
+
+  // Списания
+  h+='<div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px">📊 Списания</div>';
+  if(periods.length){
+    h+=periods.map((p,i)=>`<div class="pi" style="flex-direction:column;gap:3px">
+      <div style="display:flex;width:100%;align-items:center;gap:6px">
+        <div style="flex:1"><div class="pp">${p.period}</div><div class="ps" style="${mono}">${fmtR(p.grand_total)} · ${p.warehouses.length} скл.</div></div>
+        <button class="pb" onclick="cur=${i};render();cl('am')">→</button>
+        <button class="pb del" onclick="delP(${i})">🗑</button>
+      </div>
+      <div>${FI} · загружен вручную</div>
+    </div>`).join('');
+  } else h+='<div style="font-size:11px;color:var(--txt3);padding:4px 0">Нет периодов</div>';
+
+  // Стоп-листы
+  h+='<div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px">🚫 Стоп-листы</div>';
+  if(STOPS_DATA){const m=STOPS_DATA.meta,s=_syncLog.stops;
+    h+=`<div class="pi" style="flex-direction:column;gap:3px">
+      <div style="display:flex;width:100%;align-items:center;gap:6px">
+        <div style="flex:1"><div class="pp">${m.date_from} — ${m.date_to}</div>
+          <div class="ps">${m.total_rows} записей · ${m.total_points} точек</div></div>
+        <button class="pb del" onclick="deleteAdminData('stops')">🗑</button>
+      </div>
+      <div>${s?SH+' · '+s.ts:FI+' · вручную'}</div>
+    </div>`;
+  } else h+='<div style="font-size:11px;color:var(--txt3);padding:4px 0">Не загружено</div>';
+
+  // Себестоимость
+  h+='<div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px">💰 Себестоимость</div>';
+  if(SEBES_DATA){const m=SEBES_DATA.meta,s=_syncLog.sebes,ps=m.periods||[];
+    h+=`<div class="pi" style="flex-direction:column;gap:4px">
+      <div style="display:flex;width:100%;align-items:center;gap:6px">
+        <div style="flex:1"><div class="pp">${m.total_items} позиций · ${m.total_cats} кат.</div></div>
+        <button class="pb del" onclick="deleteAdminData('sebes')">🗑</button>
+      </div>
+      ${ps.map((p,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:.5px solid var(--bd)">
+        <span style="flex:1;font-size:11px">${p}</span>
+        ${s&&i===ps.length-1?SH:FI}
+      </div>`).join('')}
+      <div style="font-size:10px;color:var(--txt3)">${s?'Последняя синхр.: '+s.ts:'Загружено вручную'}</div>
+    </div>`;
+  } else h+='<div style="font-size:11px;color:var(--txt3);padding:4px 0">Не загружено</div>';
+
+  // Довозы
+  h+='<div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px">🚚 Довозы</div>';
+  if(DEL_DATA){h+=`<div class="pi" style="flex-direction:column;gap:3px">
+    <div style="display:flex;width:100%;align-items:center;gap:6px">
+      <div style="flex:1"><div class="pp">${DEL_DATA.meta.total} записей</div></div>
+      <button class="pb del" onclick="deleteAdminData('deliveries')">🗑</button>
+    </div><div>${FI} · вручную</div></div>`;
+  } else h+='<div style="font-size:11px;color:var(--txt3);padding:4px 0">Не загружено</div>';
+
+  // Производство
+  h+='<div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px">🏭 Производство</div>';
+  if(PROD_DATA){h+=`<div class="pi" style="flex-direction:column;gap:3px">
+    <div style="display:flex;width:100%;align-items:center;gap:6px">
+      <div style="flex:1"><div class="pp">${PROD_DATA.meta.total_rows} строк</div></div>
+      <button class="pb del" onclick="deleteAdminData('production')">🗑</button>
+    </div><div>${FI} · вручную</div></div>`;
+  } else h+='<div style="font-size:11px;color:var(--txt3);padding:4px 0">Не загружено</div>';
+
+  el.innerHTML=h;
 }
+function renderAdminList(){ renderAdminDetailedList(); }
 async function delP(i){
   if(!confirm(`Удалить "${periods[i].period}"?`))return;
   const r=await fetch('/api/periods/'+i,{method:'DELETE',headers:{'X-Admin-Password':adminPw}});
