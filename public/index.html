@@ -679,7 +679,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Довозы по датам</div>
-      <div class="dow-row" id="del-by-date" style="height:80px;overflow-x:auto"></div>
+      <div class="dow-row" id="del-by-date" style="overflow-x:auto"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="del-tops-row">
       <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
@@ -745,7 +745,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <!-- График по датам -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Выпуск по датам</div>
-      <div class="dow-row" id="prod-by-date" style="height:80px;overflow-x:auto"></div>
+      <div class="dow-row" id="prod-by-date" style="overflow-x:auto"></div>
     </div>
 
     <!-- Топ продуктов -->
@@ -1995,11 +1995,11 @@ function parseDeliveriesCsv(csv){
 
   // Определяем колонки по заголовку
   const headers = parseLine(lines[0]).map(h=>h.toLowerCase().trim());
-  const iDate    = headers.findIndex(h=>h.includes('столб')||h.includes('дат')||h==='' && 0===0);
+  const iDate    = headers.findIndex(h=>h.includes('столб')||h==='');
   const iPoint   = headers.findIndex(h=>h.includes('точк'));
   const iDept    = headers.findIndex(h=>h.includes('подразд'));
   const iType    = headers.findIndex(h=>h.includes('довоз')||h.includes('добав'));
-  const iGuilty  = headers.findIndex(h=>h.includes('фио')||h.includes('виновн'));
+  const iGuilty  = headers.findIndex(h=>h.includes('фио'));
   const iItems   = headers.findIndex(h=>h.includes('список')||h.includes('пояснен'));
   const iReason  = headers.findIndex(h=>h.includes('причин'));
   const iCost    = headers.findIndex(h=>h.includes('стоим'));
