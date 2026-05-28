@@ -472,7 +472,7 @@ const SEBES_SHEETS_FILE = path.join(LOCAL_DATA_DIR, 'sebes_sheets.json');
 const SEBES_SHEETS_DEFAULT = [
   { name: '25.03', gid: '136450477' },
   { name: '25.05', gid: '0' },
-  { name: '28.05', gid: '1829232600' },
+  { name: '28.05', gid: '76547916' },
 ];
 let _sebesSheetsCache = null;
 let _sebesSheetsCacheTs = 0;
@@ -530,26 +530,39 @@ function parseCsvSimple(csv) {
 
 function parseSebesSheet(csv, periodLabel) {
   const rows = parseCsvSimple(csv).filter(r => r.some(c => c));
-  if (!rows.length) return {};
+  if (!rows.length) { console.warn(`Sheet ${periodLabel}: пустой CSV`); return {}; }
   const headers = rows[0].map(h => h.toLowerCase());
+  console.log(`Sheet ${periodLabel}: заголовки =`, headers.slice(0,5).join(' | '));
   const iName = headers.findIndex(h => h.includes('номенкл') || h.includes('наимен'));
-  const iCost = headers.findIndex(h => h.includes('стоим') || h.includes('себест') || h.includes('цена'));
-  if (iName < 0 || iCost < 0) return {};
+  // Стоимость может быть в любой колонке — ищем по нескольким паттернам
+  let iCost = headers.findIndex(h => h.includes('стоим') || h.includes('себест'));
+  if (iCost < 0) iCost = headers.findIndex(h => h.includes('цена'));
+  // Если не нашли по имени — берём последнюю числовую колонку
+  if (iCost < 0) {
+    for (let ci = headers.length - 1; ci >= 0; ci--) {
+      // Проверяем первые 5 строк данных на числовые значения
+      const vals = rows.slice(1, 6).map(r => (r[ci]||'').replace(',','.').replace(/\s/g,''));
+      if (vals.some(v => v && !isNaN(+v) && +v > 0)) { iCost = ci; break; }
+    }
+  }
+  console.log(`Sheet ${periodLabel}: iName=${iName}, iCost=${iCost}, строк данных=${rows.length-1}`);
+  if (iName < 0 || iCost < 0) { console.warn(`Sheet ${periodLabel}: не найдены колонки`); return {}; }
+  const iCat = headers.findIndex(h => h.includes('катег'));
   const SKIP = new Set(['итого', '', 'nan']);
-  const map = {}; // name → {cost, cat, unit}
+  const map = {};
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     const raw = (r[iName] || '').trim();
     if (!raw || SKIP.has(raw.toLowerCase())) continue;
     const costRaw = (r[iCost] || '').replace(',', '.').replace(/\s/g, '');
     const cost = costRaw && !isNaN(+costRaw) ? Math.round(+costRaw * 100) / 100 : null;
-    const iCat2 = headers.findIndex(h => h.includes('катег'));
-    const cat = iCat2 >= 0 ? (r[iCat2] || '').trim() || 'Прочее' : 'Прочее';
+    const cat = iCat >= 0 ? (r[iCat] || '').trim() || 'Прочее' : 'Прочее';
     const nameUnitM = raw.match(/^(.+?),\s*(порц|шт|л|кг|мл|г)\.?\s*$/i);
     const name = nameUnitM ? nameUnitM[1].trim() : raw;
     const unit = nameUnitM ? nameUnitM[2] : 'порц';
     if (name) map[name] = { cost, cat, unit, period: periodLabel };
   }
+  console.log(`Sheet ${periodLabel}: распарсено ${Object.keys(map).length} позиций`);
   return map;
 }
 
@@ -690,6 +703,7 @@ app.post('/api/sebes/sync', async (req, res) => {
     }
 
     if (!sheetData.length) return res.status(502).json({ error: 'Не удалось загрузить данные листов' });
+    console.log(`Sebes sync: загружено ${sheetData.length} листов:`, sheetData.map(s => `${s.label}(${Object.keys(s.map).length}поз)`).join(', '));
 
     // Строим итоговый JSON (та же логика что в GET /api/sebes/csv)
     const latest = sheetData[sheetData.length - 1];
