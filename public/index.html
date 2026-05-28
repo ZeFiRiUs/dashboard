@@ -1143,7 +1143,25 @@ function applyDelFilter(){
     const arr=Array.isArray(r.guilty)?r.guilty:(r.guilty?String(r.guilty).split(/[,\n]+/).map(g=>g.trim()).filter(Boolean):[]);
     arr.forEach(g=>{if(!g||g.length<2)return;if(!guiltyAgg[g])guiltyAgg[g]={count:0,cost:0};guiltyAgg[g].count++;guiltyAgg[g].cost+=r.cost;});
   });
-  const topG=Object.entries(guiltyAgg).sort((a,b)=>b[1].count-a[1].count).slice(0,10);
+
+  // Объединяем: "Холов" + "Холов Шох" → "Холов Шох"
+  // Для каждого имени находим самый полный вариант (который начинается с него)
+  const names = Object.keys(guiltyAgg);
+  const canonical = {}; // короткое → полное
+  names.forEach(name => {
+    const fuller = names.find(other => other !== name && other.startsWith(name + ' '));
+    if(fuller) canonical[name] = fuller; // "Холов" → "Холов Шох"
+  });
+
+  const merged = {};
+  names.forEach(name => {
+    const key = canonical[name] || name; // используем полное имя как ключ
+    if(!merged[key]) merged[key] = {count:0, cost:0};
+    merged[key].count += guiltyAgg[name].count;
+    merged[key].cost  += guiltyAgg[name].cost;
+  });
+
+  const topG=Object.entries(merged).sort((a,b)=>b[1].count-a[1].count).slice(0,10);
   const maxGC=topG.length?topG[0][1].count:1;
   const gEl=document.getElementById('del-guilty-list');
   if(gEl)gEl.innerHTML=topG.length?topG.map(([name,v],i)=>`
