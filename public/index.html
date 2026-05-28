@@ -571,7 +571,14 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div class="sdot ok" id="stops-sdot"></div>
       <span>Стоп листы<span id="stops-period-label"></span></span>
     </div>
-    <span id="stops-upload-msg" style="font-size:11px;color:var(--grn)"></span>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span id="stops-upload-msg" style="font-size:11px;color:var(--grn)"></span>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
+        <span id="stops-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
+        <span id="stops-sheets-text">Sheets</span>
+        <button onclick="loadStopsFromSheets(true)" style="background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
+      </div>
+    </div>
   </div>
 
   <!-- Empty state -->
@@ -1777,7 +1784,144 @@ function ss(type,msg){
 }
 
 // LOAD DATA
-// ══ SUPPLY (УПАКОВКА) ══════════════════════════════════════════════════════════
+// ══ STOPS GOOGLE SHEETS SYNC ═══════════════════════════════════════════════════
+async function loadStopsFromSheets(force){
+  const dotEl  = document.getElementById('stops-sheets-dot');
+  const textEl = document.getElementById('stops-sheets-text');
+  if(dotEl) dotEl.style.background = 'var(--warn)';
+  if(textEl) textEl.textContent = 'Загрузка...';
+  try {
+    const url = '/api/stops/csv' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const csv = await r.text();
+    const data = parseStopsCsv(csv);
+    if(!data || !data.periods || !data.periods[0]) throw new Error('Нет данных в таблице');
+    applyStopsData(data);
+    if(dotEl) dotEl.style.background = 'var(--grn)';
+    const ts = new Date().toLocaleTimeString('ru-RU');
+    if(textEl) textEl.textContent = 'Sheets · ' + ts;
+  } catch(e) {
+    if(dotEl) dotEl.style.background = 'var(--red)';
+    if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
+    console.error('loadStopsFromSheets:', e.message);
+  }
+}
+
+function parseStopsCsv(csv){
+  // CSV парсер с поддержкой кавычек
+  function parseLine(line){
+    const res = []; let cur = '', inQ = false;
+    for(let i = 0; i < line.length; i++){
+      const c = line[i];
+      if(c==='"'){ if(inQ && line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
+      else if(c===','&&!inQ){ res.push(cur.trim()); cur=''; }
+      else cur+=c;
+    }
+    res.push(cur.trim()); return res;
+  }
+
+  const lines = csv.split('\n').filter(l=>l.trim());
+  if(lines.length < 2) throw new Error('Пустой файл');
+
+  // Определяем индексы колонок по заголовку
+  const headers = parseLine(lines[0]).map(h=>h.toLowerCase());
+  const iPoint  = headers.findIndex(h=>h.includes('точк'));
+  const iProd   = headers.findIndex(h=>h.includes('продукт'));
+  const iAdded  = headers.findIndex(h=>h.includes('добавл'));
+  const iRemoved= headers.findIndex(h=>h.includes('исключ')||h.includes('снят'));
+  const iDur    = headers.findIndex(h=>h.includes('длит'));
+
+  if(iPoint<0||iProd<0||iAdded<0) throw new Error('Не найдены колонки Точка/Продукт/Дата');
+
+  function parseDur(s){
+    if(!s||s==='-') return 0;
+    const m = String(s).match(/(\d+):(\d+)/);
+    return m ? +m[1]*60 + +m[2] : 0;
+  }
+
+  function parseTs(s){
+    if(!s) return null;
+    // Форматы: "22.05.2026 15:52" или ISO
+    const m = String(s).match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{1,2}):(\d{2})/);
+    if(m) return new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5]);
+    const d = new Date(s); return isNaN(d)?null:d;
+  }
+
+  function fmtTs(d){ return d?d.toISOString().slice(0,19).replace('T','T'):null; }
+  function fmtDay(d){ return d?d.toISOString().slice(0,10):null; }
+  const DOW=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const fmtD = d => { const [y,mo,day]=d.split('-'); return `${day}.${mo}.${y}`; };
+  const dow  = d => DOW[new Date(d).getDay()];
+
+  const rowsList = [];
+  for(let i=1;i<lines.length;i++){
+    const r = parseLine(lines[i]);
+    const pt = (r[iPoint]||'').trim();
+    const pr = (r[iProd]||'').trim();
+    if(!pt||!pr) continue;
+    const addedTs   = parseTs(r[iAdded]);
+    const removedTs = iRemoved>=0 ? parseTs(r[iRemoved]) : null;
+    if(!addedTs) continue;
+    const mn = iDur>=0 ? parseDur(r[iDur]) : (removedTs ? Math.round((removedTs-addedTs)/60000) : 0);
+    rowsList.push({ d:fmtDay(addedTs), pt, pr, ad:fmtTs(addedTs), rm:fmtTs(removedTs), mn });
+  }
+
+  if(!rowsList.length) throw new Error('Нет строк с данными');
+
+  const byDay = {};
+  rowsList.forEach(r=>{ (byDay[r.d]=byDay[r.d]||[]).push(r); });
+
+  function compress(rows, label){
+    const byDate={}, byPt={}, byProd={};
+    rows.forEach(r=>{
+      byDate[r.d]=(byDate[r.d]||0)+1;
+      if(!byPt[r.pt])   byPt[r.pt]  ={n:0,dur:0,prods:{}};
+      if(!byProd[r.pr]) byProd[r.pr]={n:0,dur:0,pts:new Set()};
+      byPt[r.pt].n++; byPt[r.pt].dur+=r.mn;
+      byPt[r.pt].prods[r.pr]=(byPt[r.pt].prods[r.pr]||0)+1;
+      byProd[r.pr].n++; byProd[r.pr].dur+=r.mn; byProd[r.pr].pts.add(r.pt);
+    });
+    const tot=rows.reduce((s,r)=>s+r.mn,0);
+    return {
+      p:label, n:rows.length, pts:Object.keys(byPt).length,
+      prods:Object.keys(byProd).length,
+      avg:rows.length?Math.round(tot/rows.length):0,
+      dates:Object.entries(byDate).sort().map(([d,n])=>({d:fmtD(d),dow:dow(d),n})),
+      all_pts:Object.keys(byPt).sort(),
+      active:rows.filter(r=>!r.rm).slice(0,200).map(r=>({pt:r.pt,pr:r.pr,s:r.ad,d:r.mn})),
+      by_pt:Object.entries(byPt).sort((a,b)=>b[1].n-a[1].n).map(([name,v])=>({
+        name,n:v.n,avg:v.n?Math.round(v.dur/v.n):0,tot:v.dur,
+        top:Object.entries(v.prods).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k])=>k)
+      })),
+      top:Object.entries(byProd).sort((a,b)=>b[1].n-a[1].n).slice(0,20).map(([name,v])=>({
+        name,n:v.n,avg:v.n?Math.round(v.dur/v.n):0,pts:[...v.pts].slice(0,5)
+      })),
+    };
+  }
+
+  const dates = Object.keys(byDay).sort();
+  const allDays={}, allDates=[];
+  dates.forEach(d=>{
+    allDays[d]=compress(byDay[d],fmtD(d));
+    allDates.push({iso:d,d:fmtD(d),dow:dow(d),n:byDay[d].length});
+  });
+  const allPoints=[...new Set(rowsList.map(r=>r.pt))].sort();
+  const full=compress(rowsList,`${fmtD(dates[0])} — ${fmtD(dates[dates.length-1])}`);
+
+  return {
+    meta:{
+      created_at:new Date().toISOString().slice(0,10),
+      date_from:dates[0], date_to:dates[dates.length-1],
+      total_rows:rowsList.length, total_points:allPoints.length,
+      all_dates:allDates, all_points:allPoints, all_pts:allPoints,
+    },
+    days:allDays,
+    periods:[full],
+  };
+}
+
+
 const SUPPLY_SHEET_ID = '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
 const SUPPLY_CSV_URL  = `https://docs.google.com/spreadsheets/d/${SUPPLY_SHEET_ID}/export?format=csv&gid=0`;
 let SUPPLY_DATA = null;
@@ -1786,7 +1930,8 @@ let _supplyLastSync = null;
 async function loadSupplyData(force){
   if(!force && SUPPLY_DATA) return;
   try {
-    const r = await fetch('/api/supply/csv', {headers:{'X-View-Password':sessionPassword}});
+    const url = '/api/supply/csv' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const text = await r.text();
     SUPPLY_DATA = parseSupplyCsv(text);
