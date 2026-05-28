@@ -787,7 +787,14 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div class="sdot ok" id="sebes-sdot"></div>
       <span>Себестоимость<span id="sebes-period-label"></span></span>
     </div>
-    <span id="sebes-upload-msg" style="font-size:11px;color:var(--grn)"></span>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span id="sebes-upload-msg" style="font-size:11px;color:var(--grn)"></span>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
+        <span id="sebes-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
+        <span id="sebes-sheets-text">Sheets</span>
+        <button onclick="syncSebesFromTab()" style="background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
+      </div>
+    </div>
   </div>
   <div id="sebes-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
     <div style="font-size:48px;margin-bottom:16px;opacity:.3">💰</div>
@@ -2172,6 +2179,21 @@ async function saveSebesSheetsToServer(){
   } catch(e){ alert('Ошибка: '+e.message); }
 }
 
+
+async function syncSebesFromTab(){
+  const dotEl  = document.getElementById('sebes-sheets-dot');
+  const textEl = document.getElementById('sebes-sheets-text');
+  if(dotEl) dotEl.style.background = 'var(--warn)';
+  if(textEl) textEl.textContent = 'Загрузка...';
+  try {
+    await loadSebesFromSheets(true);
+    if(dotEl) dotEl.style.background = 'var(--grn)';
+    if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU');
+  } catch(e) {
+    if(dotEl) dotEl.style.background = 'var(--red)';
+    if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
+  }
+}
 
 async function loadSebesFromSheets(force){
   try {
