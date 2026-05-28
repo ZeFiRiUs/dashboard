@@ -651,7 +651,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span id="del-upload-msg" style="font-size:11px;color:var(--grn)"></span>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)" id="del-sheets-bar">
         <span id="del-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
         <span id="del-sheets-text">Sheets</span>
         <button onclick="loadDeliveriesFromSheets(true)" style="background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
@@ -3177,7 +3177,7 @@ async function auth(){
   const pw=document.getElementById('pwi').value;
   const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Password':pw},body:'{}'});
   const j=await r.json();
-  if(j.ok){adminPw=pw;document.getElementById('apw').style.display='none';document.getElementById('apc').style.display='block';document.getElementById('pwerr').style.display='none';renderAdminList();renderAdminSections();}
+  if(j.ok){adminPw=pw;document.getElementById('apw').style.display='none';document.getElementById('apc').style.display='block';document.getElementById('pwerr').style.display='none';renderAdminList();renderAdminSections();_updateSheetsBarVisibility(j.role==='admin');}
   else{document.getElementById('pwerr').style.display='block';}
 }
 
@@ -3215,7 +3215,7 @@ function logSync(key,source,info){ _syncLog[key]={ts:new Date().toLocaleString('
 function renderAdminSections(){
   const el=document.getElementById('admin-sections-list');
   if(!el)return;
-  const SHEETS_KEYS=new Set(['stops','sebes']);
+  const SHEETS_KEYS=new Set(['stops','sebes','deliveries']);
   el.innerHTML=ADMIN_SECTIONS.map(function(s){
     const loaded=s.hasData(), info=s.dataInfo(), sync=_syncLog[s.key];
     return '<div style="display:flex;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px">'
@@ -3239,8 +3239,9 @@ function renderAdminSections(){
     b.addEventListener('click',async function(){
       b.textContent='⏳'; b.disabled=true;
       try{
-        if(key==='stops') await loadStopsFromSheets(true);
-        if(key==='sebes') await loadSebesFromSheets(true);
+        if(key==='stops')      await loadStopsFromSheets(true);
+        if(key==='sebes')      await loadSebesFromSheets(true);
+        if(key==='deliveries') await loadDeliveriesFromSheets(true);
         logSync(key,'Google Sheets',SYNC_META[key]?.label||'');
       }catch(e){console.error(e);}
       b.textContent='🔄 Sheets'; b.disabled=false;
@@ -3848,13 +3849,23 @@ function startAutoReload(){
 function op(id){document.getElementById(id).classList.add('open');}
 function cl(id){document.getElementById(id).classList.remove('open');}
 
+// Кнопка синхронизации довозов — только для admin
+function _updateSheetsBarVisibility(isAdmin){
+  const sb = document.getElementById('del-sheets-bar');
+  if(sb) sb.style.display = isAdmin ? 'flex' : 'none';
+}
+_updateSheetsBarVisibility(false); // скрыта по умолчанию
+
 if(sessionPassword){
   fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':sessionPassword},body:'{}'})
     .then(r=>r.json()).then(j=>{
-      if(j.ok){document.getElementById('ls').style.display='none';loadData();startAutoReload();}
-      else{sessionStorage.removeItem('dash_pw');sessionPassword='';}
+      if(j.ok){
+        document.getElementById('ls').style.display='none';
+        loadData();startAutoReload();
+        _updateSheetsBarVisibility(j.role==='admin');
+      } else{sessionStorage.removeItem('dash_pw');sessionPassword='';}
     }).catch(()=>{document.getElementById('ls').style.display='none';loadData();});
-} 
+}
 </script>
 </body>
 </html>
