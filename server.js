@@ -473,7 +473,6 @@ const SEBES_SHEETS_DEFAULT = [
   { name: '25.03', gid: '136450477' },
   { name: '25.05', gid: '0' },
   { name: '28.05', gid: '76547916' },
-  { name: '29.05', gid: '1570192865' },
 ];
 let _sebesSheetsCache = null;
 let _sebesSheetsCacheTs = 0;
@@ -833,7 +832,8 @@ app.get('/api/deliveries/csv', async (req, res) => {
   }
 });
 
-
+// ── Stops CSV proxy (Google Sheets) ──────────────────────────────────────────
+const STOPS_SHEET_ID = '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY';
 let _stopsCsvCache = null;
 let _stopsCsvCacheTs = 0;
 const STOPS_CSV_CACHE_TTL = 5 * 60 * 1000;
@@ -860,11 +860,11 @@ app.get('/api/stops/csv', async (req, res) => {
   }
 });
 
-
+// ── Supply CSV proxy (Google Sheets) ─────────────────────────────────────────
 const SUPPLY_SHEET_ID = '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
 let _supplyCache = null;
 let _supplyCacheTs = 0;
-const SUPPLY_CACHE_TTL = 5 * 60 * 1000; // 5 минут
+const SUPPLY_CACHE_TTL = 5 * 60 * 1000;
 
 app.get('/api/supply/csv', async (req, res) => {
   if (!checkView(req, res)) return;
