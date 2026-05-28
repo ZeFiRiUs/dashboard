@@ -959,7 +959,18 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div id="upmsg"></div>
       <div class="st" style="margin-bottom:8px">Загруженные периоды</div>
       <div class="pl" id="apl"></div>
-      <div style="display:flex;gap:8px">
+
+      <!-- Управление листами себестоимости -->
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="st" style="margin-bottom:0">Листы себестоимости (Google Sheets)</div>
+          <button onclick="addSebesSheet()" style="background:var(--card);border:1px solid var(--acc);border-radius:6px;padding:3px 10px;color:var(--acc);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">+ Добавить лист</button>
+        </div>
+        <div id="sebes-sheets-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+        <div style="font-size:10px;color:var(--txt3)">Название = дата вкладки (ДД.ММ), GID = число из URL ?gid=<b>ЧИСЛО</b></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn" onclick="expAll()" style="flex:1;justify-content:center">⬇ Экспорт</button>
         <button class="btn" style="color:var(--red);flex:1;justify-content:center" onclick="clearAll()">🗑 Очистить</button>
       </div>
@@ -1927,7 +1938,79 @@ const SUPPLY_CSV_URL  = `https://docs.google.com/spreadsheets/d/${SUPPLY_SHEET_I
 let SUPPLY_DATA = null;
 let _supplyLastSync = null;
 
-// ══ SEBES GOOGLE SHEETS SYNC ═══════════════════════════════════════════════════
+// ══ SEBES SHEETS MANAGEMENT ════════════════════════════════════════════════════
+let _sebesSheets = [];
+
+async function loadSebesSheetsList(){
+  try {
+    const r = await fetch('/api/sebes/sheets', {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) return;
+    const j = await r.json();
+    _sebesSheets = j.sheets || [];
+    renderSebesSheetsList();
+  } catch(e){ console.error(e); }
+}
+
+function renderSebesSheetsList(){
+  const el = document.getElementById('sebes-sheets-list');
+  if(!el) return;
+  if(!_sebesSheets.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--txt3)">Нет листов</div>';
+    return;
+  }
+  el.innerHTML = _sebesSheets.map((s,i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px">
+      <span style="font-size:12px;font-weight:600;color:var(--txt);flex:0 0 60px">${s.name}</span>
+      <span style="font-size:11px;color:var(--txt3);flex:1">gid: ${s.gid}</span>
+      <button onclick="removeSebesSheet(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px">×</button>
+    </div>`).join('');
+}
+
+function addSebesSheet(){
+  const name = prompt('Название листа (формат ДД.ММ, например 28.05):');
+  if(!name || !name.match(/^\d{1,2}\.\d{1,2}(\.\d{2,4})?$/)) {
+    alert('Неверный формат. Используй ДД.ММ (например 28.05)');
+    return;
+  }
+  const gid = prompt('GID листа (число из URL после ?gid=):');
+  if(!gid || !/^\d+$/.test(gid.trim())) {
+    alert('GID должен быть числом');
+    return;
+  }
+  _sebesSheets = [..._sebesSheets, {name: name.trim(), gid: gid.trim()}]
+    .sort((a,b) => {
+      const da = parseSebesSheetDate(a.name), db = parseSebesSheetDate(b.name);
+      return da && db ? da-db : 0;
+    });
+  saveSebesSheetsToServer();
+}
+
+function removeSebesSheet(i){
+  if(!confirm('Удалить лист "'+_sebesSheets[i].name+'"?')) return;
+  _sebesSheets.splice(i,1);
+  saveSebesSheetsToServer();
+}
+
+function parseSebesSheetDate(name){
+  const m = name.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/);
+  if(!m) return null;
+  const y = m[3] ? (m[3].length===2?2000+ +m[3]: +m[3]) : 2026;
+  return new Date(y, +m[2]-1, +m[1]);
+}
+
+async function saveSebesSheetsToServer(){
+  try {
+    const r = await fetch('/api/sebes/sheets', {
+      method:'PUT',
+      headers:{'X-Admin-Password':adminPw,'Content-Type':'application/json'},
+      body: JSON.stringify({sheets: _sebesSheets})
+    });
+    if(r.ok){ renderSebesSheetsList(); }
+    else { const j=await r.json(); alert('Ошибка: '+j.error); }
+  } catch(e){ alert('Ошибка: '+e.message); }
+}
+
+
 async function loadSebesFromSheets(force){
   try {
     const r = await fetch('/api/sebes/sync', {
@@ -3015,16 +3098,18 @@ async function deleteAdminData(key){
     if(j.ok){
       // Сбросить данные в памяти
       if(key==='wo'){periods=[];cur=0;render();}
-      if(key==='stops'){STOPS_DATA=null;STOPS_PERIODS=[];renderStops();}
+      if(key==='stops'){STOPS_DATA=null;STOPS_PERIODS=[];stopsIdx=0;_currentStopsByPoint=null;renderStops();}
       if(key==='deliveries'){DEL_DATA=null;renderDeliveries();}
       if(key==='production'){PROD_DATA=null;renderProduction();}
       if(key==='sebes'){SEBES_DATA=null;renderSebes();}
+      // Сбросить лог синхронизации для этого раздела
+      delete _syncLog[key];
       renderAdminSections();
-      renderAdminList();
-      // Обновить сводку если открыта
+      renderAdminDetailedList();
       if(document.getElementById('page-overview')?.classList.contains('active'))renderOverview();
-    } else alert('Ошибка: '+j.error);
-  }catch(e){alert('Ошибка: '+e.message);}
+      _showToast('🗑 Раздел «'+labels[key]+'» удалён','success');
+    } else { _showToast('❌ Ошибка: '+j.error,'error'); }
+  }catch(e){ _showToast('❌ '+e.message,'error'); }
 }
 
 
@@ -3034,6 +3119,7 @@ function openAdmin(){
     document.getElementById('apc').style.display='block';
     renderAdminList();
     renderAdminSections();
+    loadSebesSheetsList();
   } else {
     document.getElementById('apw').style.display='block';
     document.getElementById('apc').style.display='none';
