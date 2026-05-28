@@ -1962,19 +1962,19 @@ async function loadDeliveriesFromSheets(force){
   if(dotEl) dotEl.style.background = 'var(--warn)';
   if(textEl) textEl.textContent = 'Загрузка...';
   try {
-    const url = '/api/deliveries/csv' + (force ? '?nocache=1' : '');
-    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const csv = await r.text();
-    const data = parseDeliveriesCsv(csv);
-    if(!data || !data.rows || !data.rows.length) throw new Error('Нет данных в таблице');
-    // Сохраняем через API
-    const fd = new FormData();
-    fd.append('file', new Blob([JSON.stringify(data)],{type:'application/json'}), 'deliveries.json');
-    const sr = await fetch('/api/deliveries', {method:'POST', headers:{'X-Admin-Password':adminPw}, body:fd});
-    const sj = await sr.json();
-    if(!sr.ok) throw new Error(sj.error || 'Ошибка сохранения');
-    applyDeliveriesData(data);
+    const r = await fetch('/api/deliveries/sync', {
+      method: 'POST',
+      headers: {'X-Admin-Password': adminPw}
+    });
+    if(!r.ok){
+      const j = await r.json().catch(()=>({}));
+      throw new Error(j.error || 'HTTP ' + r.status);
+    }
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || 'Ошибка синхронизации');
+    // Перезагружаем данные с сервера
+    await loadDeliveriesFromServer();
+    renderDeliveries();
     if(dotEl) dotEl.style.background = 'var(--grn)';
     if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU');
     if(typeof logSync === 'function') logSync('deliveries', 'Google Sheets', 'Довозы парс');
