@@ -649,7 +649,14 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div class="sdot ok" id="del-sdot"></div>
       <span>Довозы<span id="del-period-label"></span></span>
     </div>
-    <span id="del-upload-msg" style="font-size:11px;color:var(--grn)"></span>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span id="del-upload-msg" style="font-size:11px;color:var(--grn)"></span>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
+        <span id="del-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
+        <span id="del-sheets-text">Sheets</span>
+        <button onclick="loadDeliveriesFromSheets(true)" style="background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
+      </div>
+    </div>
   </div>
   <div id="del-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
     <div style="font-size:48px;margin-bottom:16px;opacity:.3">🚚</div>
@@ -1948,7 +1955,139 @@ const SUPPLY_CSV_URL  = `https://docs.google.com/spreadsheets/d/${SUPPLY_SHEET_I
 let SUPPLY_DATA = null;
 let _supplyLastSync = null;
 
-// ══ SEBES SHEETS MANAGEMENT ════════════════════════════════════════════════════
+// ══ DELIVERIES GOOGLE SHEETS SYNC ══════════════════════════════════════════════
+async function loadDeliveriesFromSheets(force){
+  const dotEl  = document.getElementById('del-sheets-dot');
+  const textEl = document.getElementById('del-sheets-text');
+  if(dotEl) dotEl.style.background = 'var(--warn)';
+  if(textEl) textEl.textContent = 'Загрузка...';
+  try {
+    const url = '/api/deliveries/csv' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const csv = await r.text();
+    const data = parseDeliveriesCsv(csv);
+    if(!data || !data.rows || !data.rows.length) throw new Error('Нет данных в таблице');
+    // Сохраняем через API
+    const fd = new FormData();
+    fd.append('file', new Blob([JSON.stringify(data)],{type:'application/json'}), 'deliveries.json');
+    const sr = await fetch('/api/deliveries', {method:'POST', headers:{'X-Admin-Password':adminPw}, body:fd});
+    const sj = await sr.json();
+    if(!sr.ok) throw new Error(sj.error || 'Ошибка сохранения');
+    applyDeliveriesData(data);
+    if(dotEl) dotEl.style.background = 'var(--grn)';
+    if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU');
+    if(typeof logSync === 'function') logSync('deliveries', 'Google Sheets', 'Довозы парс');
+  } catch(e) {
+    if(dotEl) dotEl.style.background = 'var(--red)';
+    if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
+    console.error('loadDeliveriesFromSheets:', e.message);
+  }
+}
+
+function parseDeliveriesCsv(csv){
+  function parseLine(line){
+    const res=[]; let cur='', inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    res.push(cur.trim()); return res;
+  }
+
+  const lines = csv.split('\n').filter(l=>l.trim());
+  if(lines.length < 2) throw new Error('Пустой файл');
+
+  // Определяем колонки по заголовку
+  const headers = parseLine(lines[0]).map(h=>h.toLowerCase().trim());
+  const iDate    = headers.findIndex(h=>h.includes('столб')||h.includes('дат')||h==='' && 0===0);
+  const iPoint   = headers.findIndex(h=>h.includes('точк'));
+  const iDept    = headers.findIndex(h=>h.includes('подразд'));
+  const iType    = headers.findIndex(h=>h.includes('довоз')||h.includes('добав'));
+  const iGuilty  = headers.findIndex(h=>h.includes('фио')||h.includes('виновн'));
+  const iItems   = headers.findIndex(h=>h.includes('список')||h.includes('пояснен'));
+  const iReason  = headers.findIndex(h=>h.includes('причин'));
+  const iCost    = headers.findIndex(h=>h.includes('стоим'));
+  const iReg     = headers.findIndex(h=>h.includes('реестр')||h.includes('внесен'));
+
+  // Fallback по позиции (A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8)
+  const col = (idx, fallback) => idx >= 0 ? idx : fallback;
+  const C = { date: col(iDate,0), point: col(iPoint,1), dept: col(iDept,2),
+              type: col(iType,3), guilty: col(iGuilty,4), items: col(iItems,5),
+              reason: col(iReason,6), cost: col(iCost,7), reg: col(iReg,8) };
+
+  const DOW = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const fmtD = d => { const [y,mo,day]=d.split('-'); return `${day}.${mo}.${y}`; };
+  const dow  = d => DOW[new Date(d).getDay()];
+
+  function parseDate(s){
+    if(!s) return null;
+    // DD.MM.YYYY или YYYY-MM-DD
+    let m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    if(m) return m[1];
+    return null;
+  }
+
+  function parseCost(s){
+    if(!s) return 0;
+    const n = parseFloat(s.replace(/[^\d.,]/g,'').replace(',','.'));
+    return isNaN(n) ? 0 : n;
+  }
+
+  const rows = [];
+  const byDate = {};
+  const allPoints = new Set();
+
+  for(let i=1; i<lines.length; i++){
+    const r = parseLine(lines[i]);
+    const dateStr = parseDate(r[C.date]||'');
+    const point   = (r[C.point]||'').trim();
+    if(!dateStr || !point) continue;
+
+    allPoints.add(point);
+    const cost = parseCost(r[C.cost]||'');
+    const row = {
+      date:       dateStr,
+      point:      point,
+      dept:       (r[C.dept]||'').trim(),
+      type:       (r[C.type]||'').trim(),
+      guilty:     (r[C.guilty]||'').trim(),
+      items:      (r[C.items]||'').trim(),
+      reason:     (r[C.reason]||'').trim(),
+      cost,
+      registered: (r[C.reg]||'').trim().toLowerCase().includes('внесено'),
+    };
+    rows.push(row);
+    if(!byDate[dateStr]) byDate[dateStr] = {n:0, cost:0};
+    byDate[dateStr].n++;
+    byDate[dateStr].cost += cost;
+  }
+
+  if(!rows.length) throw new Error('Нет строк с данными');
+
+  const dates = Object.keys(byDate).sort();
+  const allDates = dates.map(d => ({iso:d, d:fmtD(d), dow:dow(d), n:byDate[d].n, cost:Math.round(byDate[d].cost)}));
+  const totalCost = rows.reduce((s,r)=>s+r.cost,0);
+
+  return {
+    meta: {
+      source:     'Довозы парс (Google Sheets)',
+      total:      rows.length,
+      total_cost: Math.round(totalCost),
+      min:        dates[0],
+      max:        dates[dates.length-1],
+      all_dates:  allDates,
+      all_points: [...allPoints].sort(),
+    },
+    rows,
+  };
+}
+
+
 let _sebesSheets = [];
 
 async function loadSebesSheetsList(){
