@@ -473,6 +473,7 @@ const SEBES_SHEETS_DEFAULT = [
   { name: '25.03', gid: '136450477' },
   { name: '25.05', gid: '0' },
   { name: '28.05', gid: '76547916' },
+  { name: '29.05', gid: '1570192865' },
 ];
 let _sebesSheetsCache = null;
 let _sebesSheetsCacheTs = 0;
@@ -782,10 +783,25 @@ app.get('/api/sebes/sheets', async (req, res) => {
 app.put('/api/sebes/sheets', express.json(), (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
-    const { sheets } = req.body;
+    const { sheets, mode } = req.body;
     if (!Array.isArray(sheets)) return res.status(400).json({ error: 'sheets must be array' });
-    saveSebesSheets(sheets);
-    res.json({ ok: true, sheets });
+    // mode=replace — полная замена; иначе — мержим с существующими
+    if (mode === 'replace') {
+      saveSebesSheets(sheets);
+    } else {
+      const existing = readSebesSheets();
+      const merged = [...existing];
+      for (const s of sheets) {
+        if (!merged.find(e => e.name === s.name)) merged.push(s);
+      }
+      // Сортируем по дате
+      merged.sort((a, b) => {
+        const da = parseSheetDate(a.name), db = parseSheetDate(b.name);
+        return da && db ? da - db : 0;
+      });
+      saveSebesSheets(merged);
+    }
+    res.json({ ok: true, sheets: readSebesSheets() });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
