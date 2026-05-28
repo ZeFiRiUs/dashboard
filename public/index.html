@@ -866,7 +866,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         <thead>
           <tr style="border-bottom:1px solid var(--bd)">
             <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Наименование</th>
-            <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Поставщик</th>
+            <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Телефон</th>
             <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Цена</th>
             <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Расход/мес</th>
             <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Остаток</th>
@@ -1819,31 +1819,86 @@ function parseNum(s){
 }
 
 function parseSupplyCsv(csv){
-  const lines = csv.split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+  // Правильный парсер CSV с учётом кавычек
+  function parseCsvLine(line) {
+    const result = [];
+    let cur = '', inQ = false;
+    for(let i = 0; i < line.length; i++){
+      const c = line[i];
+      if(c === '"'){
+        if(inQ && line[i+1] === '"'){ cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if(c === ',' && !inQ){
+        result.push(cur.trim()); cur = '';
+      } else cur += c;
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  const lines = csv.split('\n').filter(l => l.trim());
+  if(!lines.length) return { items:[], suppliers:[], critical:0, warning:0, ordered:0 };
+
+  // Строка 0 — заголовок, определяем индексы колонок
+  const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g,' '));
+  const idx = {
+    name:     headers.findIndex(h => h.includes('наимен')),
+    supplier: headers.findIndex(h => h.includes('поставщ')),
+    phone:    headers.findIndex(h => h.includes('телефон') || h.includes('номер')),
+    price:    headers.findIndex(h => h.includes('цена') || h.includes('послед')),
+    monthQty: headers.findIndex(h => h.includes('расход') && h.includes('мес')),
+    stock:    headers.findIndex(h => h.includes('остаток')),
+    atSupplier: headers.findIndex(h => h.includes('склад') && h.includes('поставщ')),
+    perDay:   headers.findIndex(h => h.includes('расход') && h.includes('ден')),
+    days:     headers.findIndex(h => h.includes('дней') || h.includes('кол-во')),
+    ordered:  headers.findIndex(h => h.includes('заказ')),
+    eta:      headers.findIndex(h => h.includes('ориент') || h.includes('приедет')),
+  };
+
+  // Fallback по позиции если заголовок не распознан
+  if(idx.name     < 0) idx.name     = 0;
+  if(idx.supplier < 0) idx.supplier = 1;
+  if(idx.phone    < 0) idx.phone    = 2;
+  if(idx.price    < 0) idx.price    = 3;
+  if(idx.monthQty < 0) idx.monthQty = 4;
+  if(idx.stock    < 0) idx.stock    = 5;
+  if(idx.atSupplier < 0) idx.atSupplier = 6;
+  if(idx.perDay   < 0) idx.perDay   = 7;
+  if(idx.days     < 0) idx.days     = 8;
+  if(idx.ordered  < 0) idx.ordered  = 9;
+  if(idx.eta      < 0) idx.eta      = 10;
+
   const items = [];
   let currentSupplier = null;
 
   for(let i = 1; i < lines.length; i++){
-    const r = lines[i];
-    if(!r[0]) continue;
-    const name = r[0].trim();
+    const r = parseCsvLine(lines[i]);
+    const name = (r[idx.name]||'').trim();
     if(!name) continue;
 
-    // Строка-заголовок поставщика — нет поставщика в col1 и нет цены
-    if(!r[1] && !r[3]){ currentSupplier = name; continue; }
+    const supplierCell = (r[idx.supplier]||'').trim();
+    const priceCell    = (r[idx.price]||'').trim();
+    const phoneCell    = (r[idx.phone]||'').trim();
 
-    const supplier  = r[1]||currentSupplier||'';
-    const phone     = r[2]||'';
-    const price     = parseNum(r[3]);
-    const monthQty  = parseNum(r[4]);
-    const stock     = parseNum(r[5]);
-    const atSupplier= r[6]&&r[6]!=='-' ? parseNum(r[6]) : null;
-    const perDay    = parseNum(r[7]);
-    const days      = r[8]&&r[8]!=='-' ? parseNum(r[8]) : null;
-    const ordered   = r[9]&&r[9]!=='-' ? parseNum(r[9]) : null;
-    const eta       = r[10]||'';
+    // Строка-разделитель поставщика: название в col0, остальные пустые
+    const nonEmpty = r.filter(c => c && c.trim()).length;
+    if(nonEmpty <= 2 && !priceCell && !phoneCell){
+      currentSupplier = name;
+      continue;
+    }
 
-    if(!supplier && !name) continue;
+    const supplier   = supplierCell || currentSupplier || '';
+    const phone      = phoneCell;
+    const price      = parseNum(priceCell);
+    const monthQty   = parseNum(r[idx.monthQty]);
+    const stock      = parseNum(r[idx.stock]);
+    const atSup      = r[idx.atSupplier] && r[idx.atSupplier]!=='-' ? parseNum(r[idx.atSupplier]) : null;
+    const perDay     = parseNum(r[idx.perDay]);
+    const daysRaw    = r[idx.days]||'';
+    const days       = daysRaw==='-'||daysRaw==='' ? null : parseNum(daysRaw);
+    const ordRaw     = r[idx.ordered]||'';
+    const ordered    = ordRaw==='-'||ordRaw==='' ? null : parseNum(ordRaw);
+    const eta        = (r[idx.eta]||'').trim();
 
     const status = (() => {
       if(ordered && ordered > 0) return 'ordered';
@@ -1853,16 +1908,18 @@ function parseSupplyCsv(csv){
       return 'ok';
     })();
 
-    items.push({ name, supplier: supplier||currentSupplier||'', phone, price, monthQty,
-                 stock, atSupplier, perDay, days, ordered, eta, status });
+    items.push({ name, supplier, phone, price, monthQty,
+                 stock, atSupplier:atSup, perDay, days, ordered, eta, status });
   }
 
   const suppliers = [...new Set(items.map(i=>i.supplier).filter(Boolean))].sort();
-  const critical  = items.filter(i=>i.status==='critical').length;
-  const warning   = items.filter(i=>i.status==='warning').length;
-  const ordered   = items.filter(i=>i.status==='ordered').length;
-
-  return { items, suppliers, critical, warning, ordered };
+  return {
+    items,
+    suppliers,
+    critical: items.filter(i=>i.status==='critical').length,
+    warning:  items.filter(i=>i.status==='warning').length,
+    ordered:  items.filter(i=>i.status==='ordered').length,
+  };
 }
 
 function renderSupplyPage(){
@@ -1942,13 +1999,13 @@ function renderSupplyTable(){
       <td colspan="9" style="padding:10px 10px 4px;font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--bd);background:var(--bg)">${sup}</td>
     </tr>
     ${rows.map(i=>`
-    <tr style="border-bottom:.5px solid var(--bd)" class="supply-row">
-      <td style="padding:8px 10px;font-size:12px;color:var(--txt);max-width:250px">
+      <tr style="border-bottom:.5px solid var(--bd)" class="supply-row">
+      <td style="padding:8px 10px;font-size:12px;color:var(--txt);max-width:260px">
         <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${i.name}">${i.name}</div>
         <div style="margin-top:3px">${statusBadge(i.status)}</div>
       </td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--txt3)">${i.supplier}</td>
-      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${i.price ? i.price.toLocaleString('ru-RU')+' ₽' : '—'}</td>
+      <td style="padding:8px 10px;font-size:11px;color:var(--txt3);white-space:nowrap">${i.phone||'—'}</td>
+      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt2);white-space:nowrap">${i.price ? i.price.toLocaleString('ru-RU')+' ₽' : '—'}</td>
       <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${fmtN(i.monthQty)}</td>
       <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;font-weight:${i.status==='critical'?'700':'400'};color:${i.status==='critical'?'var(--red)':i.status==='warning'?'var(--warn)':'var(--txt)'}">${fmtN(i.stock)}</td>
       <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt3)">${fmtN(i.atSupplier)}</td>
