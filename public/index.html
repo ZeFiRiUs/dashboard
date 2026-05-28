@@ -852,9 +852,9 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </select>
       <select id="supply-status-filter" onchange="renderSupplyTable()" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer">
         <option value="">Все статусы</option>
-        <option value="critical">🔴 Критично (&lt;3 дней)</option>
-        <option value="warning">🟡 Мало (3–7 дней)</option>
-        <option value="ok">🟢 В норме (&gt;7 дней)</option>
+        <option value="critical">🔴 Критично (&lt;30 дней)</option>
+        <option value="warning">🟡 Мало (30–90 дней)</option>
+        <option value="ok">🟢 В норме (&gt;90 дней)</option>
         <option value="ordered">📦 Заказано</option>
       </select>
       <div class="sw" style="flex:2;min-width:160px"><span class="sic">🔍</span><input class="si" id="supply-search" type="text" placeholder="Поиск позиции..." oninput="renderSupplyTable()"></div>
@@ -1903,8 +1903,8 @@ function parseSupplyCsv(csv){
     const status = (() => {
       if(ordered && ordered > 0) return 'ordered';
       if(days === null) return 'ok';
-      if(days < 3)  return 'critical';
-      if(days < 7)  return 'warning';
+      if(days < 30)  return 'critical';
+      if(days < 90)  return 'warning';
       return 'ok';
     })();
 
@@ -1936,8 +1936,8 @@ function renderSupplyKpis(){
   const mono = 'font-family:JetBrains Mono,monospace';
   el.innerHTML = [
     {label:'Позиций',       val: d.items.length,   sub:'в таблице',     clr:'var(--txt)'},
-    {label:'🔴 Критично',   val: d.critical,        sub:'менее 3 дней',  clr: d.critical>0?'var(--red)':'var(--txt)'},
-    {label:'🟡 Мало',       val: d.warning,         sub:'3–7 дней',      clr: d.warning>0?'var(--warn)':'var(--txt)'},
+    {label:'🔴 Критично',   val: d.critical,        sub:'менее 30 дней',  clr: d.critical>0?'var(--red)':'var(--txt)'},
+    {label:'🟡 Мало',       val: d.warning,         sub:'30–90 дней',      clr: d.warning>0?'var(--warn)':'var(--txt)'},
     {label:'📦 Заказано',   val: d.ordered,         sub:'в пути',        clr: d.ordered>0?'var(--acc)':'var(--txt)'},
   ].map(k=>`
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
@@ -2009,7 +2009,7 @@ function renderSupplyTable(){
       <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${fmtN(i.monthQty)}</td>
       <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;font-weight:${i.status==='critical'?'700':'400'};color:${i.status==='critical'?'var(--red)':i.status==='warning'?'var(--warn)':'var(--txt)'}">${fmtN(i.stock)}</td>
       <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt3)">${fmtN(i.atSupplier)}</td>
-      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;font-weight:600;color:${i.days===null?'var(--txt3)':i.days<3?'var(--red)':i.days<7?'var(--warn)':'var(--grn)'}">${i.days !== null ? i.days : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;font-weight:600;color:${i.days===null?'var(--txt3)':i.days<30?'var(--red)':i.days<90?'var(--warn)':'var(--grn)'}">${i.days !== null ? i.days : '—'}</td>
       <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:${i.ordered?'var(--acc)':'var(--txt3)'}">${i.ordered ? fmtN(i.ordered) : '—'}</td>
       <td style="padding:8px 10px;font-size:11px;color:var(--txt3);white-space:nowrap">${i.eta||'—'}</td>
     </tr>`).join('')}
