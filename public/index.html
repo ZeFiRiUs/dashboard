@@ -651,7 +651,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span id="del-upload-msg" style="font-size:11px;color:var(--grn)"></span>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)" id="del-sheets-bar">
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
         <span id="del-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
         <span id="del-sheets-text">Sheets</span>
         <button onclick="loadDeliveriesFromSheets(true)" style="background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
@@ -1962,22 +1962,15 @@ async function loadDeliveriesFromSheets(force){
   if(dotEl) dotEl.style.background = 'var(--warn)';
   if(textEl) textEl.textContent = 'Загрузка...';
   try {
-    const r = await fetch('/api/deliveries/sync', {
-      method: 'POST',
-      headers: {'X-Admin-Password': adminPw}
-    });
-    if(!r.ok){
-      const j = await r.json().catch(()=>({}));
-      throw new Error(j.error || 'HTTP ' + r.status);
-    }
-    const j = await r.json();
-    if(!j.ok) throw new Error(j.error || 'Ошибка синхронизации');
-    // Перезагружаем данные с сервера
-    await loadDeliveriesFromServer();
-    renderDeliveries();
+    const url = '/api/deliveries/csv' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const csv = await r.text();
+    const data = parseDeliveriesCsv(csv);
+    if(!data || !data.rows || !data.rows.length) throw new Error('Нет данных в таблице');
+    applyDeliveriesData(data);
     if(dotEl) dotEl.style.background = 'var(--grn)';
     if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU');
-    if(typeof logSync === 'function') logSync('deliveries', 'Google Sheets', 'Довозы парс');
   } catch(e) {
     if(dotEl) dotEl.style.background = 'var(--red)';
     if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
