@@ -375,8 +375,6 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
   <div class="hbtns">
     <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Сменить тему">🌙</button>
-    <button class="btn" onclick="loadData()">↺ <span>Обновить</span></button>
-    <button class="btn" onclick="openCmp()">⇄ <span>Сравнить</span></button>
     <button class="btn btn-warn" onclick="openAdmin()">🔒 <span>Управление</span></button>
   </div>
 </header>
@@ -810,6 +808,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <select id="sebes-sort" onchange="applySebesFilter()" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
         <option value="cost_desc">Себестоим. ↓</option>
         <option value="cost_asc">Себестоим. ↑</option>
+        <option value="cat_asc">Категория А–Я</option>
         <option value="name_asc">Название А–Я</option>
         <option value="diff_desc">Рост ↓</option>
         <option value="diff_asc">Снижение ↓</option>
@@ -830,7 +829,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
       <table class="stops-tbl" id="sebes-table">
         <thead><tr>
-          <th>Категория</th><th>Позиция</th>
+          <th style="cursor:pointer" onclick="sebesSortBy('cat')">Категория <span id="sebes-cat-icon"></span></th><th>Позиция</th>
           <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('cost')">Себест. <span id="sebes-cost-icon"></span></th>
           <th style="text-align:right;cursor:pointer" onclick="sebesSortBy('diff_pct')">Изменение <span id="sebes-diff_pct-icon"></span></th>
         </tr></thead>
@@ -1409,11 +1408,17 @@ async function uploadSebesJson(e){
 
 function sebesSortBy(col){
   if(SEBES_SORT_COL===col){SEBES_SORT_DESC=!SEBES_SORT_DESC;}
-  else{SEBES_SORT_COL=col;SEBES_SORT_DESC=true;}
-  ['price','cost','markup','diff_pct'].forEach(function(c){
+  else{SEBES_SORT_COL=col;SEBES_SORT_DESC=col!=='cat'&&col!=='name';}
+  ['cost','diff_pct','cat'].forEach(function(c){
     const el=document.getElementById('sebes-'+c+'-icon');
     if(el)el.textContent=(c===SEBES_SORT_COL)?(SEBES_SORT_DESC?'↓':'↑'):'';
   });
+  // Синхронизируем select
+  const srt=document.getElementById('sebes-sort');
+  if(srt){
+    const v=col==='cat'?'cat_asc':col==='name'?'name_asc':col+'_'+(SEBES_SORT_DESC?'desc':'asc');
+    if([...srt.options].find(o=>o.value===v)) srt.value=v;
+  }
   applySebesFilter();
 }
 
@@ -1489,7 +1494,11 @@ function applySebesFilter(resetPage){
   const trendVal  =document.getElementById('sebes-trend-filter')?.value||'';
   const searchVal =(document.getElementById('sebes-search')?.value||'').toLowerCase().trim();
 
-  if(sortVal){const parts=sortVal.split('_');const col=parts.slice(0,-1).join('_');const desc=parts[parts.length-1]==='desc';SEBES_SORT_COL=col;SEBES_SORT_DESC=desc;}
+  if(sortVal){
+    if(sortVal==='cat_asc'){SEBES_SORT_COL='cat';SEBES_SORT_DESC=false;}
+    else if(sortVal==='name_asc'){SEBES_SORT_COL='name';SEBES_SORT_DESC=false;}
+    else{const parts=sortVal.split('_');const col=parts.slice(0,-1).join('_');const desc=parts[parts.length-1]==='desc';SEBES_SORT_COL=col;SEBES_SORT_DESC=desc;}
+  }
 
   let items=SEBES_DATA.all_items.filter(function(it){
     if(catVal&&it.cat!==catVal)return false;
@@ -1501,6 +1510,7 @@ function applySebesFilter(resetPage){
   items=[...items].sort(function(a,b){
     const col=SEBES_SORT_COL||'cost';
     if(col==='name') return SEBES_SORT_DESC ? b.name.localeCompare(a.name,'ru') : a.name.localeCompare(b.name,'ru');
+    if(col==='cat')  return SEBES_SORT_DESC ? b.cat.localeCompare(a.cat,'ru')  : a.cat.localeCompare(b.cat,'ru');
     return SEBES_SORT_DESC?((b[col]||0)-(a[col]||0)):((a[col]||0)-(b[col]||0));
   });
 
@@ -3076,7 +3086,6 @@ function renderAdminSections(){
               :'<div style="font-size:11px;color:var(--txt3)">Не загружено</div>')
       +'</div>'
       +'<div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">'
-      +(s.key==='sebes'&&loaded?'<button class="btn admin-merge-btn" data-fileid="sebes-merge-jfu" style="padding:5px 10px;font-size:11px;color:var(--grn);border-color:var(--grn)">➕ Период</button>':'')
       +(SHEETS_KEYS.has(s.key)?'<button class="btn admin-sheets-btn" data-key="'+s.key+'" style="padding:5px 10px;font-size:11px;color:var(--acc);border-color:var(--acc)">🔄 Sheets</button>':'')
       +'<button class="btn admin-upload-btn" data-fileid="'+s.fileId+'" style="padding:5px 10px;font-size:11px">⬆ JSON</button>'
       +(loaded?'<button class="btn admin-delete-btn" data-key="'+s.key+'" style="padding:5px 10px;font-size:11px;color:var(--red);border-color:var(--red)">🗑</button>':'')
