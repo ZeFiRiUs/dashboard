@@ -2051,13 +2051,14 @@ function parseDeliveriesCsv(csv){
 
     allPoints.add(point);
     const cost = parseCost(r[C.cost]||'');
+    const guiltyRaw = (r[C.guilty]||'').trim();
     const row = {
       iso:        dateStr,
       date:       dateStr,
       point:      point,
       dept:       (r[C.dept]||'').trim(),
       type:       (r[C.type]||'').trim(),
-      guilty:     (r[C.guilty]||'').trim(),
+      guilty:     guiltyRaw ? guiltyRaw.split(/[,\n]+/).map(g=>g.trim()).filter(Boolean) : [],
       items:      (r[C.items]||'').trim(),
       reason:     (r[C.reason]||'').trim(),
       cost,
