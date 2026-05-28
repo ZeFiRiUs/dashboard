@@ -2051,6 +2051,7 @@ function parseDeliveriesCsv(csv){
     allPoints.add(point);
     const cost = parseCost(r[C.cost]||'');
     const row = {
+      iso:        dateStr,
       date:       dateStr,
       point:      point,
       dept:       (r[C.dept]||'').trim(),
