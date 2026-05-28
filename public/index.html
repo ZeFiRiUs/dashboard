@@ -2197,17 +2197,12 @@ async function syncSebesFromTab(){
 
 async function loadSebesFromSheets(force){
   try {
-    const r = await fetch('/api/sebes/sync', {
-      method: 'POST',
-      headers: { 'X-Admin-Password': adminPw }
-    });
-    if(!r.ok){
-      const j = await r.json().catch(()=>({}));
-      throw new Error(j.error || 'HTTP ' + r.status);
-    }
-    const j = await r.json();
-    if(!j.ok) throw new Error(j.error || 'Ошибка синхронизации');
-    await loadSebesFromServer();
+    const url = '/api/sebes/csv' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if(!data || !data.all_items) throw new Error('Нет данных');
+    SEBES_DATA = data;
     renderSebes();
   } catch(e){ console.error('loadSebesFromSheets:', e.message); throw e; }
 }
