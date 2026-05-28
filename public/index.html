@@ -389,6 +389,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   <button class="tab-nav-btn" onclick="switchTab('deliveries',this)">🚚 Довозы</button>
   <button class="tab-nav-btn" onclick="switchTab('production',this)">🏭 Производство</button>
   <button class="tab-nav-btn" onclick="switchTab('sebes',this)">💰 Себестоимость</button>
+  <button class="tab-nav-btn" onclick="switchTab('supply',this)">📦 Упаковка</button>
 </nav>
 
 <!-- Мобильная нижняя панель -->
@@ -425,6 +426,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <button class="mob-menu-item" data-tab="sebes" onclick="mobSwitch('sebes',null);toggleMobMenu()">
       <span style="font-size:20px">💰</span>
       <span>Себестоимость</span>
+    </button>
+    <button class="mob-menu-item" data-tab="supply" onclick="mobSwitch('supply',null);toggleMobMenu()">
+      <span style="font-size:20px">📦</span>
+      <span>Упаковка</span>
     </button>
   </div>
 </div>
@@ -828,6 +833,55 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
 </div>
 </div><!-- /page-sebes -->
+
+<!-- ═══ SUPPLY (УПАКОВКА) TAB ═══ -->
+<div id="page-supply" class="page">
+  <div class="wrap">
+    <!-- Статус синхронизации -->
+    <div id="supply-sync-bar" style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:10px 14px;background:var(--card);border:1px solid var(--bd);border-radius:10px;font-size:12px;color:var(--txt3)">
+      <span id="supply-sync-dot" style="width:8px;height:8px;border-radius:50%;background:var(--txt3);flex-shrink:0"></span>
+      <span id="supply-sync-text">Не синхронизировано</span>
+      <button onclick="loadSupplyData(true)" style="margin-left:auto;background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Обновить</button>
+    </div>
+    <!-- KPI -->
+    <div id="supply-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+    <!-- Фильтры -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+      <select id="supply-supplier-filter" onchange="renderSupplyTable()" style="flex:1;min-width:160px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer">
+        <option value="">Все поставщики</option>
+      </select>
+      <select id="supply-status-filter" onchange="renderSupplyTable()" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer">
+        <option value="">Все статусы</option>
+        <option value="critical">🔴 Критично (&lt;3 дней)</option>
+        <option value="warning">🟡 Мало (3–7 дней)</option>
+        <option value="ok">🟢 В норме (&gt;7 дней)</option>
+        <option value="ordered">📦 Заказано</option>
+      </select>
+      <div class="sw" style="flex:2;min-width:160px"><span class="sic">🔍</span><input class="si" id="supply-search" type="text" placeholder="Поиск позиции..." oninput="renderSupplyTable()"></div>
+      <button class="fbtn" onclick="resetSupplyFilter()">✕ Сбросить</button>
+    </div>
+    <!-- Таблица -->
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="supply-table">
+        <thead>
+          <tr style="border-bottom:1px solid var(--bd)">
+            <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Наименование</th>
+            <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Поставщик</th>
+            <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Цена</th>
+            <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Расход/мес</th>
+            <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Остаток</th>
+            <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">У поставщика</th>
+            <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Дней</th>
+            <th style="text-align:right;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Заказано</th>
+            <th style="text-align:left;padding:7px 10px;font-size:10px;font-weight:500;color:var(--txt3);white-space:nowrap">Поставка</th>
+          </tr>
+        </thead>
+        <tbody id="supply-tbody"></tbody>
+      </table>
+    </div>
+    <div id="supply-empty" style="display:none;text-align:center;padding:40px;color:var(--txt3);font-size:13px">Нет данных. Настройте синхронизацию с Google Таблицей.</div>
+  </div>
+</div>
 
 
 <!-- Sebes history modal -->
@@ -1691,7 +1745,7 @@ function switchTab(tab,btn){
     b.classList.toggle('active', b.getAttribute('data-tab')===tab);
   });
   const moreBtn=document.getElementById('mob-more-btn');
-  if(moreBtn) moreBtn.classList.toggle('active',['production','sebes'].includes(tab));
+  if(moreBtn) moreBtn.classList.toggle('active',['production','sebes','supply'].includes(tab));
   document.querySelectorAll('.mob-menu-item[data-tab]').forEach(function(b){
     b.classList.toggle('active', b.getAttribute('data-tab')===tab);
   });
@@ -1713,6 +1767,7 @@ function switchTab(tab,btn){
     if(!SEBES_DATA) loadSebesFromServer().then(ok=>{ if(!ok) renderSebes(); });
     else renderSebes();
   }
+  if(tab==='supply') renderSupplyPage();
 }
 
 // STATUS
@@ -1722,6 +1777,196 @@ function ss(type,msg){
 }
 
 // LOAD DATA
+// ══ SUPPLY (УПАКОВКА) ══════════════════════════════════════════════════════════
+const SUPPLY_SHEET_ID = '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
+const SUPPLY_CSV_URL  = `https://docs.google.com/spreadsheets/d/${SUPPLY_SHEET_ID}/export?format=csv&gid=0`;
+let SUPPLY_DATA = null;
+let _supplyLastSync = null;
+
+async function loadSupplyData(force){
+  if(!force && SUPPLY_DATA) return;
+  try {
+    const r = await fetch('/api/supply/csv', {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const text = await r.text();
+    SUPPLY_DATA = parseSupplyCsv(text);
+    _supplyLastSync = new Date();
+    updateSupplySyncBar(true);
+    if(document.getElementById('page-supply')?.classList.contains('active')) renderSupplyPage();
+  } catch(e){
+    updateSupplySyncBar(false, e.message);
+  }
+}
+
+function updateSupplySyncBar(ok, err){
+  const dot  = document.getElementById('supply-sync-dot');
+  const text = document.getElementById('supply-sync-text');
+  if(!dot||!text) return;
+  if(ok){
+    dot.style.background  = 'var(--grn)';
+    text.textContent = 'Синхронизировано · ' + _supplyLastSync.toLocaleTimeString('ru-RU') +
+      ' · ' + (SUPPLY_DATA?.items?.length||0) + ' позиций';
+  } else {
+    dot.style.background  = 'var(--red)';
+    text.textContent = 'Ошибка синхронизации' + (err ? ': '+err : '');
+  }
+}
+
+function parseNum(s){
+  if(!s && s !== 0) return null;
+  const n = parseFloat(String(s).replace(/\s/g,'').replace(',','.'));
+  return isNaN(n) ? null : n;
+}
+
+function parseSupplyCsv(csv){
+  const lines = csv.split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+  const items = [];
+  let currentSupplier = null;
+
+  for(let i = 1; i < lines.length; i++){
+    const r = lines[i];
+    if(!r[0]) continue;
+    const name = r[0].trim();
+    if(!name) continue;
+
+    // Строка-заголовок поставщика — нет поставщика в col1 и нет цены
+    if(!r[1] && !r[3]){ currentSupplier = name; continue; }
+
+    const supplier  = r[1]||currentSupplier||'';
+    const phone     = r[2]||'';
+    const price     = parseNum(r[3]);
+    const monthQty  = parseNum(r[4]);
+    const stock     = parseNum(r[5]);
+    const atSupplier= r[6]&&r[6]!=='-' ? parseNum(r[6]) : null;
+    const perDay    = parseNum(r[7]);
+    const days      = r[8]&&r[8]!=='-' ? parseNum(r[8]) : null;
+    const ordered   = r[9]&&r[9]!=='-' ? parseNum(r[9]) : null;
+    const eta       = r[10]||'';
+
+    if(!supplier && !name) continue;
+
+    const status = (() => {
+      if(ordered && ordered > 0) return 'ordered';
+      if(days === null) return 'ok';
+      if(days < 3)  return 'critical';
+      if(days < 7)  return 'warning';
+      return 'ok';
+    })();
+
+    items.push({ name, supplier: supplier||currentSupplier||'', phone, price, monthQty,
+                 stock, atSupplier, perDay, days, ordered, eta, status });
+  }
+
+  const suppliers = [...new Set(items.map(i=>i.supplier).filter(Boolean))].sort();
+  const critical  = items.filter(i=>i.status==='critical').length;
+  const warning   = items.filter(i=>i.status==='warning').length;
+  const ordered   = items.filter(i=>i.status==='ordered').length;
+
+  return { items, suppliers, critical, warning, ordered };
+}
+
+function renderSupplyPage(){
+  if(!SUPPLY_DATA){ loadSupplyData(); return; }
+  renderSupplyKpis();
+  renderSupplyFilters();
+  renderSupplyTable();
+}
+
+function renderSupplyKpis(){
+  const d = SUPPLY_DATA;
+  const el = document.getElementById('supply-kpis');
+  if(!el) return;
+  const mono = 'font-family:JetBrains Mono,monospace';
+  el.innerHTML = [
+    {label:'Позиций',       val: d.items.length,   sub:'в таблице',     clr:'var(--txt)'},
+    {label:'🔴 Критично',   val: d.critical,        sub:'менее 3 дней',  clr: d.critical>0?'var(--red)':'var(--txt)'},
+    {label:'🟡 Мало',       val: d.warning,         sub:'3–7 дней',      clr: d.warning>0?'var(--warn)':'var(--txt)'},
+    {label:'📦 Заказано',   val: d.ordered,         sub:'в пути',        clr: d.ordered>0?'var(--acc)':'var(--txt)'},
+  ].map(k=>`
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:6px">${k.label}</div>
+      <div style="font-size:22px;font-weight:700;color:${k.clr};${mono}">${k.val}</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:2px">${k.sub}</div>
+    </div>`).join('');
+}
+
+function renderSupplyFilters(){
+  const sel = document.getElementById('supply-supplier-filter');
+  if(!sel || !SUPPLY_DATA) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Все поставщики</option>' +
+    SUPPLY_DATA.suppliers.map(s=>`<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join('');
+}
+
+function renderSupplyTable(){
+  if(!SUPPLY_DATA) return;
+  const supplier = document.getElementById('supply-supplier-filter')?.value||'';
+  const status   = document.getElementById('supply-status-filter')?.value||'';
+  const search   = (document.getElementById('supply-search')?.value||'').toLowerCase().trim();
+  const mono     = 'font-family:JetBrains Mono,monospace';
+
+  let items = SUPPLY_DATA.items.filter(i=>{
+    if(supplier && i.supplier !== supplier) return false;
+    if(status   && i.status   !== status)   return false;
+    if(search   && !i.name.toLowerCase().includes(search) &&
+                   !i.supplier.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('supply-tbody');
+  const empty = document.getElementById('supply-empty');
+  if(!tbody) return;
+
+  if(!items.length){
+    tbody.innerHTML = '';
+    if(empty) empty.style.display = '';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+
+  // Группируем по поставщику
+  const bySupplier = {};
+  items.forEach(i=>{ (bySupplier[i.supplier]=bySupplier[i.supplier]||[]).push(i); });
+
+  const statusBadge = s => {
+    if(s==='critical') return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,69,96,.12);color:var(--red);font-weight:600">🔴 Критично</span>';
+    if(s==='warning')  return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(255,176,32,.12);color:var(--warn);font-weight:600">🟡 Мало</span>';
+    if(s==='ordered')  return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(163,216,244,.12);color:var(--acc);font-weight:600">📦 Заказ</span>';
+    return '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(152,194,30,.12);color:var(--grn);font-weight:600">🟢 Норма</span>';
+  };
+
+  const fmtN = v => v !== null && v !== undefined ? v.toLocaleString('ru-RU') : '—';
+
+  tbody.innerHTML = Object.entries(bySupplier).map(([sup, rows])=>`
+    <tr>
+      <td colspan="9" style="padding:10px 10px 4px;font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--bd);background:var(--bg)">${sup}</td>
+    </tr>
+    ${rows.map(i=>`
+    <tr style="border-bottom:.5px solid var(--bd)" class="supply-row">
+      <td style="padding:8px 10px;font-size:12px;color:var(--txt);max-width:250px">
+        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${i.name}">${i.name}</div>
+        <div style="margin-top:3px">${statusBadge(i.status)}</div>
+      </td>
+      <td style="padding:8px 10px;font-size:11px;color:var(--txt3)">${i.supplier}</td>
+      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${i.price ? i.price.toLocaleString('ru-RU')+' ₽' : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${fmtN(i.monthQty)}</td>
+      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;font-weight:${i.status==='critical'?'700':'400'};color:${i.status==='critical'?'var(--red)':i.status==='warning'?'var(--warn)':'var(--txt)'}">${fmtN(i.stock)}</td>
+      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:var(--txt3)">${fmtN(i.atSupplier)}</td>
+      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;font-weight:600;color:${i.days===null?'var(--txt3)':i.days<3?'var(--red)':i.days<7?'var(--warn)':'var(--grn)'}">${i.days !== null ? i.days : '—'}</td>
+      <td style="padding:8px 10px;text-align:right;${mono};font-size:12px;color:${i.ordered?'var(--acc)':'var(--txt3)'}">${i.ordered ? fmtN(i.ordered) : '—'}</td>
+      <td style="padding:8px 10px;font-size:11px;color:var(--txt3);white-space:nowrap">${i.eta||'—'}</td>
+    </tr>`).join('')}
+  `).join('');
+}
+
+function resetSupplyFilter(){
+  ['supply-supplier-filter','supply-status-filter'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const s=document.getElementById('supply-search'); if(s) s.value='';
+  renderSupplyTable();
+}
+
 async function loadData(){
   ss('spin','Загрузка...');
   try{
