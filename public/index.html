@@ -388,6 +388,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   <button class="tab-nav-btn" onclick="switchTab('production',this)">🏭 Производство</button>
   <button class="tab-nav-btn" onclick="switchTab('sebes',this)">💰 Себестоимость</button>
   <button class="tab-nav-btn" onclick="switchTab('supply',this)">📦 Упаковка</button>
+  <button class="tab-nav-btn" onclick="switchTab('compare',this)">⇄ Сравнение</button>
 </nav>
 
 <!-- Мобильная нижняя панель -->
@@ -428,6 +429,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <button class="mob-menu-item" data-tab="supply" onclick="mobSwitch('supply',null);toggleMobMenu()">
       <span style="font-size:20px">📦</span>
       <span>Упаковка</span>
+    </button>
+    <button class="mob-menu-item" data-tab="compare" onclick="mobSwitch('compare',null);toggleMobMenu()">
+      <span style="font-size:20px">⇄</span>
+      <span>Сравнение</span>
     </button>
   </div>
 </div>
@@ -905,6 +910,66 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </table>
     </div>
     <div id="supply-empty" style="display:none;text-align:center;padding:40px;color:var(--txt3);font-size:13px">Нет данных. Настройте синхронизацию с Google Таблицей.</div>
+  </div>
+</div>
+
+<!-- ═══ COMPARE (СРАВНЕНИЕ ПЕРИОДОВ) TAB ═══ -->
+<div id="page-compare" class="page">
+  <div class="wrap">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px">
+      <div class="sdot ok"></div>
+      <span>Сравнение периодов</span>
+    </div>
+
+    <!-- Выбор раздела и периодов -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:18px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Раздел</div>
+          <select id="cmp-section" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px">
+            <option value="wo">Списания</option>
+            <option value="stops">Стоп-листы</option>
+            <option value="deliveries">Довозы</option>
+          </select>
+        </div>
+        <div style="border-left:2px solid var(--acc);padding-left:10px">
+          <div style="font-size:10px;color:var(--acc);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Период A</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="date" id="cmp-a-from" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none">
+            <span style="color:var(--txt3)">—</span>
+            <input type="date" id="cmp-a-to" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none">
+          </div>
+        </div>
+        <div style="border-left:2px solid var(--warn);padding-left:10px">
+          <div style="font-size:10px;color:var(--warn);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Период B</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="date" id="cmp-b-from" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none">
+            <span style="color:var(--txt3)">—</span>
+            <input type="date" id="cmp-b-to" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none">
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button onclick="cmpQuickFill('week')" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt2);font-size:11px;font-family:'Manrope',sans-serif;cursor:pointer">Неделя vs прошлая</button>
+        <button onclick="cmpQuickFill('month')" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt2);font-size:11px;font-family:'Manrope',sans-serif;cursor:pointer">Месяц vs прошлый</button>
+      </div>
+    </div>
+
+    <!-- Результаты -->
+    <div id="cmp-empty" style="text-align:center;padding:50px 20px;color:var(--txt3)">
+      <div style="font-size:42px;margin-bottom:14px;opacity:.3">⇄</div>
+      <div style="font-size:15px;font-weight:600;color:var(--txt2)">Выберите два периода для сравнения</div>
+      <div style="font-size:12px;margin-top:6px">Или используйте быстрые кнопки выше</div>
+    </div>
+    <div id="cmp-result" style="display:none">
+      <!-- KPI сравнения -->
+      <div id="cmp-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px"></div>
+      <!-- Разбивка -->
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px" id="cmp-breakdown-title">Разбивка</div>
+        <div id="cmp-breakdown"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1846,7 +1911,7 @@ function switchTab(tab,btn){
     b.classList.toggle('active', b.getAttribute('data-tab')===tab);
   });
   const moreBtn=document.getElementById('mob-more-btn');
-  if(moreBtn) moreBtn.classList.toggle('active',['production','sebes','supply'].includes(tab));
+  if(moreBtn) moreBtn.classList.toggle('active',['production','sebes','supply','compare'].includes(tab));
   document.querySelectorAll('.mob-menu-item[data-tab]').forEach(function(b){
     b.classList.toggle('active', b.getAttribute('data-tab')===tab);
   });
@@ -1869,6 +1934,7 @@ function switchTab(tab,btn){
     else renderSebes();
   }
   if(tab==='supply') renderSupplyPage();
+  if(tab==='compare'){ /* данные уже загружены, ждём выбора периодов */ }
 }
 
 // STATUS
@@ -2563,6 +2629,219 @@ function resetSupplyFilter(){
   });
   const s=document.getElementById('supply-search'); if(s) s.value='';
   renderSupplyTable();
+}
+
+// ══ СРАВНЕНИЕ ПЕРИОДОВ ═════════════════════════════════════════════════════════
+function cmpQuickFill(mode){
+  // Определяем доступный диапазон дат по выбранному разделу
+  const section = document.getElementById('cmp-section').value;
+  let allDates = [];
+  if(section==='deliveries' && DEL_DATA) allDates = DEL_DATA.meta.all_dates.map(d=>d.iso);
+  else if(section==='stops' && STOPS_DATA) allDates = STOPS_DATA.meta.all_dates.map(d=>d.iso);
+  else if(section==='wo' && periods.length) {
+    // Списания — берём из all_dates если есть в индексе
+    allDates = (window._woDates||[]).map(d=>d.iso||d.d);
+  }
+  if(!allDates.length){
+    // Фоллбэк — последние 60 дней от сегодня
+    const today = new Date();
+    for(let i=0;i<60;i++){ const d=new Date(today); d.setDate(d.getDate()-i); allDates.push(d.toISOString().slice(0,10)); }
+    allDates.sort();
+  }
+  allDates = [...new Set(allDates)].sort();
+  const last = allDates[allDates.length-1];
+  const lastD = new Date(last);
+  const span = mode==='week' ? 7 : 30;
+
+  // Период B (свежий): last-span+1 .. last
+  const bFrom = new Date(lastD); bFrom.setDate(bFrom.getDate()-span+1);
+  // Период A (предыдущий): на span раньше
+  const aTo = new Date(bFrom); aTo.setDate(aTo.getDate()-1);
+  const aFrom = new Date(aTo); aFrom.setDate(aFrom.getDate()-span+1);
+
+  const iso = d => d.toISOString().slice(0,10);
+  document.getElementById('cmp-a-from').value = iso(aFrom);
+  document.getElementById('cmp-a-to').value   = iso(aTo);
+  document.getElementById('cmp-b-from').value = iso(bFrom);
+  document.getElementById('cmp-b-to').value   = iso(lastD);
+  runCompare();
+}
+
+async function runCompare(){
+  const section = document.getElementById('cmp-section').value;
+  const aFrom = document.getElementById('cmp-a-from').value;
+  const aTo   = document.getElementById('cmp-a-to').value;
+  const bFrom = document.getElementById('cmp-b-from').value;
+  const bTo   = document.getElementById('cmp-b-to').value;
+
+  if(!aFrom||!aTo||!bFrom||!bTo){
+    document.getElementById('cmp-empty').style.display='block';
+    document.getElementById('cmp-result').style.display='none';
+    return;
+  }
+
+  let result;
+  if(section==='deliveries') result = compareDeliveries(aFrom,aTo,bFrom,bTo);
+  else if(section==='stops') result = compareStops(aFrom,aTo,bFrom,bTo);
+  else if(section==='wo')    result = await compareWriteoffs(aFrom,aTo,bFrom,bTo);
+
+  if(!result){
+    document.getElementById('cmp-empty').style.display='block';
+    document.getElementById('cmp-result').style.display='none';
+    return;
+  }
+  renderCompareResult(result);
+}
+
+// Универсальный рендер
+function renderCompareResult(res){
+  document.getElementById('cmp-empty').style.display='none';
+  document.getElementById('cmp-result').style.display='block';
+  const mono='font-family:JetBrains Mono,monospace';
+
+  const diffBadge = (a,b,invert)=>{
+    if(a===0 && b===0) return '<span style="color:var(--txt3)">—</span>';
+    const diff = b-a;
+    const pct = a!==0 ? Math.round(diff/a*1000)/10 : 100;
+    // invert: для списаний/стопов рост = плохо (красный)
+    const good = invert ? diff<0 : diff>0;
+    const clr = diff===0?'var(--txt3)':good?'var(--grn)':'var(--red)';
+    const sign = diff>0?'+':'';
+    return `<span style="color:${clr};font-weight:600;${mono}">${sign}${pct}%</span>`;
+  };
+
+  // KPI карточки
+  const kpiEl = document.getElementById('cmp-kpis');
+  kpiEl.innerHTML = res.kpis.map(k=>`
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">${k.label}</div>
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <div><span style="font-size:10px;color:var(--acc)">A</span> <span style="font-size:16px;font-weight:700;${mono}">${k.fmtA}</span></div>
+        <div><span style="font-size:10px;color:var(--warn)">B</span> <span style="font-size:16px;font-weight:700;${mono}">${k.fmtB}</span></div>
+      </div>
+      <div style="margin-top:6px;font-size:12px">${diffBadge(k.a,k.b,k.invert)}</div>
+    </div>`).join('');
+
+  // Разбивка (таблица)
+  document.getElementById('cmp-breakdown-title').textContent = res.breakdownTitle||'Разбивка';
+  const bEl = document.getElementById('cmp-breakdown');
+  const maxVal = Math.max(...res.breakdown.map(r=>Math.max(r.a,r.b)), 1);
+  bEl.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:1px solid var(--bd)">
+        <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--txt3);font-weight:400">${res.breakdownCol||'Категория'}</th>
+        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--acc);font-weight:400">Период A</th>
+        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--warn);font-weight:400">Период B</th>
+        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--txt3);font-weight:400">Изменение</th>
+      </tr></thead>
+      <tbody>
+        ${res.breakdown.map(r=>`
+          <tr style="border-bottom:.5px solid var(--bd)">
+            <td style="padding:7px 8px;color:var(--txt)">${r.name}</td>
+            <td style="padding:7px 8px;text-align:right;${mono};color:var(--txt2)">${r.fmtA}</td>
+            <td style="padding:7px 8px;text-align:right;${mono};color:var(--txt2)">${r.fmtB}</td>
+            <td style="padding:7px 8px;text-align:right">${diffBadge(r.a,r.b,res.invert)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── Сравнение довозов ─────────────────────────────────────────────────────────
+function compareDeliveries(aFrom,aTo,bFrom,bTo){
+  if(!DEL_DATA) return null;
+  const inRange=(iso,f,t)=>iso>=f&&iso<=t;
+  const aRows=DEL_DATA.rows.filter(r=>inRange(r.iso,aFrom,aTo));
+  const bRows=DEL_DATA.rows.filter(r=>inRange(r.iso,bFrom,bTo));
+  const sum=(rows,f)=>rows.reduce((s,r)=>s+f(r),0);
+  const fmtR=v=>v.toLocaleString('ru-RU')+' ₽';
+
+  // Разбивка по точкам
+  const byPoint={};
+  aRows.forEach(r=>{(byPoint[r.point]=byPoint[r.point]||{a:0,b:0}).a+=r.cost;});
+  bRows.forEach(r=>{(byPoint[r.point]=byPoint[r.point]||{a:0,b:0}).b+=r.cost;});
+  const breakdown=Object.entries(byPoint).map(([name,v])=>({
+    name, a:v.a, b:v.b, fmtA:fmtR(v.a), fmtB:fmtR(v.b)
+  })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
+
+  return {
+    invert:true,
+    kpis:[
+      {label:'Кол-во довозов', a:aRows.length, b:bRows.length, fmtA:aRows.length, fmtB:bRows.length},
+      {label:'Сумма штрафов', a:sum(aRows,r=>r.cost), b:sum(bRows,r=>r.cost), fmtA:fmtR(sum(aRows,r=>r.cost)), fmtB:fmtR(sum(bRows,r=>r.cost))},
+      {label:'Точек затронуто', a:new Set(aRows.map(r=>r.point)).size, b:new Set(bRows.map(r=>r.point)).size, fmtA:new Set(aRows.map(r=>r.point)).size, fmtB:new Set(bRows.map(r=>r.point)).size},
+    ],
+    breakdownTitle:'По точкам', breakdownCol:'Точка', breakdown,
+  };
+}
+
+// ── Сравнение стопов ──────────────────────────────────────────────────────────
+function compareStops(aFrom,aTo,bFrom,bTo){
+  if(!STOPS_DATA) return null;
+  const collect=(f,t)=>{
+    let rows=[];
+    Object.keys(STOPS_DATA.days).forEach(iso=>{
+      if(iso>=f&&iso<=t){
+        const day=STOPS_DATA.days[iso];
+        if(day.by_pt) day.by_pt.forEach(p=>rows.push({pt:p.name,n:p.n,dur:p.tot||0}));
+      }
+    });
+    return rows;
+  };
+  const aRows=collect(aFrom,aTo), bRows=collect(bFrom,bTo);
+  const aTotal=aRows.reduce((s,r)=>s+r.n,0), bTotal=bRows.reduce((s,r)=>s+r.n,0);
+  const aDur=aRows.reduce((s,r)=>s+r.dur,0), bDur=bRows.reduce((s,r)=>s+r.dur,0);
+  const aAvg=aTotal?Math.round(aDur/aTotal):0, bAvg=bTotal?Math.round(bDur/bTotal):0;
+
+  const byPt={};
+  aRows.forEach(r=>{(byPt[r.pt]=byPt[r.pt]||{a:0,b:0}).a+=r.n;});
+  bRows.forEach(r=>{(byPt[r.pt]=byPt[r.pt]||{a:0,b:0}).b+=r.n;});
+  const breakdown=Object.entries(byPt).map(([name,v])=>({
+    name,a:v.a,b:v.b,fmtA:v.a+' стопов',fmtB:v.b+' стопов'
+  })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
+
+  return {
+    invert:true,
+    kpis:[
+      {label:'Всего стопов', a:aTotal, b:bTotal, fmtA:aTotal, fmtB:bTotal},
+      {label:'Ср. длительность', a:aAvg, b:bAvg, fmtA:aAvg+' мин', fmtB:bAvg+' мин'},
+      {label:'Точек со стопами', a:Object.keys(byPt).filter(k=>byPt[k].a).length, b:Object.keys(byPt).filter(k=>byPt[k].b).length, fmtA:Object.keys(byPt).filter(k=>byPt[k].a).length, fmtB:Object.keys(byPt).filter(k=>byPt[k].b).length},
+    ],
+    breakdownTitle:'По точкам', breakdownCol:'Точка', breakdown,
+  };
+}
+
+// ── Сравнение списаний ────────────────────────────────────────────────────────
+async function compareWriteoffs(aFrom,aTo,bFrom,bTo){
+  // Используем серверный range-эндпоинт (формат дат dd.mm.yyyy)
+  const toServerDate=iso=>{const[y,m,d]=iso.split('-');return `${d}.${m}.${y}`;};
+  try{
+    const fetchRange=async(f,t)=>{
+      const r=await fetch(`/api/writeoffs/range?from=${toServerDate(f)}&to=${toServerDate(t)}`,{headers:{'X-View-Password':sessionPassword}});
+      if(!r.ok) return null;
+      return await r.json();
+    };
+    const [aData,bData]=await Promise.all([fetchRange(aFrom,aTo),fetchRange(bFrom,bTo)]);
+    if(!aData||!bData) return null;
+    const fmtR=v=>(v||0).toLocaleString('ru-RU')+' ₽';
+
+    // Разбивка по складам
+    const byWh={};
+    (aData.warehouses||[]).forEach(w=>{(byWh[w.name]=byWh[w.name]||{a:0,b:0}).a=w.total;});
+    (bData.warehouses||[]).forEach(w=>{(byWh[w.name]=byWh[w.name]||{a:0,b:0}).b=w.total;});
+    const breakdown=Object.entries(byWh).map(([name,v])=>({
+      name,a:v.a,b:v.b,fmtA:fmtR(v.a),fmtB:fmtR(v.b)
+    })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
+
+    return {
+      invert:true,
+      kpis:[
+        {label:'Сумма списаний', a:aData.grand_total||0, b:bData.grand_total||0, fmtA:fmtR(aData.grand_total), fmtB:fmtR(bData.grand_total)},
+        {label:'Складов', a:(aData.warehouses||[]).length, b:(bData.warehouses||[]).length, fmtA:(aData.warehouses||[]).length, fmtB:(bData.warehouses||[]).length},
+        {label:'Ср. на склад', a:Math.round((aData.grand_total||0)/((aData.warehouses||[]).length||1)), b:Math.round((bData.grand_total||0)/((bData.warehouses||[]).length||1)), fmtA:fmtR(Math.round((aData.grand_total||0)/((aData.warehouses||[]).length||1))), fmtB:fmtR(Math.round((bData.grand_total||0)/((bData.warehouses||[]).length||1)))},
+      ],
+      breakdownTitle:'По складам', breakdownCol:'Склад', breakdown,
+    };
+  }catch(e){ console.error('compareWriteoffs:',e.message); return null; }
 }
 
 async function loadData(){
