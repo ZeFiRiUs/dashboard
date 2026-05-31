@@ -676,6 +676,11 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </select>
       <select id="del-reason-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все причины</option></select>
       <button class="fbtn" onclick="resetDelFilters()">✕ Сбросить</button>
+      <div style="display:flex;gap:4px;align-self:center;margin-left:auto">
+        <button class="del-period-btn" data-period="week" onclick="setDelPeriod('week',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Manrope',sans-serif;cursor:pointer">Неделя</button>
+        <button class="del-period-btn" data-period="month" onclick="setDelPeriod('month',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Manrope',sans-serif;cursor:pointer">Месяц</button>
+        <button class="del-period-btn" data-period="all" onclick="setDelPeriod('all',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Manrope',sans-serif;cursor:pointer">Всё</button>
+      </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Довозы по датам</div>
@@ -1100,6 +1105,39 @@ function renderDeliveries(){
     reasonF.innerHTML='<option value="">Все причины</option>'+
       reasons.map(r=>`<option value="${r}">${r}</option>`).join('');
   }
+  applyDelFilter();
+}
+
+function setDelPeriod(period, btn){
+  if(!DEL_DATA || !DEL_DATA.meta.all_dates.length) return;
+  const dates = DEL_DATA.meta.all_dates.map(d=>d.iso).sort();
+  const lastIso = dates[dates.length-1];
+  const fromF = document.getElementById('del-date-from');
+  const toF   = document.getElementById('del-date-to');
+
+  // Подсветка активной кнопки
+  document.querySelectorAll('.del-period-btn').forEach(b=>{
+    b.style.background='var(--card)'; b.style.color='var(--txt2)'; b.style.borderColor='var(--bd)';
+  });
+  if(btn){ btn.style.background='var(--acc)'; btn.style.color='#0a0a0a'; btn.style.borderColor='var(--acc)'; }
+
+  if(period==='all'){
+    if(fromF) fromF.value='';
+    if(toF) toF.value='';
+    applyDelFilter();
+    return;
+  }
+
+  const days = period==='week' ? 7 : 30;
+  const last = new Date(lastIso);
+  const from = new Date(last);
+  from.setDate(from.getDate() - days + 1);
+  const fromIso = from.toISOString().slice(0,10);
+
+  // Находим ближайшую доступную дату >= fromIso
+  const fromMatch = dates.find(d => d >= fromIso) || dates[0];
+  if(fromF) fromF.value = fromMatch;
+  if(toF) toF.value = lastIso;
   applyDelFilter();
 }
 
@@ -1772,6 +1810,9 @@ function resetDelFilters() {
     const el=document.getElementById(id); if(el) el.value='';
   });
   const s=document.getElementById('del-search'); if(s) s.value='';
+  document.querySelectorAll('.del-period-btn').forEach(b=>{
+    b.style.background='var(--card)'; b.style.color='var(--txt2)'; b.style.borderColor='var(--bd)';
+  });
   applyDelFilter();
 }
 
