@@ -420,23 +420,34 @@ function parseWriteoffsSheet(csv) {
   }
   const parseNum = s => {
     if (!s) return 0;
-    const n = parseFloat(String(s).replace(/\s/g,'').replace(',','.').replace(/[^\d.]/g,''));
+    const n = parseFloat(String(s).replace(/\s/g,'').replace(/\u00a0/g,'').replace(',','.').replace(/[^\d.]/g,''));
     return isNaN(n) ? 0 : n;
   };
 
-  // Известные служебные строки-заголовки иерархии
+  // Находим заголовочную строку с "Себестоимость", "Количество", "Убыток" чтобы определить колонки
+  let colCostSum = 5, colQty = 6, colUnit = 3; // дефолты
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {
+    const cells = parseLine(lines[i]).map(c => c.toLowerCase().trim());
+    const ci = cells.findIndex(c => c === 'себестоимость');
+    const qi = cells.findIndex(c => c.includes('количество'));
+    const ui = cells.findIndex(c => c === 'ед.' || c === 'ед');
+    if (ci >= 0 && qi >= 0) {
+      colCostSum = ci; colQty = qi;
+      if (ui >= 0) colUnit = ui;
+      console.log(`WO parser: колонки определены — себест=${ci}, кол-во=${qi}, ед=${colUnit}`);
+      break;
+    }
+  }
+
   const META_ROWS = new Set(['продажи','вид деятельности','хозяйственная операция',
-    'покупатель','номенклатура','документ движения, корреспонденция','склад','']);
-  // Документ-строка: "Списание запасов NNNN от ДД.ММ.ГГГГ, причина"
+    'покупатель','номенклатура','документ движения, корреспонденция','склад','',
+    'себестоимость за единицу','себестоимость','количество','убыток','ед.']);
   const DOC_RE = /^списание запасов\s+\d+\s+от\s+(\d{2}\.\d{2}\.\d{4}),\s*(.+)$/i;
-  // Заголовок раздела "Списание запасов" (без номера)
   const SECTION_RE = /^списание запасов\s*$/i;
-  // Код товара в начале: "006с ", "0136с ", "202с "
   const CODE_RE = /^\d{2,4}[а-яёa-z]?\s/i;
 
   const rows = [];
-  let curWh = null;       // текущий склад
-  let curItem = null;     // {nm, unit, cost, qty} — текущая позиция
+  let curWh = null, curItem = null;
 
   for (let i = 0; i < lines.length; i++) {
     const cells = parseLine(lines[i]);
@@ -444,50 +455,31 @@ function parseWriteoffsSheet(csv) {
     if (!a) continue;
     const aLow = a.toLowerCase();
 
-    // Колонки: A=0 наименование, D=3 ед, E=4 себест/ед, F=5 себест сумма, G=6 кол-во, H=7 убыток
-    const unit = (cells[3] || '').trim();
-    const costSum = parseNum(cells[5]);
-    const qty = parseNum(cells[6]);
+    const unit = (cells[colUnit] || '').trim();
+    const costSum = parseNum(cells[colCostSum]);
+    const qty = parseNum(cells[colQty]);
 
-    // Документ-строка — извлекаем дату и статью, привязываем к текущей позиции/складу
     const docM = a.match(DOC_RE);
     if (docM) {
-      const dateStr = docM[1]; // ДД.ММ.ГГГГ
+      const dateStr = docM[1];
       const article = docM[2].trim();
       if (curWh && costSum > 0) {
-        rows.push({
-          d: dateStr, wh: curWh,
-          nm: curItem || a,
-          unit: unit || '',
-          cost: costSum, qty: qty,
-          article,
-        });
+        rows.push({ d: dateStr, wh: curWh, nm: curItem || a, unit: unit || '', cost: costSum, qty, article });
       }
       continue;
     }
 
-    // Служебные/мета строки — пропускаем
     if (META_ROWS.has(aLow)) continue;
     if (SECTION_RE.test(a)) continue;
     if (aLow === 'итого') continue;
 
-    // Строка-склад: заканчивается на "склад" или "(склад)"
+    // Склад: заканчивается на "склад" или "(склад)"
     if (/склад\s*$/i.test(a) || /\(склад\)\s*$/i.test(a)) {
-      curWh = a;
-      curItem = null;
-      continue;
+      curWh = a; curItem = null; continue;
     }
 
-    // Строка-позиция (товар): есть код в начале ИЛИ это название с единицей измерения
-    // Позиция не содержит "Списание запасов" и имеет ед. изм. или код
-    if (CODE_RE.test(a) || unit) {
-      curItem = a;
-      // Сама строка-позиция — это агрегат, реальные суммы берём из документов под ней.
-      // НЕ добавляем её саму, т.к. документы её дублируют.
-      continue;
-    }
-
-    // Прочие строки — игнорируем
+    // Позиция: код в начале или есть ед.изм
+    if (CODE_RE.test(a) || unit) { curItem = a; continue; }
   }
 
   return rows;
@@ -522,6 +514,26 @@ app.put('/api/writeoffs/sheets', express.json(), (req, res) => {
       saveWoSheets(merged);
     }
     res.json({ ok: true, sheets: readWoSheets() });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// DEBUG: посмотреть сырой CSV листа списаний
+app.get('/api/writeoffs/debug', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const gid = req.query.gid || '0';
+    const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${gid}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) return res.status(502).json({ error: 'HTTP ' + r.status });
+    const csv = await r.text();
+    const lines = csv.split('\n').slice(0, 30);
+    const parsed = parseWriteoffsSheet(csv);
+    res.json({
+      total_lines: csv.split('\n').length,
+      first_30_raw: lines,
+      parsed_rows: parsed.length,
+      parsed_sample: parsed.slice(0, 5),
+    });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
