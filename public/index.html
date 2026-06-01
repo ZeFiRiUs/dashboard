@@ -2397,10 +2397,11 @@ async function syncWoFromTab(){
     if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||'HTTP '+r.status); }
     const j = await r.json();
     if(!j.ok) throw new Error(j.error||'Ошибка');
-    await loadData();
     if(dotEl) dotEl.style.background = 'var(--grn)';
-    if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU');
-    if(typeof logSync==='function') logSync('wo','Google Sheets','Списания парс');
+    if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU') + ' · ' + j.total_rows + ' строк';
+    // Перезагрузка данных и лог — в отдельных try чтобы ошибка рендера не считалась ошибкой синхронизации
+    try { await loadData(); } catch(e){ console.error('loadData after sync:', e.message); }
+    try { if(typeof logSync==='function') logSync('wo','Google Sheets','Списания парс'); } catch(e){ console.error('logSync:', e.message); }
   } catch(e) {
     if(dotEl) dotEl.style.background = 'var(--red)';
     if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
@@ -2973,9 +2974,9 @@ function render(){
   renderKPIs(p); renderCards();
 }
 function renderEmpty(){
-  document.getElementById('krow').innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0;grid-column:1/-1">Нет данных. Загрузите JSON через «Управление».</div>';
-  document.getElementById('grid').innerHTML='';
-  document.getElementById('ptabs-wrap').style.display='none';
+  const k=document.getElementById('krow'); if(k)k.innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0;grid-column:1/-1">Нет данных. Загрузите JSON через «Управление».</div>';
+  const g=document.getElementById('grid'); if(g)g.innerHTML='';
+  const pt=document.getElementById('ptabs-wrap'); if(pt)pt.style.display='none';
 }
 
 function renderKPIs(p){
