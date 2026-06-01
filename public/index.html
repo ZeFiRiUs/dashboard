@@ -541,31 +541,6 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         <div id="wo-articles-bars"></div>
       </div>
     </div>
-    <!-- Таблица точек -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div id="wo-points-title" style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em">Списания по точкам</div>
-        <select id="wo-points-sort" onchange="renderWoPointsTable()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:5px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
-          <option value="name">По названию</option>
-          <option value="pct">По % списаний ↓</option>
-          <option value="wo">По сумме списаний ↓</option>
-          <option value="rev">По выручке ↓</option>
-        </select>
-      </div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:12px" id="wo-points-table">
-          <thead><tr style="border-bottom:1px solid var(--bd)">
-            <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Точка</th>
-            <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Выручка</th>
-            <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Списания</th>
-            <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">%</th>
-            <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Главная статья</th>
-          </tr></thead>
-          <tbody id="wo-points-tbody"></tbody>
-        </table>
-      </div>
-      <div id="wo-points-note" style="font-size:11px;color:var(--txt3);margin-top:8px">~ — выручка подставлена как заглушка 228 228 ₽</div>
-    </div>
   </div>
 
   <div class="cc" id="cc"></div>
@@ -3124,6 +3099,9 @@ function renderWoArticlesSection(){
 }
 
 function renderWoPointsTable(){
+  // Блок таблицы точек удалён из интерфейса
+  const tbody = document.getElementById('wo-points-tbody');
+  if(!tbody) return;
   if(!WO_BY_POINT) return;
   const sortVal = document.getElementById('wo-points-sort')?.value || 'name';
   const monoSt = 'font-family:JetBrains Mono,monospace';
@@ -3155,8 +3133,6 @@ function renderWoPointsTable(){
     }
   }
 
-  const tbody = document.getElementById('wo-points-tbody');
-  if(!tbody) return;
   const maxWo = Math.max(...pts.map(p=>p.wo_total), 1);
 
   if(hasRevenue){
