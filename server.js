@@ -598,12 +598,15 @@ app.post('/api/writeoffs/sync', async (req, res) => {
     if (!allRows.length) return res.status(502).json({ error: 'Не удалось распарсить ни одной строки' });
 
     // Записываем в writeoffs_raw.json
-    const minDate = allRows.map(r=>r.d).sort()[0];
-    const maxDate = allRows.map(r=>r.d).sort()[allRows.length-1];
+    const allD = allRows.map(r=>r.d).sort();
+    const minDate = allD[0];
+    const maxDate = allD[allD.length-1];
+    const uniqDates = [...new Set(allD)].sort();
     fs.writeFileSync(WO_RAW_FILE, JSON.stringify({ rows: allRows, min_date: minDate, max_date: maxDate }));
     rebuildWriteoffsIndex();
+    console.log('WO sync dates:', uniqDates.join(', '));
 
-    res.json({ ok: true, total_rows: allRows.length, sheets: perSheet });
+    res.json({ ok: true, total_rows: allRows.length, sheets: perSheet, dates: uniqDates });
   } catch(e) {
     console.error('Writeoffs sync error:', e.message);
     res.status(500).json({ error: e.message });
