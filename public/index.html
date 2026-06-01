@@ -3023,13 +3023,24 @@ async function loadWoByPoint(){
     renderWoArticlesSection();
     return;
   }
-  // Фоллбэк — старый статичный файл
+  // Если индекс есть но пустой (данные удалены) — не грузим старый файл
+  if(WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.dates && WO_INDEX.meta.dates.length === 0){
+    WO_BY_POINT = null;
+    renderWoArticlesSection();
+    return;
+  }
+  // Фоллбэк — старый статичный файл (только если в нём есть данные)
   try {
     const r = await fetch('/api/data/writeoffs_by_point', {headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) return;
-    WO_BY_POINT = await r.json();
+    if(!r.ok) { WO_BY_POINT=null; renderWoArticlesSection(); return; }
+    const data = await r.json();
+    if(data && data.by_point && data.by_point.length){
+      WO_BY_POINT = data;
+    } else {
+      WO_BY_POINT = null;
+    }
     renderWoArticlesSection();
-  } catch(e){}
+  } catch(e){ WO_BY_POINT=null; renderWoArticlesSection(); }
 }
 
 const WO_GRP_COLOR = {
@@ -3041,8 +3052,11 @@ const WO_GRP_COLOR = {
 };
 
 function renderWoArticlesSection(){
-  if(!WO_BY_POINT) return;
   const sec = document.getElementById('wo-articles-section');
+  // Скрываем блок если данных нет или они пустые
+  const hasData = WO_BY_POINT && WO_BY_POINT.by_point && WO_BY_POINT.by_point.length &&
+                  WO_BY_POINT.meta && WO_BY_POINT.meta.articles_summary && WO_BY_POINT.meta.articles_summary.length;
+  if(!hasData){ if(sec) sec.style.display = 'none'; return; }
   if(sec) sec.style.display = '';
 
   const meta = WO_BY_POINT.meta;
@@ -3793,7 +3807,7 @@ async function deleteAdminData(key){
     const j=await r.json();
     if(j.ok){
       // Сбросить данные в памяти
-      if(key==='wo'){periods=[];cur=0;WO_INDEX=null;WO_BY_POINT=null;render();}
+      if(key==='wo'){periods=[];cur=0;WO_INDEX=null;WO_BY_POINT=null;render();const sec=document.getElementById('wo-articles-section');if(sec)sec.style.display='none';}
       if(key==='stops'){STOPS_DATA=null;STOPS_PERIODS=[];stopsIdx=0;_currentStopsByPoint=null;renderStops();}
       if(key==='deliveries'){DEL_DATA=null;renderDeliveries();}
       if(key==='production'){PROD_DATA=null;renderProduction();}
