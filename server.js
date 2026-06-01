@@ -22,6 +22,7 @@ const LOCAL_DATA_DIR  = path.join(__dirname, 'data');
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'periods.json');
 const LOCAL_STOPS_FILE = path.join(LOCAL_DATA_DIR, 'stops_raw.json');
 const LOCAL_STOPS_FULL = path.join(LOCAL_DATA_DIR, 'stops_full.json');
+const WO_RAW_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_raw.json');
 if (!fs.existsSync(LOCAL_STOPS_FULL)) fs.writeFileSync(LOCAL_STOPS_FULL, 'null');
 fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
 if (!fs.existsSync(LOCAL_DATA_FILE))  fs.writeFileSync(LOCAL_DATA_FILE,  JSON.stringify([]));
@@ -384,8 +385,183 @@ function rebuildWriteoffsIndex() {
 }
 
 
-// ── Production ────────────────────────────────────────────────────────────────
-const PROD_FILE_PATH  = 'data/production.json';
+// ── Списания: синхронизация с Google Sheets ──────────────────────────────────
+const WRITEOFFS_SHEET_ID = '1Xn7t2kazUNEjG4ZRkc00Im4DIWLlBtZSlIPXglciLUQ';
+const WO_SHEETS_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_sheets.json');
+const WO_SHEETS_DEFAULT = [
+  { name: '4-10',  gid: '0' },
+];
+let _woSheetsCache = null, _woSheetsCacheTs = 0;
+
+function readWoSheets() {
+  try {
+    if (fs.existsSync(WO_SHEETS_FILE))
+      return JSON.parse(fs.readFileSync(WO_SHEETS_FILE, 'utf8'));
+  } catch(e) { console.error('readWoSheets:', e.message); }
+  return WO_SHEETS_DEFAULT;
+}
+function saveWoSheets(sheets) {
+  fs.writeFileSync(WO_SHEETS_FILE, JSON.stringify(sheets, null, 2));
+  _woSheetsCache = null; _woSheetsCacheTs = 0;
+}
+
+// Парсер иерархической выгрузки 1С (CSV одного листа) → массив строк {d, wh, nm, unit, cost, qty, article}
+function parseWriteoffsSheet(csv) {
+  const lines = csv.split('\n');
+  function parseLine(line) {
+    const res = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { res.push(cur); cur = ''; }
+      else cur += c;
+    }
+    res.push(cur); return res;
+  }
+  const parseNum = s => {
+    if (!s) return 0;
+    const n = parseFloat(String(s).replace(/\s/g,'').replace(',','.').replace(/[^\d.]/g,''));
+    return isNaN(n) ? 0 : n;
+  };
+
+  // Известные служебные строки-заголовки иерархии
+  const META_ROWS = new Set(['продажи','вид деятельности','хозяйственная операция',
+    'покупатель','номенклатура','документ движения, корреспонденция','склад','']);
+  // Документ-строка: "Списание запасов NNNN от ДД.ММ.ГГГГ, причина"
+  const DOC_RE = /^списание запасов\s+\d+\s+от\s+(\d{2}\.\d{2}\.\d{4}),\s*(.+)$/i;
+  // Заголовок раздела "Списание запасов" (без номера)
+  const SECTION_RE = /^списание запасов\s*$/i;
+  // Код товара в начале: "006с ", "0136с ", "202с "
+  const CODE_RE = /^\d{2,4}[а-яёa-z]?\s/i;
+
+  const rows = [];
+  let curWh = null;       // текущий склад
+  let curItem = null;     // {nm, unit, cost, qty} — текущая позиция
+
+  for (let i = 0; i < lines.length; i++) {
+    const cells = parseLine(lines[i]);
+    const a = (cells[0] || '').trim();
+    if (!a) continue;
+    const aLow = a.toLowerCase();
+
+    // Колонки: A=0 наименование, D=3 ед, E=4 себест/ед, F=5 себест сумма, G=6 кол-во, H=7 убыток
+    const unit = (cells[3] || '').trim();
+    const costSum = parseNum(cells[5]);
+    const qty = parseNum(cells[6]);
+
+    // Документ-строка — извлекаем дату и статью, привязываем к текущей позиции/складу
+    const docM = a.match(DOC_RE);
+    if (docM) {
+      const dateStr = docM[1]; // ДД.ММ.ГГГГ
+      const article = docM[2].trim();
+      if (curWh && costSum > 0) {
+        rows.push({
+          d: dateStr, wh: curWh,
+          nm: curItem || a,
+          unit: unit || '',
+          cost: costSum, qty: qty,
+          article,
+        });
+      }
+      continue;
+    }
+
+    // Служебные/мета строки — пропускаем
+    if (META_ROWS.has(aLow)) continue;
+    if (SECTION_RE.test(a)) continue;
+    if (aLow === 'итого') continue;
+
+    // Строка-склад: заканчивается на "склад" или "(склад)"
+    if (/склад\s*$/i.test(a) || /\(склад\)\s*$/i.test(a)) {
+      curWh = a;
+      curItem = null;
+      continue;
+    }
+
+    // Строка-позиция (товар): есть код в начале ИЛИ это название с единицей измерения
+    // Позиция не содержит "Списание запасов" и имеет ед. изм. или код
+    if (CODE_RE.test(a) || unit) {
+      curItem = a;
+      // Сама строка-позиция — это агрегат, реальные суммы берём из документов под ней.
+      // НЕ добавляем её саму, т.к. документы её дублируют.
+      continue;
+    }
+
+    // Прочие строки — игнорируем
+  }
+
+  return rows;
+}
+
+async function discoverWoSheets() {
+  const now = Date.now();
+  if (_woSheetsCache && (now - _woSheetsCacheTs) < 5*60*1000) return _woSheetsCache;
+  const sheets = readWoSheets();
+  _woSheetsCache = sheets; _woSheetsCacheTs = now;
+  return sheets;
+}
+
+// GET список листов
+app.get('/api/writeoffs/sheets', (req, res) => {
+  if (!checkView(req, res)) return;
+  res.json({ sheets: readWoSheets() });
+});
+
+// PUT список листов (мерж)
+app.put('/api/writeoffs/sheets', express.json(), (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const { sheets, mode } = req.body;
+    if (!Array.isArray(sheets)) return res.status(400).json({ error: 'sheets must be array' });
+    if (mode === 'replace') {
+      saveWoSheets(sheets);
+    } else {
+      const existing = readWoSheets();
+      const merged = [...existing];
+      for (const s of sheets) if (!merged.find(e => e.name === s.name)) merged.push(s);
+      saveWoSheets(merged);
+    }
+    res.json({ ok: true, sheets: readWoSheets() });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST синхронизация — скачать все листы, распарсить, записать writeoffs_raw.json, перестроить индекс
+app.post('/api/writeoffs/sync', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    _woSheetsCache = null; _woSheetsCacheTs = 0;
+    const sheets = readWoSheets();
+    if (!sheets.length) return res.status(400).json({ error: 'Нет листов для синхронизации' });
+
+    let allRows = [];
+    const perSheet = [];
+    for (const sheet of sheets) {
+      const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!r.ok) { console.warn(`WO sheet ${sheet.name} HTTP ${r.status}`); perSheet.push({name:sheet.name, rows:0, error:'HTTP '+r.status}); continue; }
+      const csv = await r.text();
+      const rows = parseWriteoffsSheet(csv);
+      perSheet.push({ name: sheet.name, rows: rows.length });
+      allRows = allRows.concat(rows);
+      console.log(`WO sheet ${sheet.name}: ${rows.length} строк`);
+    }
+
+    if (!allRows.length) return res.status(502).json({ error: 'Не удалось распарсить ни одной строки' });
+
+    // Записываем в writeoffs_raw.json
+    const minDate = allRows.map(r=>r.d).sort()[0];
+    const maxDate = allRows.map(r=>r.d).sort()[allRows.length-1];
+    fs.writeFileSync(WO_RAW_FILE, JSON.stringify({ rows: allRows, min_date: minDate, max_date: maxDate }));
+    rebuildWriteoffsIndex();
+
+    res.json({ ok: true, total_rows: allRows.length, sheets: perSheet });
+  } catch(e) {
+    console.error('Writeoffs sync error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 const LOCAL_PROD_FILE = path.join(LOCAL_DATA_DIR, 'production.json');
 if (!fs.existsSync(LOCAL_PROD_FILE)) fs.writeFileSync(LOCAL_PROD_FILE, 'null');
 
@@ -1515,7 +1691,7 @@ process.on('uncaughtException', err => { console.error('uncaughtException:', err
 process.on('unhandledRejection', err => { console.error('unhandledRejection:', err?.message || err); });
 
 // ── WRITEOFFS RAW ─────────────────────────────────────────────────────────────
-const WO_RAW_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_raw.json');
+// WO_RAW_FILE определён в начале файла
 
 app.get('/api/writeoffs/dates', (req, res) => {
   if (!checkView(req, res)) return;
