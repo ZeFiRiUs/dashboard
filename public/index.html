@@ -544,7 +544,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <!-- Таблица точек -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em">Точки: выручка vs списания</div>
+        <div id="wo-points-title" style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em">Списания по точкам</div>
         <select id="wo-points-sort" onchange="renderWoPointsTable()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:5px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
           <option value="name">По названию</option>
           <option value="pct">По % списаний ↓</option>
@@ -564,7 +564,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
           <tbody id="wo-points-tbody"></tbody>
         </table>
       </div>
-      <div style="font-size:11px;color:var(--txt3);margin-top:8px">~ — выручка подставлена как заглушка 228 228 ₽</div>
+      <div id="wo-points-note" style="font-size:11px;color:var(--txt3);margin-top:8px">~ — выручка подставлена как заглушка 228 228 ₽</div>
     </div>
   </div>
 
@@ -2950,23 +2950,38 @@ async function compareWriteoffs(aFrom,aTo,bFrom,bTo){
 
 async function loadData(){
   ss('spin','Загрузка...');
+  await initWoDateFilter(); // грузим индекс ВСЕГДА (источник синхронизации с Sheets)
   try{
     const r=await fetch('/api/periods',{headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const srv=await r.json();
     if(srv.length){
       periods=srv;
-      initWoDateFilter();
       ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
-    if(document.getElementById('page-overview')?.classList.contains('active')) renderOverview();
+    } else if(WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.dates && WO_INDEX.meta.dates.length){
+      // Данные есть только в индексе (синхронизация из Sheets) — строим период из всего диапазона
+      buildPeriodFromIndex();
+      ss('ok','Синхронизировано из Sheets · '+WO_INDEX.meta.dates.length+' дней · '+new Date().toLocaleTimeString('ru-RU'));
     } else {
-      ss('warn','Нет данных. Загрузите JSON через «Управление»');
+      ss('warn','Нет данных. Загрузите JSON или синхронизируйте Sheets');
     }
+    if(document.getElementById('page-overview')?.classList.contains('active')) renderOverview();
   } catch(e){
     ss('warn','Ошибка загрузки: '+e.message);
   }
   cur=0; render();
   loadWoByPoint();
+}
+
+// Построить общий период из всего индекса (когда данные пришли из Sheets)
+function buildPeriodFromIndex(){
+  if(!WO_INDEX || !WO_INDEX.meta || !WO_INDEX.meta.dates.length) return;
+  const allDates = WO_INDEX.meta.dates.map(d=>d.d);
+  const merged = mergeWoDays(allDates);
+  if(merged){
+    merged.period = `${WO_INDEX.meta.dates[0].short} — ${WO_INDEX.meta.dates[WO_INDEX.meta.dates.length-1].short}`;
+    periods = [merged];
+  }
 }
 
 function render(){
@@ -2996,6 +3011,19 @@ function renderKPIs(p){
 let WO_BY_POINT = null;
 
 async function loadWoByPoint(){
+  // Приоритет — свежий индекс из синхронизации (есть articles_summary)
+  if(WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.articles_summary && WO_INDEX.meta.articles_summary.length){
+    WO_BY_POINT = {
+      meta: {
+        group_totals: WO_INDEX.meta.group_totals || {},
+        articles_summary: WO_INDEX.meta.articles_summary || [],
+      },
+      by_point: WO_INDEX.by_point || [],
+    };
+    renderWoArticlesSection();
+    return;
+  }
+  // Фоллбэк — старый статичный файл
   try {
     const r = await fetch('/api/data/writeoffs_by_point', {headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) return;
@@ -3070,33 +3098,68 @@ function renderWoPointsTable(){
   const sortVal = document.getElementById('wo-points-sort')?.value || 'name';
   const monoSt = 'font-family:JetBrains Mono,monospace';
 
+  // Есть ли реальная выручка хоть у одной точки?
+  const hasRevenue = WO_BY_POINT.by_point.some(p => !p.rev_is_placeholder && p.sales_rev > 0);
+
   let pts = [...WO_BY_POINT.by_point];
-  if(sortVal==='pct')  pts.sort((a,b)=>b.wo_rev_pct-a.wo_rev_pct);
+  if(sortVal==='pct' && hasRevenue)  pts.sort((a,b)=>b.wo_rev_pct-a.wo_rev_pct);
   else if(sortVal==='wo')  pts.sort((a,b)=>b.wo_total-a.wo_total);
-  else if(sortVal==='rev') pts.sort((a,b)=>b.sales_rev-a.sales_rev);
+  else if(sortVal==='rev' && hasRevenue) pts.sort((a,b)=>b.sales_rev-a.sales_rev);
   else pts.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+
+  // Перестраиваем заголовок таблицы
+  const thead = document.querySelector('#wo-points-table thead tr');
+  if(thead){
+    if(hasRevenue){
+      thead.innerHTML = `
+        <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Точка</th>
+        <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Выручка</th>
+        <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Списания</th>
+        <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">%</th>
+        <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Главная статья</th>`;
+    } else {
+      thead.innerHTML = `
+        <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Точка / Склад</th>
+        <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Списания</th>
+        <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Главная статья</th>`;
+    }
+  }
 
   const tbody = document.getElementById('wo-points-tbody');
   if(!tbody) return;
+  const maxWo = Math.max(...pts.map(p=>p.wo_total), 1);
 
-  tbody.innerHTML = pts.map(p=>{
-    const pct = p.wo_rev_pct;
-    const pctClr = p.rev_is_placeholder ? 'var(--txt3)' : pct>=10 ? 'var(--red)' : pct>=5 ? 'var(--warn)' : 'var(--grn)';
-    const pctBg  = p.rev_is_placeholder ? 'var(--bg)' : pct>=10 ? 'rgba(255,69,96,.1)' : pct>=5 ? 'rgba(255,176,32,.1)' : 'rgba(152,194,30,.1)';
-    const pctTxt = pct+'%'+(p.rev_is_placeholder?'~':'');
-    const revTxt = p.rev_is_placeholder
-      ? `<span style="color:var(--txt3);${monoSt}">${p.sales_rev.toLocaleString('ru-RU')} ₽ ~</span>`
-      : `<span style="font-weight:700;${monoSt}">${p.sales_rev.toLocaleString('ru-RU')} ₽</span>`;
-    return `<tr style="border-bottom:.5px solid var(--bd)">
-      <td style="padding:7px 8px;font-size:12px;font-weight:500;color:var(--txt)">${p.name}</td>
-      <td style="padding:7px 8px;text-align:right">${revTxt}</td>
-      <td style="padding:7px 8px;text-align:right;${monoSt};font-size:12px;color:var(--red)">${p.wo_total.toLocaleString('ru-RU')} ₽</td>
-      <td style="padding:7px 8px;text-align:right">
-        <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;${monoSt};color:${pctClr};background:${pctBg}">${pctTxt}</span>
-      </td>
-      <td style="padding:7px 8px;font-size:11px;color:var(--txt3)">${p.top_article||'—'}</td>
-    </tr>`;
-  }).join('');
+  if(hasRevenue){
+    tbody.innerHTML = pts.map(p=>{
+      const pct = p.wo_rev_pct;
+      const pctClr = pct>=10 ? 'var(--red)' : pct>=5 ? 'var(--warn)' : 'var(--grn)';
+      const pctBg  = pct>=10 ? 'rgba(255,69,96,.1)' : pct>=5 ? 'rgba(255,176,32,.1)' : 'rgba(152,194,30,.1)';
+      return `<tr style="border-bottom:.5px solid var(--bd)">
+        <td style="padding:7px 8px;font-size:12px;font-weight:500;color:var(--txt)">${p.name}</td>
+        <td style="padding:7px 8px;text-align:right"><span style="font-weight:700;${monoSt}">${p.sales_rev.toLocaleString('ru-RU')} ₽</span></td>
+        <td style="padding:7px 8px;text-align:right;color:var(--red);${monoSt}">${p.wo_total.toLocaleString('ru-RU')} ₽</td>
+        <td style="padding:7px 8px;text-align:right"><span style="font-size:11px;padding:2px 7px;border-radius:20px;background:${pctBg};color:${pctClr};${monoSt}">${pct}%</span></td>
+        <td style="padding:7px 8px;font-size:11px;color:var(--txt3)">${p.top_article||'—'}</td>
+      </tr>`;
+    }).join('');
+  } else {
+    // Без выручки — показываем бар списаний + главную статью
+    tbody.innerHTML = pts.map(p=>{
+      const barW = Math.round(p.wo_total/maxWo*100);
+      return `<tr style="border-bottom:.5px solid var(--bd)">
+        <td style="padding:7px 8px;font-size:12px;font-weight:500;color:var(--txt)">${p.name}</td>
+        <td style="padding:7px 8px;text-align:right;white-space:nowrap">
+          <span style="color:var(--red);${monoSt};font-weight:600">${p.wo_total.toLocaleString('ru-RU')} ₽</span>
+        </td>
+        <td style="padding:7px 8px;font-size:11px;color:var(--txt3)">${p.top_article||'—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Заголовок блока и подпись
+  const titleEl = document.querySelector('#wo-articles-section [style*="uppercase"]');
+  const noteEl = document.getElementById('wo-points-note');
+  if(noteEl) noteEl.style.display = hasRevenue ? '' : 'none';
 }
 function renderOverview(){
   const monoSt = 'font-family:JetBrains Mono,monospace';
