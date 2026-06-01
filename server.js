@@ -1671,7 +1671,10 @@ app.delete('/api/data/:key', async (req, res) => {
       fs.writeFileSync(WO_RAW_FILE, JSON.stringify({ rows: [], min_date: null, max_date: null }));
       const indexFile = path.join(LOCAL_DATA_DIR, 'writeoffs_index.json');
       fs.writeFileSync(indexFile, JSON.stringify({ meta:{dates:[],warehouses:[]}, by_day:{}, by_wh:{}, by_point:[] }));
-      console.log('Writeoffs raw + index cleared');
+      // Очищаем старый статичный файл по точкам
+      const byPointFile = path.join(LOCAL_DATA_DIR, 'writeoffs_by_point.json');
+      if (fs.existsSync(byPointFile)) fs.writeFileSync(byPointFile, JSON.stringify({ meta:{group_totals:{},articles_summary:[]}, by_point:[] }));
+      console.log('Writeoffs raw + index + by_point cleared');
     }
     if (GH_TOKEN && GH_OWNER) {
       try {
