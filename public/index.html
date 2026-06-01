@@ -504,7 +504,14 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <!-- ═══ WRITEOFFS TAB ═══ -->
 <div id="page-wo" class="page">
 <div class="wrap">
-  <div class="status"><div class="sdot spin" id="sdot"></div><span id="stxt">Загрузка...</span></div>
+  <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px"><div class="sdot spin" id="sdot"></div><span id="stxt">Загрузка...</span></div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
+      <span id="wo-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
+      <span id="wo-sheets-text">Sheets</span>
+      <button id="wo-sheets-btn" onclick="syncWoFromTab()" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
+    </div>
+  </div>
   <div id="krow" class="kpis"></div>
 
   <div class="frow">
@@ -1051,6 +1058,19 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         </div>
         <div id="sebes-sheets-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
         <div style="font-size:10px;color:var(--txt3)">Название = дата вкладки (ДД.ММ), GID = число из URL ?gid=<b>ЧИСЛО</b></div>
+      </div>
+
+      <!-- Управление листами списаний -->
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="st" style="margin-bottom:0">Листы списаний (Google Sheets)</div>
+          <button onclick="addWoSheet()" style="background:var(--card);border:1px solid var(--acc);border-radius:6px;padding:3px 10px;color:var(--acc);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">+ Добавить лист</button>
+        </div>
+        <div id="wo-sheets-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="syncWoFromTab()" style="background:var(--acc);border:none;border-radius:6px;padding:5px 14px;color:#0a0a0a;font-size:11px;font-weight:600;font-family:Manrope,sans-serif;cursor:pointer">🔄 Синхронизировать списания</button>
+          <span style="font-size:10px;color:var(--txt3)">Название периода (4-10), GID из URL</span>
+        </div>
       </div>
 
       <div style="display:flex;gap:8px;margin-top:12px">
@@ -2285,6 +2305,67 @@ function removeSebesSheet(i){
   saveSebesSheetsToServer();
 }
 
+// ── Листы списаний ────────────────────────────────────────────────────────────
+let _woSheets = [];
+
+async function loadWoSheetsList(){
+  try {
+    const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) return;
+    const j = await r.json();
+    _woSheets = j.sheets || [];
+    renderWoSheetsList();
+  } catch(e){ console.error(e); }
+}
+
+function renderWoSheetsList(){
+  const el = document.getElementById('wo-sheets-list');
+  if(!el) return;
+  if(!_woSheets.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--txt3)">Нет листов. Нажмите "+ Добавить лист"</div>';
+    return;
+  }
+  el.innerHTML = _woSheets.map((s,i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px">
+      <span style="font-size:12px;font-weight:600;color:var(--txt);flex:0 0 70px">${s.name}</span>
+      <span style="font-size:11px;color:var(--txt3);flex:1">gid: ${s.gid}</span>
+      <button onclick="removeWoSheet(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px">×</button>
+    </div>`).join('');
+}
+
+async function addWoSheet(){
+  const name = prompt('Название периода (например 4-10):');
+  if(!name || !name.trim()){ return; }
+  const gid = prompt('GID листа (число из URL после ?gid=):');
+  if(!gid || !/^\d+$/.test(gid.trim())){ alert('GID должен быть числом'); return; }
+  // Получаем актуальный список
+  try {
+    const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
+    if(r.ok){ const j=await r.json(); _woSheets = j.sheets||[]; }
+  } catch(e){}
+  if(_woSheets.find(s=>s.name===name.trim())){ alert('Лист "'+name+'" уже есть'); return; }
+  _woSheets = [..._woSheets, {name: name.trim(), gid: gid.trim()}];
+  await saveWoSheetsToServer();
+}
+
+function removeWoSheet(i){
+  if(!confirm('Удалить лист "'+_woSheets[i].name+'"?')) return;
+  _woSheets.splice(i,1);
+  saveWoSheetsToServer();
+}
+
+async function saveWoSheetsToServer(){
+  try {
+    const r = await fetch('/api/writeoffs/sheets', {
+      method:'PUT',
+      headers:{'X-Admin-Password':adminPw,'Content-Type':'application/json'},
+      body: JSON.stringify({sheets: _woSheets, mode:'replace'})
+    });
+    if(r.ok){ renderWoSheetsList(); }
+    else { const j=await r.json(); alert('Ошибка: '+j.error); }
+  } catch(e){ alert('Ошибка: '+e.message); }
+}
+
 function parseSebesSheetDate(name){
   const m = name.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/);
   if(!m) return null;
@@ -2304,6 +2385,28 @@ async function saveSebesSheetsToServer(){
   } catch(e){ alert('Ошибка: '+e.message); }
 }
 
+
+// ══ WRITEOFFS GOOGLE SHEETS SYNC ═══════════════════════════════════════════════
+async function syncWoFromTab(){
+  const dotEl  = document.getElementById('wo-sheets-dot');
+  const textEl = document.getElementById('wo-sheets-text');
+  if(dotEl) dotEl.style.background = 'var(--warn)';
+  if(textEl) textEl.textContent = 'Загрузка...';
+  try {
+    const r = await fetch('/api/writeoffs/sync', {method:'POST', headers:{'X-Admin-Password':adminPw}});
+    if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||'HTTP '+r.status); }
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error||'Ошибка');
+    await loadData();
+    if(dotEl) dotEl.style.background = 'var(--grn)';
+    if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU');
+    if(typeof logSync==='function') logSync('wo','Google Sheets','Списания парс');
+  } catch(e) {
+    if(dotEl) dotEl.style.background = 'var(--red)';
+    if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
+    console.error('syncWoFromTab:', e.message);
+  }
+}
 
 async function syncSebesFromTab(){
   const dotEl  = document.getElementById('sebes-sheets-dot');
@@ -3649,6 +3752,7 @@ function openAdmin(){
     renderAdminList();
     renderAdminSections();
     loadSebesSheetsList();
+    loadWoSheetsList();
   } else {
     document.getElementById('apw').style.display='block';
     document.getElementById('apc').style.display='none';
@@ -4222,6 +4326,9 @@ function cl(id){document.getElementById(id).classList.remove('open');}
 function _updateSheetsBarVisibility(isAdmin){
   const sb = document.getElementById('del-sheets-bar');
   if(sb) sb.style.display = isAdmin ? 'flex' : 'none';
+  // Кнопка синхронизации списаний — только для admin (использует /sync с паролем)
+  const woBtn = document.getElementById('wo-sheets-btn');
+  if(woBtn) woBtn.style.display = isAdmin ? 'inline-block' : 'none';
 }
 _updateSheetsBarVisibility(false); // скрыта по умолчанию
 
