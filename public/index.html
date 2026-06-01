@@ -2398,7 +2398,16 @@ async function syncWoFromTab(){
     const j = await r.json();
     if(!j.ok) throw new Error(j.error||'Ошибка');
     if(dotEl) dotEl.style.background = 'var(--grn)';
-    if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU') + ' · ' + j.total_rows + ' строк';
+    // Проверяем не загрузившиеся листы
+    const failed = (j.sheets||[]).filter(s=>s.error);
+    let statusMsg = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU') + ' · ' + j.total_rows + ' строк';
+    if(failed.length){
+      statusMsg += ' · ⚠ не загружены: ' + failed.map(s=>s.name+' ('+s.error+')').join(', ');
+      if(textEl) textEl.style.color = 'var(--warn)';
+    } else {
+      if(textEl) textEl.style.color = 'var(--txt3)';
+    }
+    if(textEl) textEl.textContent = statusMsg;
     // Перезагрузка данных и лог — в отдельных try чтобы ошибка рендера не считалась ошибкой синхронизации
     try { await loadData(); } catch(e){ console.error('loadData after sync:', e.message); }
     try { if(typeof logSync==='function') logSync('wo','Google Sheets','Списания парс'); } catch(e){ console.error('logSync:', e.message); }
