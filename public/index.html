@@ -3088,7 +3088,7 @@ function renderWoArticlesSection(){
   }).join('');
 
   // ─ Статьи детально ─
-  const arts = meta.articles_summary || [];
+  const arts = (meta.articles_summary || []).map(a => ({ name: a.name, sum: a.total !== undefined ? a.total : a.sum, group: a.group }));
   const artMax = arts[0]?.sum || 1;
   const artBarsEl = document.getElementById('wo-articles-bars');
   if(artBarsEl) artBarsEl.innerHTML = arts.slice(0,10).map(a=>{
