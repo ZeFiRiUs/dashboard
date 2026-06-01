@@ -2978,8 +2978,15 @@ async function loadData(){
   } catch(e){
     ss('warn','Ошибка загрузки: '+e.message);
   }
-  cur=0; render();
-  loadWoByPoint();
+  cur=0;
+  const woFrom=document.getElementById('wo-date-from')?.value;
+  const woTo=document.getElementById('wo-date-to')?.value;
+  if(woFrom||woTo){
+    applyWoDateFilter(); // сам обновит статьи за период
+  } else {
+    render();
+    loadWoByPoint();
+  }
 }
 
 // Построить общий период из всего индекса (когда данные пришли из Sheets)
@@ -3495,24 +3502,24 @@ function _fillWoSelectsFromPeriods(){
   // Даты — если индекса нет, оставляем пустыми (нет данных по дням)
 }
 
-function applyWoDateFilter(){
+async function applyWoDateFilter(){
   const fromVal = document.getElementById('wo-date-from')?.value||'';
   const toVal   = document.getElementById('wo-date-to')?.value||'';
 
-  // Сброс фильтра склада при выборе даты
   const ws = document.getElementById('wo-wh-filter'); if(ws) ws.value='';
   const rb = document.getElementById('wo-reset-btn');
 
   if(!fromVal && !toVal){
-    // Сброс — убрать временный период
     if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
     if(rb) rb.style.display='none';
-    render(); return;
+    render();
+    // Вернуть статьи/точки за весь период
+    loadWoByPoint();
+    return;
   }
 
   if(rb) rb.style.display='';
 
-  // Есть индекс — агрегируем из сырых данных
   if(WO_INDEX){
     const matchDates = WO_INDEX.meta.dates.filter(d=>
       (!fromVal || d.d >= fromVal) && (!toVal || d.d <= toVal)
@@ -3524,20 +3531,39 @@ function applyWoDateFilter(){
       if(data){
         pushTmpPeriod(data);
         ss('ok', matchDates[0].short+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
-        render(); return;
+        render();
+      }
+    } else {
+      const merged = mergeWoDays(matchDates.map(d=>d.d));
+      if(merged){
+        merged.period = matchDates[0].short+' — '+matchDates[matchDates.length-1].short;
+        pushTmpPeriod(merged);
+        ss('ok', merged.period+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
+        render();
       }
     }
 
-    const merged = mergeWoDays(matchDates.map(d=>d.d));
-    if(merged){
-      merged.period = matchDates[0].short+' — '+matchDates[matchDates.length-1].short;
-      pushTmpPeriod(merged);
-      ss('ok', merged.period+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
-      render(); return;
-    }
+    // Обновляем статьи и точки за выбранный диапазон через сервер
+    await updateWoSectionsForRange(fromVal, toVal);
   } else {
-    ss('warn','Фильтр по датам требует данных на сервере. Загрузите writeoffs_raw через сервер.');
+    ss('warn','Фильтр по датам требует данных на сервере.');
   }
+}
+
+// Пересчёт статей и точек за выбранный диапазон дат
+async function updateWoSectionsForRange(fromVal, toVal){
+  const toServerDate = iso => { const [y,m,d]=iso.split('-'); return `${d}.${m}.${y}`; };
+  try {
+    const r = await fetch(`/api/writeoffs/range?from=${toServerDate(fromVal)}&to=${toServerDate(toVal)}`,
+      {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) return;
+    const data = await r.json();
+    WO_BY_POINT = {
+      meta: { group_totals: data.group_totals||{}, articles_summary: data.articles_summary||[] },
+      by_point: data.by_point||[],
+    };
+    renderWoArticlesSection();
+  } catch(e){ console.error('updateWoSectionsForRange:', e.message); }
 }
 
 function mergeWoDays(dateList){
