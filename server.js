@@ -371,16 +371,53 @@ function rebuildWriteoffsIndex() {
     whs.forEach(wh=>{
       byWh[wh] = buildPeriod(rows.filter(r=>r.wh===wh), wh);
     });
+
+    // Агрегация по статьям списания (из поля article) и группам
+    const GROUP = a => {
+      const s = (a||'').toLowerCase();
+      if(/недостач|потери|порч|испорчен|брак|просроч/.test(s)) return 'Потери';
+      if(/питание|отработка|рецептур/.test(s)) return 'Плановые';
+      if(/хоз|уборк|инвентар/.test(s)) return 'Хоз.расходы';
+      if(/маркетинг|реклам|дегустац|промо/.test(s)) return 'Маркетинг';
+      return 'Прочее';
+    };
+    const articleAgg = {}, groupAgg = {};
+    rows.forEach(r => {
+      const art = r.article || 'Не указана';
+      articleAgg[art] = (articleAgg[art]||0) + r.cost;
+      const g = GROUP(art);
+      groupAgg[g] = (groupAgg[g]||0) + r.cost;
+    });
+    // Агрегация по точкам (склад = точка) со списаниями и главной статьёй
+    const pointAgg = {};
+    rows.forEach(r => {
+      if(!pointAgg[r.wh]) pointAgg[r.wh] = { wo_total:0, articles:{} };
+      pointAgg[r.wh].wo_total += r.cost;
+      const art = r.article || 'Не указана';
+      pointAgg[r.wh].articles[art] = (pointAgg[r.wh].articles[art]||0) + r.cost;
+    });
+
     const index = {
       meta:{
         dates: dates.map(d=>({d,short:d.substring(0,5),dow:DOW[new Date(d.split('.').reverse().join('-')).getDay()],total:Math.round(dateTotal[d])})),
-        warehouses: whs.sort((a,b)=>(whTotal[b]||0)-(whTotal[a]||0)).map(w=>({name:w,total:Math.round(whTotal[w]||0)}))
+        warehouses: whs.sort((a,b)=>(whTotal[b]||0)-(whTotal[a]||0)).map(w=>({name:w,total:Math.round(whTotal[w]||0)})),
+        articles_summary: Object.entries(articleAgg).sort((a,b)=>b[1]-a[1]).map(([name,total])=>({name,total:Math.round(total)})),
+        group_totals: Object.fromEntries(Object.entries(groupAgg).map(([k,v])=>[k,Math.round(v)])),
       },
       by_day: byDay,
-      by_wh: byWh
+      by_wh: byWh,
+      by_point: Object.entries(pointAgg).sort((a,b)=>b[1].wo_total-a[1].wo_total).map(([name,v])=>({
+        name,
+        wo_total: Math.round(v.wo_total),
+        sales_rev: 0,
+        rev_is_placeholder: true,
+        wo_rev_pct: 0,
+        top_article: Object.entries(v.articles).sort((a,b)=>b[1]-a[1])[0]?.[0] || '',
+        articles: Object.fromEntries(Object.entries(v.articles).map(([k,vv])=>[k,Math.round(vv)])),
+      })),
     };
     fs.writeFileSync(WO_INDEX_FILE, JSON.stringify(index));
-    console.log('Writeoffs index rebuilt:', dates.length, 'days,', whs.length, 'warehouses');
+    console.log('Writeoffs index rebuilt:', dates.length, 'days,', whs.length, 'warehouses,', Object.keys(articleAgg).length, 'articles');
   } catch(e) { console.error('Index rebuild error:', e.message); }
 }
 
