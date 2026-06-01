@@ -1665,11 +1665,13 @@ app.delete('/api/data/:key', async (req, res) => {
   if (!file) return res.status(400).json({ error: 'Неизвестный раздел: ' + key });
   try {
     fs.writeFileSync(file.local, file.empty);
-    // При удалении списаний — чистим также индекс и raw
+    // При удалении списаний — чистим также raw и индекс
     if (key === 'wo') {
+      // Очищаем сырые данные (источник индекса)
+      fs.writeFileSync(WO_RAW_FILE, JSON.stringify({ rows: [], min_date: null, max_date: null }));
       const indexFile = path.join(LOCAL_DATA_DIR, 'writeoffs_index.json');
-      if (fs.existsSync(indexFile)) fs.writeFileSync(indexFile, '[]');
-      rebuildWriteoffsIndex();
+      fs.writeFileSync(indexFile, JSON.stringify({ meta:{dates:[],warehouses:[]}, by_day:{}, by_wh:{}, by_point:[] }));
+      console.log('Writeoffs raw + index cleared');
     }
     if (GH_TOKEN && GH_OWNER) {
       try {
