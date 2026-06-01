@@ -3497,8 +3497,11 @@ async function applyWoDateFilter(){
   if(rb) rb.style.display='';
 
   if(WO_INDEX){
+    // Если выбрана только одна граница — это один день, не открытый диапазон
+    const effFrom = fromVal || toVal;
+    const effTo   = toVal || fromVal;
     const matchDates = WO_INDEX.meta.dates.filter(d=>
-      (!fromVal || d.d >= fromVal) && (!toVal || d.d <= toVal)
+      d.d >= effFrom && d.d <= effTo
     );
     if(!matchDates.length){ ss('warn','Нет данных за выбранный период'); return; }
 
@@ -3519,8 +3522,8 @@ async function applyWoDateFilter(){
       }
     }
 
-    // Обновляем статьи и точки за выбранный диапазон через сервер
-    await updateWoSectionsForRange(fromVal, toVal);
+    // Статьи и точки за тот же эффективный диапазон
+    await updateWoSectionsForRange(effFrom, effTo);
   } else {
     ss('warn','Фильтр по датам требует данных на сервере.');
   }
