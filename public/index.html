@@ -3793,7 +3793,7 @@ async function deleteAdminData(key){
     const j=await r.json();
     if(j.ok){
       // Сбросить данные в памяти
-      if(key==='wo'){periods=[];cur=0;render();}
+      if(key==='wo'){periods=[];cur=0;WO_INDEX=null;WO_BY_POINT=null;render();}
       if(key==='stops'){STOPS_DATA=null;STOPS_PERIODS=[];stopsIdx=0;_currentStopsByPoint=null;renderStops();}
       if(key==='deliveries'){DEL_DATA=null;renderDeliveries();}
       if(key==='production'){PROD_DATA=null;renderProduction();}
