@@ -559,13 +559,23 @@ app.get('/api/writeoffs/debug', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const gid = req.query.gid || '0';
-    const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${gid}`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) return res.status(502).json({ error: 'HTTP ' + r.status });
-    const csv = await r.text();
+    const url1 = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${gid}`;
+    const url2 = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
+    const attempts = [];
+    let csv = null, usedUrl = null;
+    for (const url of [url1, url2]) {
+      try {
+        const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        attempts.push({ url: url.includes('gviz') ? 'gviz' : 'export', status: r.status });
+        if (r.ok && csv === null) { csv = await r.text(); usedUrl = url.includes('gviz') ? 'gviz' : 'export'; }
+      } catch(e) { attempts.push({ url, error: e.message }); }
+    }
+    if (csv === null) return res.json({ error: 'Оба URL не сработали', attempts });
     const lines = csv.split('\n').slice(0, 30);
     const parsed = parseWriteoffsSheet(csv);
     res.json({
+      used_url: usedUrl,
+      attempts,
       total_lines: csv.split('\n').length,
       first_30_raw: lines,
       parsed_rows: parsed.length,
@@ -585,12 +595,27 @@ app.post('/api/writeoffs/sync', async (req, res) => {
     let allRows = [];
     const perSheet = [];
     for (const sheet of sheets) {
-      const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
-      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-      if (!r.ok) { console.warn(`WO sheet ${sheet.name} HTTP ${r.status}`); perSheet.push({name:sheet.name, rows:0, error:'HTTP '+r.status}); continue; }
-      const csv = await r.text();
+      // Основной URL экспорта
+      const url1 = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+      // Альтернативный (gviz) — иногда работает когда export отдаёт 400
+      const url2 = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${sheet.gid}`;
+
+      let csv = null, lastStatus = null;
+      for (const url of [url1, url2]) {
+        try {
+          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          lastStatus = r.status;
+          if (r.ok) { csv = await r.text(); break; }
+        } catch(e) { lastStatus = e.message; }
+      }
+
+      if (csv === null) {
+        console.warn(`WO sheet ${sheet.name} (gid ${sheet.gid}) failed: ${lastStatus}`);
+        perSheet.push({ name: sheet.name, gid: sheet.gid, rows: 0, error: 'HTTP ' + lastStatus });
+        continue;
+      }
       const rows = parseWriteoffsSheet(csv);
-      perSheet.push({ name: sheet.name, rows: rows.length });
+      perSheet.push({ name: sheet.name, gid: sheet.gid, rows: rows.length });
       allRows = allRows.concat(rows);
       console.log(`WO sheet ${sheet.name}: ${rows.length} строк`);
     }
