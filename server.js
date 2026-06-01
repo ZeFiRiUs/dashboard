@@ -1830,5 +1830,33 @@ function aggregateWriteoffs(rows, period) {
         cats: Object.fromEntries(Object.entries(v.cats).map(([k,vv])=>[k,Math.round(vv)])),
         top3: top10.slice(0,3), top10 };
     });
-  return { period, grand_total:Math.round(grand), warehouses };
+
+  // Статьи и группы за период
+  const GROUP = a => {
+    const s = (a||'').toLowerCase();
+    if(/недостач|потери|порч|испорчен|брак|просроч/.test(s)) return 'Потери';
+    if(/питание|отработка|рецептур/.test(s)) return 'Плановые';
+    if(/хоз|уборк|инвентар/.test(s)) return 'Хоз.расходы';
+    if(/маркетинг|реклам|дегустац|промо/.test(s)) return 'Маркетинг';
+    return 'Прочее';
+  };
+  const articleAgg = {}, groupAgg = {}, pointAgg = {};
+  rows.forEach(r => {
+    const art = r.article || 'Не указана';
+    articleAgg[art] = (articleAgg[art]||0) + r.cost;
+    groupAgg[GROUP(art)] = (groupAgg[GROUP(art)]||0) + r.cost;
+    if(!pointAgg[r.wh]) pointAgg[r.wh] = { wo_total:0, articles:{} };
+    pointAgg[r.wh].wo_total += r.cost;
+    pointAgg[r.wh].articles[art] = (pointAgg[r.wh].articles[art]||0) + r.cost;
+  });
+
+  return {
+    period, grand_total:Math.round(grand), warehouses,
+    articles_summary: Object.entries(articleAgg).sort((a,b)=>b[1]-a[1]).map(([name,total])=>({name,total:Math.round(total)})),
+    group_totals: Object.fromEntries(Object.entries(groupAgg).map(([k,v])=>[k,Math.round(v)])),
+    by_point: Object.entries(pointAgg).sort((a,b)=>b[1].wo_total-a[1].wo_total).map(([name,v])=>({
+      name, wo_total:Math.round(v.wo_total), sales_rev:0, rev_is_placeholder:true, wo_rev_pct:0,
+      top_article: Object.entries(v.articles).sort((a,b)=>b[1]-a[1])[0]?.[0] || '',
+    })),
+  };
 }
