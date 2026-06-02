@@ -163,9 +163,14 @@ app.get('/health', (req, res) => res.json({ ok: true, github: !!(GH_TOKEN && GH_
 
 // ── Auth check ────────────────────────────────────────────────────────────────
 app.post('/api/auth', (req, res) => {
-  const pw = req.headers['x-view-password'] || req.headers['x-admin-password'] || req.body?.password;
+  const pw = req.headers['x-view-password']
+           || req.headers['x-admin-password']
+           || req.body?.password
+           || req.body?.pw;
   if (pw === ADMIN_PW) return res.json({ ok: true, role: 'admin' });
   if (pw === VIEW_PW)  return res.json({ ok: true, role: 'viewer' });
+  // Для диагностики — логируем что пришло (без самого пароля)
+  console.log('Auth fail: header keys=', Object.keys(req.headers).filter(k=>k.includes('password')||k.includes('auth')), 'body keys=', Object.keys(req.body||{}));
   res.status(401).json({ ok: false });
 });
 
