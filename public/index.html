@@ -1382,20 +1382,25 @@ async function loadProductionLive() {
 }
 
 async function syncProductionFromSheets() {
-  if (!adminPw) return;
   const btn = document.getElementById('prod-sync-btn');
   const msg = document.getElementById('prod-sync-msg');
   if (btn) btn.disabled = true;
-  if (msg) msg.textContent = '⏳ Синхронизация...';
+  if (msg) msg.textContent = '⏳ Загрузка...';
   try {
-    const r = await fetch('/api/production/sync', {
-      method: 'POST',
-      headers: { 'X-Admin-Password': adminPw }
+    // Живые данные доступны через viewer-пароль
+    const r = await fetch('/api/production/csv?nocache=1', {
+      headers: { 'X-View-Password': sessionPassword }
     });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error);
-    if (msg) { msg.textContent = '✅ Сохранено'; setTimeout(() => msg.textContent = '', 4000); }
-    await loadProductionLive();
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (!data || !data.meta) throw new Error('Нет данных');
+    applyProductionData(data);
+    if (msg) { msg.textContent = '✅ Обновлено'; setTimeout(() => msg.textContent = '', 4000); }
+    // Сохраняем на сервере если admin
+    if (adminPw) {
+      fetch('/api/production/sync', { method:'POST', headers:{'X-Admin-Password':adminPw} })
+        .catch(()=>{});
+    }
   } catch(e) {
     if (msg) { msg.textContent = '❌ ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
   } finally {
@@ -1411,7 +1416,7 @@ function applyProductionData(data) {
   if (lbl) lbl.innerHTML = ' · <b style="color:var(--txt)">' + (data.meta.created_at || '') + '</b>';
   // Показываем кнопку синхронизации для admin
   const syncBtn = document.getElementById('prod-sync-btn');
-  if (syncBtn && adminPw) syncBtn.style.display = '';
+  if (syncBtn) syncBtn.style.display = '';
   renderProduction();
 }
 
