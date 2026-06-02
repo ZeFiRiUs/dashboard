@@ -1874,6 +1874,40 @@ app.get('/api/writeoffs/range', (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Settings (настройки дашборда) ────────────────────────────────────────────
+const SETTINGS_FILE = path.join(LOCAL_DATA_DIR, 'settings.json');
+const SETTINGS_DEFAULTS = { hidden_tabs: [] };
+
+function readSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) return { ...SETTINGS_DEFAULTS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) };
+  } catch(e) {}
+  return { ...SETTINGS_DEFAULTS };
+}
+function writeSettings(data) {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
+}
+
+// GET /api/settings — публичный (viewer видит какие вкладки скрыты)
+app.get('/api/settings', (req, res) => {
+  if (!checkView(req, res)) return;
+  res.json(readSettings());
+});
+
+// POST /api/settings — только admin
+app.post('/api/settings', express.json(), (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const current = readSettings();
+    const updated = { ...current, ...req.body };
+    // Валидация: hidden_tabs — массив строк
+    if (updated.hidden_tabs && !Array.isArray(updated.hidden_tabs))
+      return res.status(400).json({ error: 'hidden_tabs должен быть массивом' });
+    writeSettings(updated);
+    res.json({ ok: true, settings: updated });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
