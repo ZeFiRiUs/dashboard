@@ -364,6 +364,10 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <input class="login-inp" id="lpw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" autofocus>
     <button class="login-btn" id="lbtn" onclick="doLogin()">Войти →</button>
     <div class="login-err" id="lerr"></div>
+    <div style="margin-top:12px">
+      <button onclick="runDiag()" style="background:transparent;border:1px solid var(--bd);border-radius:8px;padding:6px 14px;color:var(--txt3);font-size:11px;cursor:pointer">🔍 Диагностика</button>
+    </div>
+    <pre id="diag-out" style="display:none;margin-top:12px;background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px;font-size:10px;color:var(--txt);text-align:left;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto"></pre>
     <div class="login-hint">Обратитесь к администратору для получения пароля</div>
   </div>
 </div>
@@ -4499,6 +4503,34 @@ function loadStopsDay(isoDate){
 }
 
 // LOGIN
+async function runDiag(){
+  const out=document.getElementById('diag-out');
+  out.style.display='block';out.textContent='Проверяем...\n';
+  const log=s=>{out.textContent+=s+'\n';};
+  // 1. health
+  try{
+    const r=await fetch('/health');
+    const j=await r.json();
+    log('✅ /health: '+JSON.stringify(j));
+  }catch(e){log('❌ /health: '+e.message);}
+  // 2. auth без пароля
+  try{
+    const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    log('auth (no pw): HTTP '+r.status);
+  }catch(e){log('❌ auth (no pw): '+e.message);}
+  // 3. auth с паролем из поля
+  const pw=document.getElementById('lpw').value.trim();
+  if(pw){
+    try{
+      const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':pw,'X-Admin-Password':pw},body:JSON.stringify({password:pw})});
+      const t=await r.text();
+      log('auth (с паролем): HTTP '+r.status+' → '+t);
+    }catch(e){log('❌ auth (с паролем): '+e.message);}
+  } else {
+    log('ℹ️ Введите пароль в поле выше для полной проверки');
+  }
+}
+
 async function doLogin(){
   const pw=document.getElementById('lpw').value.trim();if(!pw)return;
   const btn=document.getElementById('lbtn'),err=document.getElementById('lerr');
