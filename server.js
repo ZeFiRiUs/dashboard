@@ -307,295 +307,352 @@ app.post('/api/deliveries', upload.single('file'), async (req, res) => {
   } catch(e) { res.status(400).json({ error: e.message }); }
 });
 
-// ── Writeoffs (Аналитика списаний) ──────────────────────────────────────────
-const WO_SHEET_ID   = '1Xn7t2kazUNEjG4ZRkc00Im4DIWLlBtZSlIPXglciLUQ';
+// ── Writeoffs index (by day + by warehouse) ──────────────────────────────────
 const WO_INDEX_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_index.json');
-if (!fs.existsSync(WO_RAW_FILE)) fs.writeFileSync(WO_RAW_FILE, JSON.stringify({ rows:[], min_date:null, max_date:null }));
 
-// Кэш по листам
-const _woCsvCache = {};
-const WO_CSV_TTL  = 10 * 60 * 1000;
-let _woSheetListCache = null, _woSheetListTs = 0;
-const WO_LIST_TTL = 20 * 60 * 1000;
+app.get('/api/writeoffs/index', async (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    if (fs.existsSync(WO_INDEX_FILE)) {
+      const data = JSON.parse(fs.readFileSync(WO_INDEX_FILE, 'utf8'));
+      return res.json(data);
+    }
+    res.json(null);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
-// --- Список листов таблицы списаний ---
-async function fetchWoSheetList() {
-  const now = Date.now();
-  if (_woSheetListCache && (now - _woSheetListTs) < WO_LIST_TTL) return _woSheetListCache;
-  const url = `https://docs.google.com/spreadsheets/d/${WO_SHEET_ID}/export?format=xlsx`;
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  if (!r.ok) throw new Error('WO XLSX HTTP ' + r.status);
-  const buf = Buffer.from(await r.arrayBuffer());
-  const XLSX = require('xlsx');
-  const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
-  const sheets = wb.SheetNames.map(n => ({ name: n, label: n }));
-  _woSheetListCache = sheets;
-  _woSheetListTs = now;
-  return sheets;
+// Rebuild index after new writeoffs_raw upload
+function rebuildWriteoffsIndex() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(LOCAL_DATA_DIR,'writeoffs_raw.json'),'utf8'));
+    const rows = raw.rows || [];
+    const DOW = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+    const cat = n => {
+      n = n.toLowerCase();
+      if(/кофе|молоко|сок|чай|сироп/.test(n)) return 'Напитки/Бар';
+      if(/курица|свинина|говяж|бедро|филе|колбас|котлет|мясо/.test(n)) return 'Мясо/Птица';
+      if(/огурц|помидор|лимон|лайм|капуст|салат|банан|манго|пюре|морковь/.test(n)) return 'Овощи/Фрукты';
+      if(/булочка|лаваш|тортилья|бриошь|хлеб/.test(n)) return 'Выпечка/Хлеб';
+      if(/соус|майонез/.test(n)) return 'Соусы';
+      if(/пакет|салфетк|пергамент|бумажн/.test(n)) return 'Упаковка';
+      return 'Прочее';
+    };
+    const buildPeriod = (frows, label) => {
+      const byWh = {};
+      frows.forEach(r => {
+        if (!byWh[r.wh]) byWh[r.wh] = {total:0,items:{},cats:{}};
+        byWh[r.wh].total += r.cost;
+        const c = cat(r.nm);
+        byWh[r.wh].cats[c] = (byWh[r.wh].cats[c]||0)+r.cost;
+        if (!byWh[r.wh].items[r.nm]) byWh[r.wh].items[r.nm]={cost:0,qty:0,unit:r.unit};
+        byWh[r.wh].items[r.nm].cost += r.cost;
+        byWh[r.wh].items[r.nm].qty  += r.qty;
+      });
+      const grand = Object.values(byWh).reduce((s,v)=>s+v.total,0);
+      const warehouses = Object.entries(byWh)
+        .sort((a,b)=>b[1].total-a[1].total)
+        .map(([name,v])=>{
+          const items = Object.entries(v.items).sort((a,b)=>b[1].cost-a[1].cost);
+          const top10 = items.slice(0,10).map(([nm,i])=>({name:nm,cost:Math.round(i.cost),qty:Math.round(i.qty*100)/100,unit:i.unit}));
+          return {name,total:Math.round(v.total),
+            pct:grand?Math.round(v.total/grand*1000)/10:0,
+            n_items:items.length,
+            cats:Object.fromEntries(Object.entries(v.cats).map(([k,vv])=>[k,Math.round(vv)])),
+            top3:top10.slice(0,3),top10};
+        });
+      return {period:label,grand_total:Math.round(grand),warehouses};
+    };
+    const dates = [...new Set(rows.map(r=>r.d))].sort();
+    const whs   = [...new Set(rows.map(r=>r.wh))].sort();
+    const dateTotal = {}, whTotal = {};
+    rows.forEach(r=>{ dateTotal[r.d]=(dateTotal[r.d]||0)+r.cost; whTotal[r.wh]=(whTotal[r.wh]||0)+r.cost; });
+    const byDay = {}, byWh = {};
+    dates.forEach(d=>{
+      const dt = new Date(d.split('.').reverse().join('-'));
+      const dow = DOW[dt.getDay()];
+      const short = d.substring(0,5);
+      byDay[d] = buildPeriod(rows.filter(r=>r.d===d), `${short} (${dow})`);
+    });
+    whs.forEach(wh=>{
+      byWh[wh] = buildPeriod(rows.filter(r=>r.wh===wh), wh);
+    });
+
+    // Агрегация по статьям списания (из поля article) и группам
+    const GROUP = a => {
+      const s = (a||'').toLowerCase();
+      if(/недостач|потери|порч|испорчен|брак|просроч/.test(s)) return 'Потери';
+      if(/питание|отработка|рецептур/.test(s)) return 'Плановые';
+      if(/хоз|уборк|инвентар/.test(s)) return 'Хоз.расходы';
+      if(/маркетинг|реклам|дегустац|промо/.test(s)) return 'Маркетинг';
+      return 'Прочее';
+    };
+    const articleAgg = {}, groupAgg = {};
+    rows.forEach(r => {
+      const art = r.article || 'Не указана';
+      articleAgg[art] = (articleAgg[art]||0) + r.cost;
+      const g = GROUP(art);
+      groupAgg[g] = (groupAgg[g]||0) + r.cost;
+    });
+    // Агрегация по точкам (склад = точка) со списаниями и главной статьёй
+    const pointAgg = {};
+    rows.forEach(r => {
+      if(!pointAgg[r.wh]) pointAgg[r.wh] = { wo_total:0, articles:{} };
+      pointAgg[r.wh].wo_total += r.cost;
+      const art = r.article || 'Не указана';
+      pointAgg[r.wh].articles[art] = (pointAgg[r.wh].articles[art]||0) + r.cost;
+    });
+
+    const index = {
+      meta:{
+        dates: dates.map(d=>({d,short:d.substring(0,5),dow:DOW[new Date(d.split('.').reverse().join('-')).getDay()],total:Math.round(dateTotal[d])})),
+        warehouses: whs.sort((a,b)=>(whTotal[b]||0)-(whTotal[a]||0)).map(w=>({name:w,total:Math.round(whTotal[w]||0)})),
+        articles_summary: Object.entries(articleAgg).sort((a,b)=>b[1]-a[1]).map(([name,total])=>({name,total:Math.round(total)})),
+        group_totals: Object.fromEntries(Object.entries(groupAgg).map(([k,v])=>[k,Math.round(v)])),
+      },
+      by_day: byDay,
+      by_wh: byWh,
+      by_point: Object.entries(pointAgg).sort((a,b)=>b[1].wo_total-a[1].wo_total).map(([name,v])=>({
+        name,
+        wo_total: Math.round(v.wo_total),
+        sales_rev: 0,
+        rev_is_placeholder: true,
+        wo_rev_pct: 0,
+        top_article: Object.entries(v.articles).sort((a,b)=>b[1]-a[1])[0]?.[0] || '',
+        articles: Object.fromEntries(Object.entries(v.articles).map(([k,vv])=>[k,Math.round(vv)])),
+      })),
+    };
+    fs.writeFileSync(WO_INDEX_FILE, JSON.stringify(index));
+    console.log('Writeoffs index rebuilt:', dates.length, 'days,', whs.length, 'warehouses,', Object.keys(articleAgg).length, 'articles');
+  } catch(e) { console.error('Index rebuild error:', e.message); }
 }
 
-// --- Парсер CSV листа списаний ---
-function parseWoCsv(csv, sheetName) {
-  const parseNum = s => {
-    if (!s) return 0;
-    const n = parseFloat(String(s).replace(/\u00a0/g,'').replace(/\u202f/g,'').replace(/\s/g,'').replace(',','.').replace(/[^\d.-]/g,''));
-    return isNaN(n) ? 0 : n;
-  };
+
+// ── Списания: синхронизация с Google Sheets ──────────────────────────────────
+const WRITEOFFS_SHEET_ID = '1Xn7t2kazUNEjG4ZRkc00Im4DIWLlBtZSlIPXglciLUQ';
+const WO_SHEETS_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_sheets.json');
+const WO_SHEETS_DEFAULT = [
+  { name: '4-10',  gid: '0' },
+];
+let _woSheetsCache = null, _woSheetsCacheTs = 0;
+
+function readWoSheets() {
+  try {
+    if (fs.existsSync(WO_SHEETS_FILE))
+      return JSON.parse(fs.readFileSync(WO_SHEETS_FILE, 'utf8'));
+  } catch(e) { console.error('readWoSheets:', e.message); }
+  return WO_SHEETS_DEFAULT;
+}
+function saveWoSheets(sheets) {
+  fs.writeFileSync(WO_SHEETS_FILE, JSON.stringify(sheets, null, 2));
+  _woSheetsCache = null; _woSheetsCacheTs = 0;
+}
+
+// Парсер иерархической выгрузки 1С (CSV одного листа) → массив строк {d, wh, nm, unit, cost, qty, article}
+function parseWriteoffsSheet(csv) {
   const lines = csv.split('\n');
   function parseLine(line) {
-    const res=[]; let cur='',inQ=false;
-    for (let i=0;i<line.length;i++){
-      const c=line[i];
-      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
-      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
-      else cur+=c;
+    const res = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { res.push(cur); cur = ''; }
+      else cur += c;
     }
-    res.push(cur.trim()); return res;
+    res.push(cur); return res;
   }
-  const rows = lines.map(parseLine);
+  const parseNum = s => {
+    if (!s) return 0;
+    const n = parseFloat(String(s).replace(/\s/g,'').replace(/\u00a0/g,'').replace(',','.').replace(/[^\d.]/g,''));
+    return isNaN(n) ? 0 : n;
+  };
 
-  const SKIP = new Set(['Склад','Вид деятельности','Хозяйственная операция','Покупатель',
-    'Номенклатура','Документ движения, Корреспонденция','Продажи','Списание запасов','']);
+  // Находим заголовочную строку с "Себестоимость", "Количество", "Убыток" чтобы определить колонки
+  let colCostSum = 5, colQty = 6, colUnit = 3; // дефолты
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {
+    const cells = parseLine(lines[i]).map(c => c.toLowerCase().trim());
+    const ci = cells.findIndex(c => c === 'себестоимость');
+    const qi = cells.findIndex(c => c.includes('количество'));
+    const ui = cells.findIndex(c => c === 'ед.' || c === 'ед');
+    if (ci >= 0 && qi >= 0) {
+      colCostSum = ci; colQty = qi;
+      if (ui >= 0) colUnit = ui;
+      console.log(`WO parser: колонки определены — себест=${ci}, кол-во=${qi}, ед=${colUnit}`);
+      break;
+    }
+  }
 
-  const records = [];
-  let curWh = null, curItem = null, curUnit = '';
+  const META_ROWS = new Set(['продажи','вид деятельности','хозяйственная операция',
+    'покупатель','номенклатура','документ движения, корреспонденция','склад','',
+    'себестоимость за единицу','себестоимость','количество','убыток','ед.']);
+  const DOC_RE = /^списание запасов\s+\d+\s+от\s+(\d{2}\.\d{2}\.\d{4}),\s*(.+)$/i;
+  const SECTION_RE = /^списание запасов\s*$/i;
+  const CODE_RE = /^\d{2,4}[а-яёa-z]?\s/i;
 
-  for (const r of rows) {
-    const col0 = (r[0]||'').trim();
-    if (!col0 || SKIP.has(col0)) continue;
+  const rows = [];
+  let curWh = null, curItem = null;
 
-    // Документ списания
-    if (col0.startsWith('Списание запасов') && col0.includes('от')) {
-      const mDate = col0.match(/от (\d{2}\.\d{2}\.\d{4})/);
-      const mArt  = col0.match(/\d{4}, (.+)$/);
-      const cost = parseNum(r[5]);
-      const qty  = parseNum(r[6]);
-      if (curWh && curItem) {
-        records.push({
-          wh: curWh, item: curItem, unit: curUnit,
-          date: mDate ? mDate[1] : '',
-          article: mArt ? mArt[1].trim() : '',
-          cost, qty,
-        });
+  for (let i = 0; i < lines.length; i++) {
+    const cells = parseLine(lines[i]);
+    const a = (cells[0] || '').trim();
+    if (!a) continue;
+    const aLow = a.toLowerCase();
+
+    const unit = (cells[colUnit] || '').trim();
+    const costSum = parseNum(cells[colCostSum]);
+    const qty = parseNum(cells[colQty]);
+
+    const docM = a.match(DOC_RE);
+    if (docM) {
+      const dateStr = docM[1];
+      const article = docM[2].trim();
+      if (curWh && costSum > 0) {
+        rows.push({ d: dateStr, wh: curWh, nm: curItem || a, unit: unit || '', cost: costSum, qty, article });
       }
       continue;
     }
 
-    // Склад / точка
-    if (col0.toLowerCase().includes('склад')) {
-      curWh = col0; curItem = null; continue;
+    if (META_ROWS.has(aLow)) continue;
+    if (SECTION_RE.test(a)) continue;
+    if (aLow === 'итого') continue;
+
+    // Склад: заканчивается на "склад" или "(склад)"
+    if (/склад\s*$/i.test(a) || /\(склад\)\s*$/i.test(a)) {
+      curWh = a; curItem = null; continue;
     }
 
-    // Товар
-    curItem = col0;
-    curUnit = (r[3]||'').trim();
+    // Позиция: код в начале или есть ед.изм
+    if (CODE_RE.test(a) || unit) { curItem = a; continue; }
   }
 
-  if (!records.length) return null;
-
-  // Агрегация
-  const dates    = [...new Set(records.map(r=>r.date).filter(Boolean))].sort();
-  const points   = [...new Set(records.map(r=>r.wh).filter(Boolean))].sort();
-  const articles = [...new Set(records.map(r=>r.article).filter(Boolean))].sort();
-  const totalCost = records.reduce((s,r)=>s+r.cost, 0);
-
-  // По точкам
-  const byPoint = {};
-  records.forEach(r => {
-    if (!r.wh) return;
-    if (!byPoint[r.wh]) byPoint[r.wh] = { total:0, byArticle:{}, byItem:{}, records:[] };
-    byPoint[r.wh].total += r.cost;
-    byPoint[r.wh].byArticle[r.article] = (byPoint[r.wh].byArticle[r.article]||0) + r.cost;
-    if (!byPoint[r.wh].byItem[r.item]) byPoint[r.wh].byItem[r.item] = { cost:0, qty:0, unit:r.unit };
-    byPoint[r.wh].byItem[r.item].cost += r.cost;
-    byPoint[r.wh].byItem[r.item].qty  += r.qty;
-  });
-
-  const pointsSummary = Object.entries(byPoint)
-    .sort((a,b)=>b[1].total-a[1].total)
-    .map(([name,v]) => {
-      const top10Items = Object.entries(v.byItem)
-        .sort((a,b)=>b[1].cost-a[1].cost).slice(0,10)
-        .map(([item,d])=>({ item, cost:Math.round(d.cost*100)/100, qty:Math.round(d.qty*1000)/1000, unit:d.unit }));
-      const artBreakdown = Object.entries(v.byArticle)
-        .sort((a,b)=>b[1]-a[1])
-        .map(([art,cost])=>({ art, cost:Math.round(cost*100)/100, pct: v.total>0?Math.round(cost/v.total*1000)/10:0 }));
-      return { name, total:Math.round(v.total*100)/100, top10Items, artBreakdown };
-    });
-
-  // По статьям
-  const byArticle = {};
-  records.forEach(r => {
-    if (!r.article) return;
-    byArticle[r.article] = (byArticle[r.article]||0) + r.cost;
-  });
-  const articlesSummary = Object.entries(byArticle)
-    .sort((a,b)=>b[1]-a[1])
-    .map(([art,cost])=>({ art, cost:Math.round(cost*100)/100, pct: totalCost>0?Math.round(cost/totalCost*1000)/10:0 }));
-
-  // По дням
-  const byDate = {};
-  records.forEach(r => {
-    byDate[r.date] = (byDate[r.date]||0) + r.cost;
-  });
-  const byDateArr = Object.entries(byDate).sort().map(([d,c])=>({ date:d, cost:Math.round(c*100)/100 }));
-
-  return {
-    meta: { sheet:sheetName, records:records.length, total_cost:Math.round(totalCost*100)/100,
-      dates, points, articles, min_date:dates[0]||'', max_date:dates[dates.length-1]||'' },
-    by_point: pointsSummary,
-    by_article: articlesSummary,
-    by_date: byDateArr,
-    // Полные записи для фильтрации
-    rows: records.map(r=>({ ...r, cost:Math.round(r.cost*100)/100, qty:Math.round(r.qty*1000)/1000 })),
-  };
+  return rows;
 }
 
-// --- Получить данные листа (с кэшем) ---
-async function fetchWoSheet(sheetName, noCache=false) {
+async function discoverWoSheets() {
   const now = Date.now();
-  if (!noCache && _woCsvCache[sheetName] && (now-_woCsvCache[sheetName].ts)<WO_CSV_TTL)
-    return _woCsvCache[sheetName].data;
-  const url = `https://docs.google.com/spreadsheets/d/${WO_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
-  const r = await fetch(url, { headers:{'User-Agent':'Mozilla/5.0'} });
-  if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
-  const csv = await r.text();
-  const result = parseWoCsv(csv, sheetName);
-  if (!result) throw new Error(`Не удалось распарсить лист "${sheetName}"`);
-  _woCsvCache[sheetName] = { data:result, ts:now };
-  return result;
+  if (_woSheetsCache && (now - _woSheetsCacheTs) < 5*60*1000) return _woSheetsCache;
+  const sheets = readWoSheets();
+  _woSheetsCache = sheets; _woSheetsCacheTs = now;
+  return sheets;
 }
 
-// --- API ---
-
-// GET /api/writeoffs/sheets — список листов
-app.get('/api/writeoffs/sheets', async (req, res) => {
+// GET список листов
+app.get('/api/writeoffs/sheets', (req, res) => {
   if (!checkView(req, res)) return;
-  try { res.json(await fetchWoSheetList()); }
-  catch(e) { res.status(502).json({ error: e.message }); }
+  res.json({ sheets: readWoSheets() });
 });
 
-// GET /api/writeoffs/sheet?name=4-10[&from=ДД.ММ.ГГГГ&to=...&point=...&article=...]
-app.get('/api/writeoffs/sheet', async (req, res) => {
-  if (!checkView(req, res)) return;
-  const { name, nocache, from, to, point, article } = req.query;
-  if (!name) return res.status(400).json({ error: 'Параметр name обязателен' });
-  try {
-    const data = await fetchWoSheet(name, nocache==='1');
-    // Если нет фильтров — возвращаем как есть (без rows для экономии трафика)
-    if (!from && !to && !point && !article) {
-      const { rows, ...rest } = data;
-      return res.json(rest);
-    }
-    // Применяем фильтры к rows
-    let filtered = data.rows.filter(r => {
-      if (from && r.date < from.split('.').reverse().join('-').slice(0,10)) {
-        // Сравниваем дд.мм.гггг — преобразуем в сортировочный формат
-        const rKey = r.date.split('.').reverse().join('-');
-        const fKey = from.split('.').reverse().join('-');
-        if (rKey < fKey) return false;
-      }
-      if (to) {
-        const rKey = r.date.split('.').reverse().join('-');
-        const tKey = to.split('.').reverse().join('-');
-        if (rKey > tKey) return false;
-      }
-      if (point && r.wh !== point) return false;
-      if (article && r.article !== article) return false;
-      return true;
-    });
-
-    // Пересчитываем агрегаты по отфильтрованным данным
-    const totalCost = filtered.reduce((s,r)=>s+r.cost,0);
-    const byPoint = {};
-    filtered.forEach(r => {
-      if (!byPoint[r.wh]) byPoint[r.wh]={total:0,byArticle:{},byItem:{}};
-      byPoint[r.wh].total += r.cost;
-      byPoint[r.wh].byArticle[r.article]=(byPoint[r.wh].byArticle[r.article]||0)+r.cost;
-      if (!byPoint[r.wh].byItem[r.item]) byPoint[r.wh].byItem[r.item]={cost:0,qty:0,unit:r.unit};
-      byPoint[r.wh].byItem[r.item].cost+=r.cost;
-      byPoint[r.wh].byItem[r.item].qty+=r.qty;
-    });
-    const byArticle = {};
-    filtered.forEach(r=>{ byArticle[r.article]=(byArticle[r.article]||0)+r.cost; });
-    const byDate = {};
-    filtered.forEach(r=>{ byDate[r.date]=(byDate[r.date]||0)+r.cost; });
-
-    res.json({
-      meta: { ...data.meta, filtered_records:filtered.length, filtered_cost:Math.round(totalCost*100)/100 },
-      by_point: Object.entries(byPoint).sort((a,b)=>b[1].total-a[1].total).map(([name,v])=>({
-        name, total:Math.round(v.total*100)/100,
-        top10Items: Object.entries(v.byItem).sort((a,b)=>b[1].cost-a[1].cost).slice(0,10)
-          .map(([item,d])=>({item,cost:Math.round(d.cost*100)/100,qty:Math.round(d.qty*1000)/1000,unit:d.unit})),
-        artBreakdown: Object.entries(v.byArticle).sort((a,b)=>b[1]-a[1])
-          .map(([art,cost])=>({art,cost:Math.round(cost*100)/100,pct:v.total>0?Math.round(cost/v.total*1000)/10:0})),
-      })),
-      by_article: Object.entries(byArticle).sort((a,b)=>b[1]-a[1])
-        .map(([art,cost])=>({art,cost:Math.round(cost*100)/100,pct:totalCost>0?Math.round(cost/totalCost*1000)/10:0})),
-      by_date: Object.entries(byDate).sort().map(([d,c])=>({date:d,cost:Math.round(c*100)/100})),
-    });
-  } catch(e) { res.status(502).json({ error: e.message }); }
-});
-
-// Сохранить данные листа (для admin)
-app.post('/api/writeoffs/save', async (req, res) => {
+// PUT список листов (мерж)
+app.put('/api/writeoffs/sheets', express.json(), (req, res) => {
   if (!checkAdmin(req, res)) return;
-  const { name } = req.query;
-  if (!name) return res.status(400).json({ error: 'Параметр name обязателен' });
   try {
-    const data = await fetchWoSheet(name, true);
-    fs.writeFileSync(WO_RAW_FILE, JSON.stringify(data));
-    res.json({ ok:true, records:data.meta.records, total:data.meta.total_cost });
-  } catch(e) { res.status(500).json({ error:e.message }); }
+    const { sheets, mode } = req.body;
+    if (!Array.isArray(sheets)) return res.status(400).json({ error: 'sheets must be array' });
+    if (mode === 'replace') {
+      saveWoSheets(sheets);
+    } else {
+      const existing = readWoSheets();
+      const merged = [...existing];
+      for (const s of sheets) if (!merged.find(e => e.name === s.name)) merged.push(s);
+      saveWoSheets(merged);
+    }
+    res.json({ ok: true, sheets: readWoSheets() });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Старые эндпоинты (совместимость)
-app.get('/api/writeoffs/index', async (req, res) => {
-  if (!checkView(req, res)) return;
+// DEBUG: посмотреть сырой CSV листа списаний
+app.get('/api/writeoffs/debug', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
   try {
-    if (fs.existsSync(WO_INDEX_FILE)) return res.json(JSON.parse(fs.readFileSync(WO_INDEX_FILE,'utf8')));
-    res.json(null);
-  } catch { res.json(null); }
+    const gid = req.query.gid || '0';
+    const url1 = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${gid}`;
+    const url2 = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
+    const attempts = [];
+    let csv = null, usedUrl = null;
+    for (const url of [url1, url2]) {
+      try {
+        const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        attempts.push({ url: url.includes('gviz') ? 'gviz' : 'export', status: r.status });
+        if (r.ok && csv === null) { csv = await r.text(); usedUrl = url.includes('gviz') ? 'gviz' : 'export'; }
+      } catch(e) { attempts.push({ url, error: e.message }); }
+    }
+    if (csv === null) return res.json({ error: 'Оба URL не сработали', attempts });
+    const lines = csv.split('\n').slice(0, 30);
+    const parsed = parseWriteoffsSheet(csv);
+    res.json({
+      used_url: usedUrl,
+      attempts,
+      total_lines: csv.split('\n').length,
+      first_30_raw: lines,
+      parsed_rows: parsed.length,
+      parsed_sample: parsed.slice(0, 5),
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.get('/api/writeoffs/dates', (req, res) => {
-  if (!checkView(req,res)) return;
+
+// POST синхронизация — скачать все листы, распарсить, записать writeoffs_raw.json, перестроить индекс
+app.post('/api/writeoffs/sync', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
   try {
-    const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE,'utf8'));
-    const totals={};
-    (raw.rows||[]).forEach(r=>{ totals[r.d]=(totals[r.d]||0)+r.cost; });
-    res.json(Object.entries(totals).sort().map(([d,t])=>({d,total:Math.round(t)})));
-  } catch { res.json([]); }
+    _woSheetsCache = null; _woSheetsCacheTs = 0;
+    const sheets = readWoSheets();
+    if (!sheets.length) return res.status(400).json({ error: 'Нет листов для синхронизации' });
+
+    let allRows = [];
+    const perSheet = [];
+    for (const sheet of sheets) {
+      // Основной URL экспорта
+      const url1 = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+      // Альтернативный (gviz) — иногда работает когда export отдаёт 400
+      const url2 = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${sheet.gid}`;
+
+      let csv = null, lastStatus = null;
+      for (const url of [url1, url2]) {
+        try {
+          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          lastStatus = r.status;
+          if (r.ok) { csv = await r.text(); break; }
+        } catch(e) { lastStatus = e.message; }
+      }
+
+      if (csv === null) {
+        console.warn(`WO sheet ${sheet.name} (gid ${sheet.gid}) failed: ${lastStatus}`);
+        perSheet.push({ name: sheet.name, gid: sheet.gid, rows: 0, error: 'HTTP ' + lastStatus });
+        continue;
+      }
+      const rows = parseWriteoffsSheet(csv);
+      perSheet.push({ name: sheet.name, gid: sheet.gid, rows: rows.length });
+      allRows = allRows.concat(rows);
+      console.log(`WO sheet ${sheet.name}: ${rows.length} строк`);
+    }
+
+    if (!allRows.length) return res.status(502).json({ error: 'Не удалось распарсить ни одной строки' });
+
+    // Записываем в writeoffs_raw.json
+    const allD = allRows.map(r=>r.d).sort();
+    const minDate = allD[0];
+    const maxDate = allD[allD.length-1];
+    const uniqDates = [...new Set(allD)].sort();
+    fs.writeFileSync(WO_RAW_FILE, JSON.stringify({ rows: allRows, min_date: minDate, max_date: maxDate }));
+    rebuildWriteoffsIndex();
+    console.log('WO sync dates:', uniqDates.join(', '));
+
+    res.json({ ok: true, total_rows: allRows.length, sheets: perSheet, dates: uniqDates });
+  } catch(e) {
+    console.error('Writeoffs sync error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
-app.get('/api/writeoffs/range', (req, res) => {
-  if (!checkView(req,res)) return;
-  const {from,to}=req.query;
-  if (!from||!to) return res.status(400).json({error:'from и to обязательны'});
-  try {
-    const raw=JSON.parse(fs.readFileSync(WO_RAW_FILE,'utf8'));
-    const rows=(raw.rows||[]).filter(r=>r.d>=from&&r.d<=to);
-    res.json(aggregateWriteoffs(rows,`${from} — ${to}`));
-  } catch(e) { res.status(500).json({error:e.message}); }
-});
-app.get('/api/data/writeoffs_by_point', async (req, res) => {
-  if (!checkView(req,res)) return;
-  try {
-    const p=path.join(LOCAL_DATA_DIR,'writeoffs_by_point.json');
-    if (fs.existsSync(p)) return res.json(JSON.parse(fs.readFileSync(p,'utf8')));
-    res.json(null);
-  } catch { res.json(null); }
-});
+
 
 // ── Production (Производство) ─────────────────────────────────────────────────
-const PROD_SHEET_ID   = '1aQHL9lyceepk0bBTRY9s23VZQcbHPCDX';
-const PROD_FILE_PATH  = 'data/production.json';
-const LOCAL_PROD_FILE = path.join(LOCAL_DATA_DIR, 'production.json');
+const PROD_FILE_PATH   = 'data/production.json';
+const LOCAL_PROD_FILE  = path.join(LOCAL_DATA_DIR, 'production.json');
+const PROD_SHEET_ID    = '1aQHL9lyceepk0bBTRY9s23VZQcbHPCDX';
+const PROD_GID         = '1287300396';
 if (!fs.existsSync(LOCAL_PROD_FILE)) fs.writeFileSync(LOCAL_PROD_FILE, 'null');
 
-// Кэш: { [sheetName]: { data, ts } }
-const _prodCache = {};
-const PROD_CACHE_TTL = 5 * 60 * 1000;
-let _prodSheetListCache = null, _prodSheetListTs = 0;
-const PROD_LIST_CACHE_TTL = 15 * 60 * 1000;
+let _prodCsvCache = null, _prodCsvCacheTs = 0;
+const PROD_CSV_CACHE_TTL = 5 * 60 * 1000;
 
 async function readProduction() {
   if (GH_TOKEN && GH_OWNER) {
@@ -620,47 +677,7 @@ async function writeProduction(data, sha) {
   return 'local';
 }
 
-function normDateKey(name) {
-  const m = name.match(/^(\d{2})[.,](\d{2})(?:[.,](\d{2,4}))?/);
-  if (!m) return name;
-  const [, d, mo, y] = m;
-  const year = y ? (y.length === 2 ? '20' + y : y) : '2026';
-  return `${year}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
-}
-
-async function fetchProdSheetList() {
-  const now = Date.now();
-  if (_prodSheetListCache && (now - _prodSheetListTs) < PROD_LIST_CACHE_TTL) return _prodSheetListCache;
-  const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=xlsx`;
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  if (!r.ok) throw new Error('Google Sheets XLSX HTTP ' + r.status);
-  const buf = Buffer.from(await r.arrayBuffer());
-  const XLSX = require('xlsx');
-  const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
-  const DATE_PAT = /^\d{2}[.,]\d{2}/;
-  const sheets = wb.SheetNames.filter(n => DATE_PAT.test(n))
-    .map(n => ({ name: n, label: n, sortKey: normDateKey(n) }))
-    .sort((a, b) => b.sortKey.localeCompare(a.sortKey));
-  _prodSheetListCache = sheets;
-  _prodSheetListTs = now;
-  return sheets;
-}
-
-async function fetchProdSheet(sheetName, noCache = false) {
-  const now = Date.now();
-  if (!noCache && _prodCache[sheetName] && (now - _prodCache[sheetName].ts) < PROD_CACHE_TTL) {
-    return _prodCache[sheetName].data;
-  }
-  const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
-  const csv = await r.text();
-  const result = parseProductionCsv(csv, sheetName);
-  _prodCache[sheetName] = { data: result, ts: now };
-  return result;
-}
-
-function parseProductionCsv(csv, sheetName = '') {
+function parseProductionCsv(csv) {
   const parseNum = s => {
     if (!s) return 0;
     const n = parseFloat(String(s).replace(/\u00a0/g,'').replace(/\u202f/g,'').replace(/\s/g,'').replace(',','.').replace(/[^\d.]/g,''));
@@ -668,11 +685,11 @@ function parseProductionCsv(csv, sheetName = '') {
   };
   const lines = csv.split('\n');
   function parseLine(line) {
-    const res = []; let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') { if (inQ && line[i+1]==='"') { cur+='"'; i++; } else inQ=!inQ; }
-      else if (c===',' && !inQ) { res.push(cur.trim()); cur=''; }
+    const res=[]; let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
       else cur+=c;
     }
     res.push(cur.trim()); return res;
@@ -680,7 +697,6 @@ function parseProductionCsv(csv, sheetName = '') {
   const rows = lines.map(parseLine);
   const SKIP_DEPT = new Set(['Отделение','','ФИО']);
   const SUMMARY_HEADERS = new Set(['выпуск едениц','выпуск единиц','на ед продукции','наименование']);
-
   const depts = [];
   let curDept = null;
   for (let i = 0; i < rows.length; i++) {
@@ -696,13 +712,11 @@ function parseProductionCsv(csv, sheetName = '') {
       if (hours>0||pay>0) curDept.staff.push({ fio:col1, hours, pay, rate:parseNum(r[4]) });
     }
   }
-
   let detailStart = -1;
   for (let i = 0; i < rows.length; i++) {
     const col1=(rows[i][1]||'').trim(), col8=(rows[i][8]||'').trim();
     if (col1==='ФИО' && col8 && !SUMMARY_HEADERS.has(col8.toLowerCase())) { detailStart=i; break; }
   }
-
   const productsByDept = {};
   let detailDept = null;
   if (detailStart >= 0) {
@@ -717,7 +731,6 @@ function parseProductionCsv(csv, sheetName = '') {
       }
     }
   }
-
   const normName = s => s.toLowerCase().replace(/\s+/g,' ').trim();
   const deptsResult = depts.map(d => {
     let products = productsByDept[d.name] || [];
@@ -729,21 +742,18 @@ function parseProductionCsv(csv, sheetName = '') {
     const totalHrs = products.reduce((s,p)=>s+p.hrs_per_unit*p.fact,0);
     const fotPerUnit = d.output_units>0 ? Math.round(d.pay_dept/d.output_units*100)/100 : 0;
     const productsWithFot = products.map(p => {
-      const fot_per_unit = (p.hrs_per_unit>0&&totalHrs>0&&d.pay_dept>0) ? Math.round(d.pay_dept/totalHrs*p.hrs_per_unit*100)/100 : 0;
-      return { ...p, fot_per_unit };
+      const fot_per_unit=(p.hrs_per_unit>0&&totalHrs>0&&d.pay_dept>0)?Math.round(d.pay_dept/totalHrs*p.hrs_per_unit*100)/100:0;
+      return {...p, fot_per_unit};
     });
-    return {
-      name:d.name, pay_dept:Math.round(d.pay_dept), output_units:Math.round(d.output_units*100)/100,
+    return { name:d.name, pay_dept:Math.round(d.pay_dept), output_units:Math.round(d.output_units*100)/100,
       fot_per_unit:fotPerUnit, staff_count:d.staff.length,
       total_hours:Math.round(d.staff.reduce((s,e)=>s+e.hours,0)*10)/10,
-      staff:d.staff, products:productsWithFot, active_products:products.filter(p=>p.fact>0).length,
-    };
+      staff:d.staff, products:productsWithFot, active_products:products.filter(p=>p.fact>0).length };
   });
-
-  const totalFot = deptsResult.reduce((s,d)=>s+d.pay_dept,0);
-  const totalUnits = deptsResult.reduce((s,d)=>s+d.output_units,0);
+  const totalFot=deptsResult.reduce((s,d)=>s+d.pay_dept,0);
+  const totalUnits=deptsResult.reduce((s,d)=>s+d.output_units,0);
   return {
-    meta: { sheet:sheetName, date_label:sheetName, created_at:new Date().toISOString().slice(0,10),
+    meta:{ sheet:'Основной расчёт', created_at:new Date().toISOString().slice(0,10),
       total_fot:totalFot, total_units:Math.round(totalUnits*100)/100,
       fot_per_unit_avg:totalUnits>0?Math.round(totalFot/totalUnits*100)/100:0,
       depts_count:deptsResult.filter(d=>d.pay_dept>0||d.output_units>0).length },
@@ -751,36 +761,61 @@ function parseProductionCsv(csv, sheetName = '') {
   };
 }
 
-app.get('/api/production/sheets', async (req, res) => {
-  if (!checkView(req, res)) return;
-  try { res.json(await fetchProdSheetList()); }
-  catch(e) { res.status(502).json({ error: e.message }); }
-});
-
-app.get('/api/production/sheet', async (req, res) => {
-  if (!checkView(req, res)) return;
-  const { name, nocache } = req.query;
-  if (!name) return res.status(400).json({ error: 'Параметр name обязателен' });
-  try { res.json(await fetchProdSheet(name, nocache==='1')); }
-  catch(e) { res.status(502).json({ error: e.message }); }
-});
-
 app.get('/api/production', async (req, res) => {
   if (!checkView(req, res)) return;
   const { data } = await readProduction();
   res.json(data);
 });
 
-app.post('/api/production/save', async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-  const { name } = req.query;
-  if (!name) return res.status(400).json({ error: 'Параметр name обязателен' });
+app.get('/api/production/csv', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const now = Date.now();
+  const noCache = req.query.nocache === '1';
+  if (!noCache && _prodCsvCache && (now - _prodCsvCacheTs) < PROD_CSV_CACHE_TTL) {
+    return res.json(_prodCsvCache);
+  }
   try {
-    const data = await fetchProdSheet(name, true);
+    const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=csv&gid=${PROD_GID}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    const result = parseProductionCsv(csv);
+    _prodCsvCache = result; _prodCsvCacheTs = now;
+    res.json(result);
+  } catch(e) {
+    console.error('Production CSV fetch error:', e.message);
+    if (_prodCsvCache) return res.json(_prodCsvCache);
+    res.status(502).json({ error: 'Не удалось получить данные: ' + e.message });
+  }
+});
+
+app.post('/api/production/sync', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    _prodCsvCache = null; _prodCsvCacheTs = 0;
+    const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=csv&gid=${PROD_GID}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    const result = parseProductionCsv(csv);
+    _prodCsvCache = result; _prodCsvCacheTs = Date.now();
+    const { sha } = await readProduction();
+    const dest = await writeProduction(result, sha);
+    res.json({ ok: true, depts: result.depts.length, total_fot: result.meta.total_fot, saved_to: dest });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/production', upload.single('file'), async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const data = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
+    if (!data.meta) return res.status(400).json({ error: 'Неверный формат' });
     const { sha } = await readProduction();
     const dest = await writeProduction(data, sha);
-    res.json({ ok:true, sheet:name, depts:data.depts.length, saved_to:dest });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+    res.json({ ok: true, saved_to: dest });
+  } catch(e) { res.status(400).json({ error: e.message }); }
 });
 // ── Sebes (Себестоимость) ────────────────────────────────────────────────────
 const SEBES_FILE_PATH  = 'data/sebes.json';
