@@ -504,49 +504,89 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <!-- ═══ WRITEOFFS TAB ═══ -->
 <div id="page-wo" class="page">
 <div class="wrap">
+
+  <!-- Шапка -->
   <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <div style="display:flex;align-items:center;gap:8px"><div class="sdot spin" id="sdot"></div><span id="stxt">Загрузка...</span></div>
-    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
-      <span id="wo-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
-      <span id="wo-sheets-text">Sheets</span>
-      <button id="wo-sheets-btn" onclick="syncWoFromTab()" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="sdot spin" id="sdot"></div>
+      <span id="stxt">Загрузка...</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <select id="wo-sheet-select" onchange="onWoSheetChange()"
+        style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer;min-width:100px">
+        <option value="">Период...</option>
+      </select>
+      <button onclick="refreshWoData()" style="font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">↻ Обновить</button>
+      <span id="wo-status-msg" style="font-size:11px;color:var(--grn)"></span>
     </div>
   </div>
-  <div id="krow" class="kpis"></div>
 
-  <div class="frow">
-    <select id="wo-date-from" onchange="applyWoDateFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
+  <!-- KPI -->
+  <div id="wo-kpi-row" class="kpis" style="margin-bottom:20px"></div>
+
+  <!-- Фильтры -->
+  <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
+    <select id="wo-date-from" onchange="applyWoFilters()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:130px">
+      <option value="">С даты...</option>
+    </select>
     <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-    <select id="wo-date-to" onchange="applyWoDateFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
-    <select id="wo-wh-filter" onchange="applyWoWhFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все склады</option></select>
-    <button class="fbtn" id="wo-reset-btn" onclick="resetWoFilters()" style="display:none">✕ Сбросить</button>
-    <button class="fbtn act" onclick="setF('all',this)">Все</button>
-    <button class="fbtn" onclick="setF('danger',this)">🔴 &gt;100k</button>
-    <button class="fbtn" onclick="setF('warn',this)">🟡 45–100k</button>
-    <button class="fbtn" onclick="setF('ok',this)">🟢 &lt;45k</button>
-    <div class="sw"><span class="sic">🔍</span><input class="si" id="si" type="text" placeholder="Поиск по складу или позиции..." oninput="renderCards()"></div>
+    <select id="wo-date-to" onchange="applyWoFilters()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:130px">
+      <option value="">По дату...</option>
+    </select>
+    <select id="wo-point-filter" onchange="applyWoFilters()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:170px">
+      <option value="">Все точки</option>
+    </select>
+    <select id="wo-article-filter" onchange="applyWoFilters()"
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:190px">
+      <option value="">Все статьи</option>
+    </select>
+    <div class="sw"><span class="sic">🔍</span>
+      <input class="si" id="wo-search" type="text" placeholder="Поиск по точке..." oninput="renderWoPoints()">
+    </div>
+    <button class="fbtn" onclick="resetWoFilters()">✕ Сбросить</button>
   </div>
-  <!-- Блоки аналитики статей и точек -->
+
+  <!-- Аналитика статей -->
   <div id="wo-articles-section" style="display:none;margin-bottom:20px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-      <!-- Группы статей -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
-        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Группы статей</div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--txt2)" id="wo-groups-legend"></div>
-        <div id="wo-groups-bars"></div>
-      </div>
-      <!-- Статьи детально -->
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
-        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Статьи (детально)</div>
+        <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:14px">📋 Статьи списаний</div>
         <div id="wo-articles-bars"></div>
       </div>
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:14px">📅 По дням</div>
+        <div id="wo-by-date-chart"></div>
+      </div>
     </div>
   </div>
 
-  <div class="cc" id="cc"></div>
-  <div class="grid" id="grid"></div>
-  </div><!-- /page-wo wrap -->
+  <!-- Карточки точек -->
+  <div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:12px" id="wo-points-count"></div>
+  <div id="wo-points-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
+
+  <!-- Пустое состояние -->
+  <div id="wo-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
+    <div style="font-size:48px;margin-bottom:16px;opacity:.3">📊</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Выберите период</div>
+    <div style="font-size:13px">Список периодов загружается автоматически</div>
+  </div>
+
+</div><!-- /wrap -->
+</div><!-- /page-wo -->
+
+<!-- Модальное окно точки -->
+<div id="wo-point-modal" onclick="if(event.target===this)closeWoModal()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;overflow-y:auto;padding:20px">
+  <div style="max-width:600px;margin:40px auto;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:24px;position:relative">
+    <button onclick="closeWoModal()"
+      style="position:absolute;top:16px;right:16px;background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:4px 10px;color:var(--txt);cursor:pointer;font-size:13px">✕</button>
+    <div id="wo-modal-content"></div>
+  </div>
 </div>
+
 
 <!-- ═══ STOPS TAB ═══ -->
 <div id="page-stops" class="page">
@@ -703,28 +743,38 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <!-- ═══ PRODUCTION TAB ═══ -->
 <div id="page-production" class="page">
 <div class="wrap">
+  <!-- Заголовок -->
   <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
     <div style="display:flex;align-items:center;gap:8px">
       <div class="sdot ok" id="prod-sdot"></div>
       <span>Производство<span id="prod-period-label"></span></span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button id="prod-sync-btn" onclick="syncProductionFromSheets()" style="display:none;font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">↻ Синхронизировать</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <!-- Выбор листа (даты) -->
+      <select id="prod-sheet-select" onchange="onProdSheetChange()"
+        style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer;min-width:120px">
+        <option value="">Выберите дату...</option>
+      </select>
+      <button id="prod-sync-btn" onclick="syncProductionFromSheets()"
+        style="font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">↻ Обновить</button>
       <span id="prod-sync-msg" style="font-size:11px;color:var(--grn)"></span>
     </div>
+  </div>
+
+  <!-- Загрузка списка -->
+  <div id="prod-loading" style="text-align:center;padding:40px;color:var(--txt3);display:none">
+    <div style="font-size:13px">⏳ Загрузка...</div>
   </div>
 
   <!-- Empty state -->
   <div id="prod-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
     <div style="font-size:48px;margin-bottom:16px;opacity:.3">🏭</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные производства не загружены</div>
-    <div style="font-size:13px;margin-bottom:24px">Нажмите «Синхронизировать» или войдите как admin</div>
-    <button onclick="loadProductionLive()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer">Загрузить из Google Sheets</button>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Выберите дату</div>
+    <div style="font-size:13px">Список доступных дней загружается автоматически</div>
   </div>
 
-  <!-- Data -->
+  <!-- Данные -->
   <div id="prod-data-wrap" style="display:none">
-
     <!-- KPI карточки цехов -->
     <div id="prod-dept-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px"></div>
 
@@ -733,21 +783,20 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div style="font-size:13px;font-weight:700;color:var(--txt)">Цех:</div>
       <div id="prod-dept-tabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
-
-    <!-- Текущий цех — карточка -->
     <div id="prod-dept-detail" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px"></div>
 
-    <!-- ФОТ на единицу: сравнение цехов -->
+    <!-- ФОТ/ед сравнение -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">💰 ФОТ на единицу продукции — сравнение цехов</div>
       <div id="prod-fot-chart"></div>
     </div>
 
-    <!-- Топ продукция по выпуску -->
+    <!-- Продукция -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="font-size:13px;font-weight:700;color:var(--txt)">📦 Выпуск продукции по позициям</div>
-        <select id="prod-dept-filter" onchange="renderProdProducts()" style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer">
+        <select id="prod-dept-filter" onchange="renderProdProducts()"
+          style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer">
           <option value="">Все цехи</option>
         </select>
       </div>
@@ -759,7 +808,6 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">👥 Сотрудники по цехам</div>
       <div id="prod-staff-table"></div>
     </div>
-
   </div>
 </div>
 </div><!-- /page-production -->
@@ -1345,62 +1393,93 @@ let PROD_DATA = null, PROD_ACTIVE_DEPT = null;
 async function loadProductionFromServer() {
   const sdot = document.getElementById('prod-sdot');
   if (sdot) sdot.className = 'sdot spin';
+  // Загружаем список листов
+  await loadProdSheetList();
+  // Пробуем загрузить сохранённые данные
   try {
-    // Сначала пробуем живые данные из Sheets
-    const r = await fetch('/api/production/csv', { headers: { 'X-View-Password': sessionPassword } });
+    const r = await fetch('/api/production', { headers: { 'X-View-Password': sessionPassword } });
     if (r.ok) {
       const data = await r.json();
-      if (data && data.meta) { applyProductionData(data); return true; }
+      if (data && data.meta) {
+        applyProductionData(data);
+        // Выставляем выбранный лист в селект
+        const sel = document.getElementById('prod-sheet-select');
+        if (sel && data.meta.sheet) sel.value = data.meta.sheet;
+        return true;
+      }
     }
-    // Fallback — сохранённые данные
-    const r2 = await fetch('/api/production', { headers: { 'X-View-Password': sessionPassword } });
-    if (r2.ok) {
-      const data = await r2.json();
-      if (data && data.meta) { applyProductionData(data); return true; }
-    }
-    if (sdot) sdot.className = 'sdot warn';
-    renderProduction(); return false;
-  } catch(e) {
-    if (sdot) sdot.className = 'sdot warn';
-    renderProduction(); return false;
-  }
+  } catch(e) {}
+  if (sdot) sdot.className = 'sdot warn';
+  renderProduction();
+  return false;
 }
 
-async function loadProductionLive() {
+async function loadProdSheetList() {
+  try {
+    const r = await fetch('/api/production/sheets', { headers: { 'X-View-Password': sessionPassword } });
+    if (!r.ok) return;
+    const sheets = await r.json();
+    const sel = document.getElementById('prod-sheet-select');
+    if (!sel || !sheets.length) return;
+    sel.innerHTML = '<option value="">Выберите дату...</option>' +
+      sheets.map(s => `<option value="${s.name}">${s.label}</option>`).join('');
+  } catch(e) { console.error('loadProdSheetList:', e); }
+}
+
+async function onProdSheetChange() {
+  const sel = document.getElementById('prod-sheet-select');
+  const name = sel ? sel.value : '';
+  if (!name) return;
   const sdot = document.getElementById('prod-sdot');
-  if (sdot) sdot.className = 'sdot spin';
-  try {
-    const r = await fetch('/api/production/csv?nocache=1', { headers: { 'X-View-Password': sessionPassword } });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    if (data && data.meta) { applyProductionData(data); return; }
-    throw new Error('Нет данных');
-  } catch(e) {
-    if (sdot) sdot.className = 'sdot warn';
-    alert('❌ ' + e.message);
-  }
-}
-
-async function syncProductionFromSheets() {
-  const btn = document.getElementById('prod-sync-btn');
   const msg = document.getElementById('prod-sync-msg');
-  if (btn) btn.disabled = true;
-  if (msg) msg.textContent = '⏳ Загрузка...';
+  const loading = document.getElementById('prod-loading');
+  const wrap = document.getElementById('prod-data-wrap');
+  const empty = document.getElementById('prod-empty');
+  if (sdot) sdot.className = 'sdot spin';
+  if (msg) msg.textContent = '⏳ Загружаю...';
+  if (loading) loading.style.display = 'block';
+  if (wrap) wrap.style.display = 'none';
+  if (empty) empty.style.display = 'none';
   try {
-    // Живые данные доступны через viewer-пароль
-    const r = await fetch('/api/production/csv?nocache=1', {
+    const r = await fetch(`/api/production/sheet?name=${encodeURIComponent(name)}`, {
       headers: { 'X-View-Password': sessionPassword }
     });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
-    if (!data || !data.meta) throw new Error('Нет данных');
-    applyProductionData(data);
-    if (msg) { msg.textContent = '✅ Обновлено'; setTimeout(() => msg.textContent = '', 4000); }
-    // Сохраняем на сервере если admin
-    if (adminPw) {
-      fetch('/api/production/sync', { method:'POST', headers:{'X-Admin-Password':adminPw} })
-        .catch(()=>{});
+    if (data && data.meta) {
+      applyProductionData(data);
+      if (msg) { msg.textContent = '✅ ' + name; setTimeout(() => msg.textContent = '', 3000); }
+    } else throw new Error('Нет данных');
+  } catch(e) {
+    if (sdot) sdot.className = 'sdot warn';
+    if (msg) { msg.textContent = '❌ ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'block';
+  }
+}
+
+async function syncProductionFromSheets() {
+  const sel = document.getElementById('prod-sheet-select');
+  const name = sel ? sel.value : '';
+  const btn = document.getElementById('prod-sync-btn');
+  const msg = document.getElementById('prod-sync-msg');
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = '⏳ Обновляю список...';
+  // Сбрасываем кэш списка листов и перезагружаем
+  try {
+    // Если выбран лист — обновляем его данные
+    if (name) {
+      const r = await fetch(`/api/production/sheet?name=${encodeURIComponent(name)}&nocache=1`, {
+        headers: { 'X-View-Password': sessionPassword }
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const data = await r.json();
+      if (data && data.meta) applyProductionData(data);
     }
+    // Обновляем список листов
+    await loadProdSheetList();
+    if (sel && name) sel.value = name;
+    if (msg) { msg.textContent = '✅ Обновлено'; setTimeout(() => msg.textContent = '', 3000); }
   } catch(e) {
     if (msg) { msg.textContent = '❌ ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
   } finally {
@@ -1413,16 +1492,17 @@ function applyProductionData(data) {
   const sdot = document.getElementById('prod-sdot');
   if (sdot) sdot.className = 'sdot ok';
   const lbl = document.getElementById('prod-period-label');
-  if (lbl) lbl.innerHTML = ' · <b style="color:var(--txt)">' + (data.meta.created_at || '') + '</b>';
-  // Показываем кнопку синхронизации для admin
-  const syncBtn = document.getElementById('prod-sync-btn');
-  if (syncBtn) syncBtn.style.display = '';
+  if (lbl) lbl.innerHTML = data.meta.date_label ? ' · <b style="color:var(--txt)">' + data.meta.date_label + '</b>' : '';
+  const loading = document.getElementById('prod-loading');
+  if (loading) loading.style.display = 'none';
   renderProduction();
 }
 
 function renderProduction() {
   const empty = document.getElementById('prod-empty');
   const wrap  = document.getElementById('prod-data-wrap');
+  const loading = document.getElementById('prod-loading');
+  if (loading) loading.style.display = 'none';
   if (!PROD_DATA || !PROD_DATA.depts) {
     if (empty) empty.style.display = 'block';
     if (wrap)  wrap.style.display  = 'none';
@@ -1430,65 +1510,47 @@ function renderProduction() {
   }
   if (empty) empty.style.display = 'none';
   if (wrap)  wrap.style.display  = 'block';
-
   const depts = PROD_DATA.depts.filter(d => d.output_units > 0 || d.pay_dept > 0);
-
-  // ── KPI карточки цехов ────────────────────────────────────────────────────
   const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
+
+  // KPI карточки
   const kpiEl = document.getElementById('prod-dept-kpis');
-  if (kpiEl) {
-    kpiEl.innerHTML = depts.map((d, i) => {
-      const clr = DEPT_COLORS[i % DEPT_COLORS.length];
-      const hasUnits = d.output_units > 0;
-      return `<div onclick="selectProdDept('${d.name.replace(/'/g,"\\'")}',this)" style="background:var(--card);border:2px solid ${clr}33;border-radius:12px;padding:14px 16px;cursor:pointer;transition:border .15s" data-dept="${d.name}">
-        <div style="font-size:11px;font-weight:700;color:${clr};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${d.name}</div>
-        <div style="font-size:22px;font-weight:800;color:var(--txt);margin-bottom:2px">${hasUnits ? d.output_units.toLocaleString('ru-RU') : '—'}</div>
-        <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">единиц выпущено</div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <div><div style="font-size:10px;color:var(--txt3)">ФОТ цеха</div><div style="font-size:13px;font-weight:700;color:var(--txt)">${d.pay_dept.toLocaleString('ru-RU')} ₽</div></div>
-          ${hasUnits ? `<div><div style="font-size:10px;color:var(--txt3)">ФОТ / ед</div><div style="font-size:13px;font-weight:700;color:${clr}">${d.fot_per_unit.toFixed(2)} ₽</div></div>` : ''}
-          <div><div style="font-size:10px;color:var(--txt3)">Сотрудников</div><div style="font-size:13px;font-weight:700;color:var(--txt)">${d.staff_count}</div></div>
-        </div>
-      </div>`;
-    }).join('');
-  }
+  if (kpiEl) kpiEl.innerHTML = depts.map((d, i) => {
+    const clr = DEPT_COLORS[i % DEPT_COLORS.length];
+    return `<div onclick="selectProdDept('${d.name.replace(/'/g,"\'")}',this)" data-dept="${d.name}"
+      style="background:var(--card);border:2px solid ${clr}33;border-radius:12px;padding:14px 16px;cursor:pointer;transition:border .15s">
+      <div style="font-size:11px;font-weight:700;color:${clr};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${d.name}</div>
+      <div style="font-size:22px;font-weight:800;color:var(--txt);margin-bottom:2px">${d.output_units > 0 ? d.output_units.toLocaleString('ru-RU') : '—'}</div>
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">единиц</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div><div style="font-size:10px;color:var(--txt3)">ФОТ цеха</div><div style="font-size:13px;font-weight:700;color:var(--txt)">${d.pay_dept.toLocaleString('ru-RU')} ₽</div></div>
+        ${d.output_units > 0 ? `<div><div style="font-size:10px;color:var(--txt3)">ФОТ/ед</div><div style="font-size:13px;font-weight:700;color:${clr}">${d.fot_per_unit.toFixed(2)} ₽</div></div>` : ''}
+        <div><div style="font-size:10px;color:var(--txt3)">Сотрудников</div><div style="font-size:13px;font-weight:700;color:var(--txt)">${d.staff_count}</div></div>
+      </div>
+    </div>`;
+  }).join('');
 
-  // ── Табы цехов ────────────────────────────────────────────────────────────
+  // Табы
   const tabsEl = document.getElementById('prod-dept-tabs');
-  if (tabsEl) {
-    tabsEl.innerHTML = depts.map((d, i) => {
-      const clr = DEPT_COLORS[i % DEPT_COLORS.length];
-      return `<button onclick="selectProdDept('${d.name.replace(/'/g,"\\'")}',null)" data-dept-tab="${d.name}"
-        style="padding:5px 14px;border-radius:20px;border:1px solid ${clr};background:var(--card);color:var(--txt2);cursor:pointer;font-size:11px;font-weight:600;transition:all .15s">${d.name}</button>`;
-    }).join('');
-  }
+  if (tabsEl) tabsEl.innerHTML = depts.map((d, i) => {
+    const clr = DEPT_COLORS[i % DEPT_COLORS.length];
+    return `<button onclick="selectProdDept('${d.name.replace(/'/g,"\'")}',null)" data-dept-tab="${d.name}"
+      style="padding:5px 14px;border-radius:20px;border:1px solid ${clr};background:var(--card);color:var(--txt2);cursor:pointer;font-size:11px;font-weight:600;transition:all .15s">${d.name}</button>`;
+  }).join('');
 
-  // ── Фильтр по цехам для продукции ────────────────────────────────────────
+  // Фильтр продукции
   const deptFilter = document.getElementById('prod-dept-filter');
-  if (deptFilter) {
-    deptFilter.innerHTML = '<option value="">Все цехи</option>' +
-      depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
-  }
+  if (deptFilter) deptFilter.innerHTML = '<option value="">Все цехи</option>' +
+    depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
 
-  // ── ФОТ/ед — горизонтальный бар-чарт ─────────────────────────────────────
   renderProdFotChart(depts, DEPT_COLORS);
-
-  // Выбираем первый цех по умолчанию
-  const firstDept = depts[0];
-  if (firstDept) selectProdDept(firstDept.name, null);
-
+  if (depts[0]) selectProdDept(depts[0].name, null);
   renderProdProducts();
   renderProdStaff();
 }
 
 function selectProdDept(deptName, cardEl) {
   PROD_ACTIVE_DEPT = deptName;
-  // Подсветка карточек
-  document.querySelectorAll('#prod-dept-kpis > div').forEach(el => {
-    el.style.borderColor = el.dataset.dept === deptName
-      ? el.style.borderColor.replace('33','') : el.style.borderColor.slice(0,7)+'33';
-  });
-  // Подсветка табов
   const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
   const depts = PROD_DATA.depts.filter(d => d.output_units > 0 || d.pay_dept > 0);
   document.querySelectorAll('[data-dept-tab]').forEach(btn => {
@@ -1506,32 +1568,32 @@ function renderProdDeptDetail(deptName) {
   const el = document.getElementById('prod-dept-detail');
   if (!el || !d) return;
   const active = d.products.filter(p => p.fact > 0);
-  const totalHrs = d.products.reduce((s, p) => s + p.hrs_total, 0);
+  const totalHrs = d.products.reduce((s, p) => s + p.hrs_per_unit * p.fact, 0);
   const fotPerHr = totalHrs > 0 ? d.pay_dept / totalHrs : 0;
   el.innerHTML = `
-    <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">🏭 ${d.name} — детализация</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">🏭 ${d.name}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px">
       <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
-        <div style="font-size:10px;color:var(--txt3)">Общий выпуск</div>
-        <div style="font-size:18px;font-weight:800;color:var(--txt)">${d.output_units.toLocaleString('ru-RU')}<span style="font-size:12px;font-weight:400;color:var(--txt3);margin-left:4px">ед</span></div>
+        <div style="font-size:10px;color:var(--txt3)">Выпуск</div>
+        <div style="font-size:18px;font-weight:800;color:var(--txt)">${d.output_units.toLocaleString('ru-RU')}<span style="font-size:12px;color:var(--txt3);margin-left:3px">ед</span></div>
       </div>
       <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
         <div style="font-size:10px;color:var(--txt3)">ФОТ цеха</div>
-        <div style="font-size:18px;font-weight:800;color:var(--txt)">${d.pay_dept.toLocaleString('ru-RU')}<span style="font-size:12px;font-weight:400;color:var(--txt3);margin-left:4px">₽</span></div>
+        <div style="font-size:18px;font-weight:800;color:var(--txt)">${d.pay_dept.toLocaleString('ru-RU')}<span style="font-size:12px;color:var(--txt3);margin-left:3px">₽</span></div>
       </div>
       <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
         <div style="font-size:10px;color:var(--txt3)">ФОТ / единица</div>
-        <div style="font-size:18px;font-weight:800;color:var(--acc)">${d.fot_per_unit.toFixed(2)}<span style="font-size:12px;font-weight:400;color:var(--txt3);margin-left:4px">₽</span></div>
+        <div style="font-size:18px;font-weight:800;color:var(--acc)">${d.fot_per_unit.toFixed(2)}<span style="font-size:12px;color:var(--txt3);margin-left:3px">₽</span></div>
       </div>
-      <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
+      ${fotPerHr > 0 ? `<div style="background:var(--surf);border-radius:8px;padding:10px 14px">
         <div style="font-size:10px;color:var(--txt3)">ФОТ / час</div>
-        <div style="font-size:18px;font-weight:800;color:var(--warn)">${fotPerHr.toFixed(1)}<span style="font-size:12px;font-weight:400;color:var(--txt3);margin-left:4px">₽</span></div>
-      </div>
+        <div style="font-size:18px;font-weight:800;color:var(--warn)">${fotPerHr.toFixed(1)}<span style="font-size:12px;color:var(--txt3);margin-left:3px">₽</span></div>
+      </div>` : ''}
     </div>
     ${active.length ? `
-    <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:10px">Продукция (активные позиции):</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">
-      ${active.map(p => {
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:10px">Позиции (факт > 0):</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">
+      ${active.slice(0,20).map(p => {
         const pct = d.output_units > 0 ? p.fact / d.output_units * 100 : 0;
         return `<div style="background:var(--surf);border-radius:8px;padding:10px 12px">
           <div style="font-size:11px;font-weight:600;color:var(--txt);margin-bottom:4px">${p.name}</div>
@@ -1539,13 +1601,12 @@ function renderProdDeptDetail(deptName) {
             <span style="font-size:12px;color:var(--txt3)">${p.fact.toLocaleString('ru-RU')} ${p.unit}</span>
             <span style="font-size:11px;color:var(--acc);font-weight:700">${p.fot_per_unit > 0 ? p.fot_per_unit.toFixed(2)+' ₽/ед' : ''}</span>
           </div>
-          <div style="height:3px;background:var(--bd);border-radius:2px;overflow:hidden">
+          <div style="height:3px;background:var(--bd);border-radius:2px">
             <div style="height:100%;width:${Math.min(100,pct)}%;background:var(--acc);border-radius:2px"></div>
           </div>
-          ${p.hrs_per_unit > 0 ? `<div style="font-size:10px;color:var(--txt3);margin-top:3px">${p.hrs_per_unit} ч/ед · ${p.hrs_total.toFixed(2)} ч итого</div>` : ''}
         </div>`;
       }).join('')}
-    </div>` : '<div style="color:var(--txt3);font-size:13px">Нет активных позиций за период</div>'}
+    </div>` : '<div style="color:var(--txt3);font-size:13px">Нет активных позиций</div>'}
   `;
 }
 
@@ -1559,10 +1620,10 @@ function renderProdFotChart(depts, colors) {
     const pct = maxFot > 0 ? d.fot_per_unit / maxFot * 100 : 0;
     const clr = colors[depts.indexOf(d) % colors.length];
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <div style="width:140px;font-size:12px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${d.name}</div>
+      <div style="width:150px;font-size:12px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${d.name}</div>
       <div style="flex:1;height:22px;background:var(--surf);border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${clr};border-radius:4px;transition:width .4s;display:flex;align-items:center;padding-left:8px">
-          <span style="font-size:11px;font-weight:700;color:#000;white-space:nowrap">${pct > 20 ? d.fot_per_unit.toFixed(2)+' ₽' : ''}</span>
+        <div style="height:100%;width:${pct}%;background:${clr};border-radius:4px;display:flex;align-items:center;padding-left:8px">
+          <span style="font-size:11px;font-weight:700;color:#000;white-space:nowrap">${pct > 25 ? d.fot_per_unit.toFixed(2)+' ₽' : ''}</span>
         </div>
       </div>
       <div style="font-size:12px;font-weight:700;color:${clr};width:70px;text-align:right">${d.fot_per_unit.toFixed(2)} ₽</div>
@@ -1575,33 +1636,31 @@ function renderProdProducts() {
   const el = document.getElementById('prod-products-list');
   if (!el || !PROD_DATA) return;
   const filterDept = document.getElementById('prod-dept-filter')?.value || '';
-  const depts = PROD_DATA.depts.filter(d => !filterDept || d.name === filterDept);
-  let allProds = [];
   const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
-  depts.forEach(d => {
-    const di = PROD_DATA.depts.indexOf(d);
-    d.products.filter(p => p.fact > 0).forEach(p => allProds.push({ ...p, dept: d.name, clr: DEPT_COLORS[di % DEPT_COLORS.length] }));
+  let allProds = [];
+  PROD_DATA.depts.forEach((d, di) => {
+    if (filterDept && d.name !== filterDept) return;
+    d.products.filter(p => p.fact > 0).forEach(p =>
+      allProds.push({ ...p, dept: d.name, clr: DEPT_COLORS[di % DEPT_COLORS.length] })
+    );
   });
   allProds.sort((a, b) => b.fact - a.fact);
   if (!allProds.length) { el.innerHTML = '<div style="color:var(--txt3);padding:16px">Нет данных</div>'; return; }
   const maxFact = allProds[0].fact;
   el.innerHTML = `<div style="overflow-x:auto"><table class="stops-tbl"><thead><tr>
-    <th>Продукт</th><th>Цех</th><th style="text-align:right">Факт</th><th>Ед.</th><th style="text-align:right">ч/ед</th><th style="text-align:right">ФОТ/ед ₽</th><th style="min-width:120px">Доля</th>
+    <th>Продукт</th><th>Цех</th><th style="text-align:right">Факт</th><th>Ед.</th><th style="text-align:right">ч/ед</th><th style="text-align:right">ФОТ/ед ₽</th><th style="min-width:100px">Доля</th>
   </tr></thead><tbody>
-  ${allProds.map(p => {
-    const pct = maxFact > 0 ? p.fact / maxFact * 100 : 0;
-    return `<tr>
-      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name}">${p.name}</td>
-      <td><span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${p.clr}22;color:${p.clr};font-weight:700">${p.dept}</span></td>
-      <td style="text-align:right;font-weight:700">${p.fact.toLocaleString('ru-RU')}</td>
-      <td style="color:var(--txt3)">${p.unit}</td>
-      <td style="text-align:right;color:var(--txt3)">${p.hrs_per_unit > 0 ? p.hrs_per_unit : '—'}</td>
-      <td style="text-align:right;color:var(--acc);font-weight:700">${p.fot_per_unit > 0 ? p.fot_per_unit.toFixed(2) : '—'}</td>
-      <td><div style="height:6px;background:var(--surf);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${p.clr};border-radius:3px"></div>
-      </div></td>
-    </tr>`;
-  }).join('')}
+  ${allProds.map(p => `<tr>
+    <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name}">${p.name}</td>
+    <td><span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${p.clr}22;color:${p.clr};font-weight:700">${p.dept}</span></td>
+    <td style="text-align:right;font-weight:700">${p.fact.toLocaleString('ru-RU')}</td>
+    <td style="color:var(--txt3)">${p.unit}</td>
+    <td style="text-align:right;color:var(--txt3)">${p.hrs_per_unit > 0 ? p.hrs_per_unit : '—'}</td>
+    <td style="text-align:right;color:var(--acc);font-weight:700">${p.fot_per_unit > 0 ? p.fot_per_unit.toFixed(2) : '—'}</td>
+    <td><div style="height:6px;background:var(--surf);border-radius:3px;overflow:hidden">
+      <div style="height:100%;width:${maxFact>0?Math.round(p.fact/maxFact*100):0}%;background:${p.clr};border-radius:3px"></div>
+    </div></td>
+  </tr>`).join('')}
   </tbody></table></div>`;
 }
 
@@ -1616,7 +1675,7 @@ function renderProdStaff() {
   ${depts.map((d, i) => {
     const clr = DEPT_COLORS[i % DEPT_COLORS.length];
     return d.staff.map((s, si) => `<tr>
-      ${si === 0 ? `<td rowspan="${d.staff.length}" style="font-weight:700;color:${clr};vertical-align:top;padding-top:10px">${d.name}</td>` : ''}
+      ${si===0 ? `<td rowspan="${d.staff.length}" style="font-weight:700;color:${clr};vertical-align:top;padding-top:10px">${d.name}</td>` : ''}
       <td>${s.fio}</td>
       <td style="text-align:right">${s.hours}</td>
       <td style="text-align:right;font-weight:600">${s.pay.toLocaleString('ru-RU')} ₽</td>
@@ -2047,6 +2106,10 @@ function switchTab(tab,btn){
     b.classList.toggle('active', b.getAttribute('data-tab')===tab);
   });
   if(tab==='overview'){ renderOverview(); }
+  if(tab==='wo'){
+    if(!WO_DATA){ loadWoData(); }
+    else renderWo();
+  }
   if(tab==='stops'){
     if(!STOPS_DATA){
       loadStopsFromServer().then(ok => { if(!ok) renderStops(); });
@@ -2498,1350 +2561,258 @@ async function saveSebesSheetsToServer(){
 
 
 // ══ WRITEOFFS GOOGLE SHEETS SYNC ═══════════════════════════════════════════════
-async function syncWoFromTab(){
-  const dotEl  = document.getElementById('wo-sheets-dot');
-  const textEl = document.getElementById('wo-sheets-text');
-  if(dotEl) dotEl.style.background = 'var(--warn)';
-  if(textEl) textEl.textContent = 'Загрузка...';
+
+// ══ WO (Аналитика списаний) ═════════════════════════════════════════════════
+let WO_DATA = null, WO_FILTERED = null;
+let _woActiveSheet = '';
+
+async function loadWoSheetList() {
   try {
-    const r = await fetch('/api/writeoffs/sync', {method:'POST', headers:{'X-Admin-Password':adminPw}});
-    if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||'HTTP '+r.status); }
-    const j = await r.json();
-    if(!j.ok) throw new Error(j.error||'Ошибка');
-    if(dotEl) dotEl.style.background = 'var(--grn)';
-    // Проверяем не загрузившиеся листы
-    const failed = (j.sheets||[]).filter(s=>s.error);
-    let statusMsg = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU') + ' · ' + j.total_rows + ' строк';
-    if(failed.length){
-      statusMsg += ' · ⚠ не загружены: ' + failed.map(s=>s.name+' ('+s.error+')').join(', ');
-      if(textEl) textEl.style.color = 'var(--warn)';
-    } else {
-      if(textEl) textEl.style.color = 'var(--txt3)';
+    const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
+    if (!r.ok) return;
+    const sheets = await r.json();
+    const sel = document.getElementById('wo-sheet-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Период...</option>' +
+      sheets.map(s=>`<option value="${s.name}">${s.label}</option>`).join('');
+    if (sheets.length && !_woActiveSheet) {
+      sel.value = sheets[0].name;
+      _woActiveSheet = sheets[0].name;
+      await loadWoSheet(sheets[0].name);
     }
-    if(textEl) textEl.textContent = statusMsg;
-    // Перезагрузка данных и лог — в отдельных try чтобы ошибка рендера не считалась ошибкой синхронизации
-    try { await loadData(); } catch(e){ console.error('loadData after sync:', e.message); }
-    try { if(typeof logSync==='function') logSync('wo','Google Sheets','Списания парс'); } catch(e){ console.error('logSync:', e.message); }
-  } catch(e) {
-    if(dotEl) dotEl.style.background = 'var(--red)';
-    if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
-    console.error('syncWoFromTab:', e.message);
-  }
+  } catch(e) { console.error('loadWoSheetList:', e); }
 }
 
-async function syncSebesFromTab(){
-  const dotEl  = document.getElementById('sebes-sheets-dot');
-  const textEl = document.getElementById('sebes-sheets-text');
-  if(dotEl) dotEl.style.background = 'var(--warn)';
-  if(textEl) textEl.textContent = 'Загрузка...';
+async function loadWoSheet(sheetName) {
+  const msg=document.getElementById('wo-status-msg');
+  const sdot=document.getElementById('sdot');
+  if(sdot) sdot.className='sdot spin';
+  if(msg) msg.textContent='⏳ Загружаю...';
+  document.getElementById('wo-empty').style.display='none';
   try {
-    await loadSebesFromSheets(true);
-    if(dotEl) dotEl.style.background = 'var(--grn)';
-    if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU');
-  } catch(e) {
-    if(dotEl) dotEl.style.background = 'var(--red)';
-    if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
-  }
-}
-
-async function loadSebesFromSheets(force){
-  try {
-    const url = '/api/sebes/csv' + (force ? '?nocache=1' : '');
-    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    if(!data || !data.all_items) throw new Error('Нет данных');
-    SEBES_DATA = data;
-    renderSebes();
-  } catch(e){ console.error('loadSebesFromSheets:', e.message); throw e; }
-}
-
-function parseSebesCsv(csv){
-  function parseLine(line){
-    const res=[]; let cur='',inQ=false;
-    for(let i=0;i<line.length;i++){
-      const c=line[i];
-      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
-      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
-      else cur+=c;
-    }
-    res.push(cur.trim()); return res;
-  }
-  const lines=csv.split('\n').filter(l=>l.trim());
-  if(lines.length<2) throw new Error('Пустой файл');
-  const headers=parseLine(lines[0]).map(h=>h.toLowerCase());
-  const iName=headers.findIndex(h=>h.includes('номенкл')||h.includes('наимен'));
-  const iCat =headers.findIndex(h=>h.includes('катег'));
-  const iCost=headers.findIndex(h=>h.includes('стоим')||h.includes('себест')||h.includes('цена'));
-  if(iName<0||iCost<0) throw new Error('Не найдены колонки');
-  const SKIP=new Set(['итого','','nan']);
-  const nameUnitRe=/^(.+?),\s*(порц|шт|л|кг|мл|г)\.?\s*$/i;
-  const period=new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
-  const items=[];
-  for(let i=1;i<lines.length;i++){
-    const r=parseLine(lines[i]);
-    const raw=(r[iName]||'').trim();
-    if(!raw||SKIP.has(raw.toLowerCase()))continue;
-    const costRaw=r[iCost];
-    const cost=costRaw!==null&&!isNaN(+String(costRaw).replace(',','.'))?Math.round(+String(costRaw).replace(',','.')*100)/100:null;
-    const cat=iCat>=0?(r[iCat]||'').trim()||'Прочее':'Прочее';
-    const m=raw.match(nameUnitRe);
-    items.push({name:m?m[1].trim():raw,cat,unit:m?m[2]:'порц',cost,price:null,markup:null,
-                trend:'same',diff:null,diff_pct:null,total_diff:null,total_diff_pct:null,
-                history:cost!==null?[{period,cost}]:[]});
-  }
-  if(!items.length) throw new Error('Нет позиций');
-  const allCats=[...new Set(items.map(i=>i.cat).filter(Boolean))].sort();
-  return {
-    meta:{source:'Себес парс (Google Sheets)',periods:[period],total_items:items.length,
-          total_cats:allCats.length,with_history:0,growth_count:0,drop_count:0,
-          all_cats:allCats,avg_markup:null,no_cost:items.filter(i=>!i.cost).length,
-          created_at:new Date().toISOString().slice(0,10)},
-    top_growth:[],top_drop:[],top_margin:[],low_margin:[],all_items:items,
-  };
-}
-
-async function loadSupplyData(force){
-  if(!force && SUPPLY_DATA) return;
-  try {
-    const url = '/api/supply/csv' + (force ? '?nocache=1' : '');
-    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
+    const r=await fetch(`/api/writeoffs/sheet?name=${encodeURIComponent(sheetName)}`,{headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    const text = await r.text();
-    SUPPLY_DATA = parseSupplyCsv(text);
-    _supplyLastSync = new Date();
-    updateSupplySyncBar(true);
-    if(document.getElementById('page-supply')?.classList.contains('active')) renderSupplyPage();
-  } catch(e){
-    updateSupplySyncBar(false, e.message);
+    WO_DATA=await r.json(); WO_FILTERED=WO_DATA; _woActiveSheet=sheetName;
+    if(sdot) sdot.className='sdot ok';
+    if(msg){msg.textContent='✅ '+sheetName;setTimeout(()=>msg.textContent='',3000);}
+    ss('ok',sheetName); populateWoFilters(); applyWoFilters();
+  } catch(e) {
+    if(sdot) sdot.className='sdot warn';
+    if(msg){msg.textContent='❌ '+e.message;setTimeout(()=>msg.textContent='',5000);}
+    ss('warn',e.message);
+    document.getElementById('wo-empty').style.display='block';
   }
 }
 
-function updateSupplySyncBar(ok, err){
-  const dot  = document.getElementById('supply-sync-dot');
-  const text = document.getElementById('supply-sync-text');
-  if(!dot||!text) return;
-  if(ok){
-    dot.style.background  = 'var(--grn)';
-    text.textContent = 'Синхронизировано · ' + _supplyLastSync.toLocaleTimeString('ru-RU') +
-      ' · ' + (SUPPLY_DATA?.items?.length||0) + ' позиций';
-  } else {
-    dot.style.background  = 'var(--red)';
-    text.textContent = 'Ошибка синхронизации' + (err ? ': '+err : '');
-  }
+async function onWoSheetChange(){
+  const sel=document.getElementById('wo-sheet-select');
+  if(!sel||!sel.value) return;
+  resetWoFiltersUI(); await loadWoSheet(sel.value);
 }
 
-function parseNum(s){
-  if(!s && s !== 0) return null;
-  const n = parseFloat(String(s).replace(/\s/g,'').replace(',','.'));
-  return isNaN(n) ? null : n;
-}
-
-function parseSupplyCsv(csv){
-  // Правильный парсер CSV с учётом кавычек
-  function parseCsvLine(line) {
-    const result = [];
-    let cur = '', inQ = false;
-    for(let i = 0; i < line.length; i++){
-      const c = line[i];
-      if(c === '"'){
-        if(inQ && line[i+1] === '"'){ cur += '"'; i++; }
-        else inQ = !inQ;
-      } else if(c === ',' && !inQ){
-        result.push(cur.trim()); cur = '';
-      } else cur += c;
-    }
-    result.push(cur.trim());
-    return result;
-  }
-
-  const lines = csv.split('\n').filter(l => l.trim());
-  if(!lines.length) return { items:[], suppliers:[], critical:0, warning:0, ordered:0 };
-
-  // Строка 0 — заголовок, определяем индексы колонок
-  const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g,' '));
-  const idx = {
-    name:     headers.findIndex(h => h.includes('наимен')),
-    supplier: headers.findIndex(h => h.includes('поставщ')),
-    phone:    headers.findIndex(h => h.includes('телефон') || h.includes('номер')),
-    price:    headers.findIndex(h => h.includes('цена') || h.includes('послед')),
-    monthQty: headers.findIndex(h => h.includes('расход') && h.includes('мес')),
-    stock:    headers.findIndex(h => h.includes('остаток')),
-    atSupplier: headers.findIndex(h => h.includes('склад') && h.includes('поставщ')),
-    perDay:   headers.findIndex(h => h.includes('расход') && h.includes('ден')),
-    days:     headers.findIndex(h => h.includes('дней') || h.includes('кол-во')),
-    ordered:  headers.findIndex(h => h.includes('заказ')),
-    eta:      headers.findIndex(h => h.includes('ориент') || h.includes('приедет')),
-  };
-
-  // Fallback по позиции если заголовок не распознан
-  if(idx.name     < 0) idx.name     = 0;
-  if(idx.supplier < 0) idx.supplier = 1;
-  if(idx.phone    < 0) idx.phone    = 2;
-  if(idx.price    < 0) idx.price    = 3;
-  if(idx.monthQty < 0) idx.monthQty = 4;
-  if(idx.stock    < 0) idx.stock    = 5;
-  if(idx.atSupplier < 0) idx.atSupplier = 6;
-  if(idx.perDay   < 0) idx.perDay   = 7;
-  if(idx.days     < 0) idx.days     = 8;
-  if(idx.ordered  < 0) idx.ordered  = 9;
-  if(idx.eta      < 0) idx.eta      = 10;
-
-  const items = [];
-  let currentSupplier = null;
-
-  for(let i = 1; i < lines.length; i++){
-    const r = parseCsvLine(lines[i]);
-    const name = (r[idx.name]||'').trim();
-    if(!name) continue;
-
-    const supplierCell = (r[idx.supplier]||'').trim();
-    const priceCell    = (r[idx.price]||'').trim();
-    const phoneCell    = (r[idx.phone]||'').trim();
-
-    // Строка-разделитель поставщика: название в col0, остальные пустые
-    const nonEmpty = r.filter(c => c && c.trim()).length;
-    if(nonEmpty <= 2 && !priceCell && !phoneCell){
-      currentSupplier = name;
-      continue;
-    }
-
-    const supplier   = supplierCell || currentSupplier || '';
-    const phone      = phoneCell;
-    const price      = parseNum(priceCell);
-    const monthQty   = parseNum(r[idx.monthQty]);
-    const stock      = parseNum(r[idx.stock]);
-    const atSup      = r[idx.atSupplier] && r[idx.atSupplier]!=='-' ? parseNum(r[idx.atSupplier]) : null;
-    const perDay     = parseNum(r[idx.perDay]);
-    const daysRaw    = r[idx.days]||'';
-    const days       = daysRaw==='-'||daysRaw==='' ? null : parseNum(daysRaw);
-    const ordRaw     = r[idx.ordered]||'';
-    const ordered    = ordRaw==='-'||ordRaw==='' ? null : parseNum(ordRaw);
-    const eta        = (r[idx.eta]||'').trim();
-
-    const status = (() => {
-      if(ordered && ordered > 0) return 'ordered';
-      if(days === null) return 'ok';
-      if(days < 30)  return 'critical';
-      if(days < 90)  return 'warning';
-      return 'ok';
-    })();
-
-    items.push({ name, supplier, phone, price, monthQty,
-                 stock, atSupplier:atSup, perDay, days, ordered, eta, status });
-  }
-
-  const suppliers = [...new Set(items.map(i=>i.supplier).filter(Boolean))].sort();
-  return {
-    items,
-    suppliers,
-    critical: items.filter(i=>i.status==='critical').length,
-    warning:  items.filter(i=>i.status==='warning').length,
-    ordered:  items.filter(i=>i.status==='ordered').length,
-  };
-}
-
-function renderSupplyPage(){
-  if(!SUPPLY_DATA){ loadSupplyData(); return; }
-  renderSupplyKpis();
-  renderSupplyFilters();
-  renderSupplyTable();
-}
-
-function renderSupplyKpis(){
-  const d = SUPPLY_DATA;
-  const el = document.getElementById('supply-kpis');
-  if(!el) return;
-  const mono = 'font-family:JetBrains Mono,monospace';
-  el.innerHTML = [
-    {label:'Позиций',       val: d.items.length,   sub:'в таблице',     clr:'var(--txt)'},
-    {label:'🔴 Критично',   val: d.critical,        sub:'менее 30 дней',  clr: d.critical>0?'var(--red)':'var(--txt)'},
-    {label:'🟡 Мало',       val: d.warning,         sub:'30–90 дней',      clr: d.warning>0?'var(--warn)':'var(--txt)'},
-    {label:'📦 Заказано',   val: d.ordered,         sub:'в пути',        clr: d.ordered>0?'var(--acc)':'var(--txt)'},
-  ].map(k=>`
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
-      <div style="font-size:11px;color:var(--txt3);margin-bottom:6px">${k.label}</div>
-      <div style="font-size:22px;font-weight:700;color:${k.clr};${mono}">${k.val}</div>
-      <div style="font-size:11px;color:var(--txt3);margin-top:2px">${k.sub}</div>
-    </div>`).join('');
-}
-
-function renderSupplyFilters(){
-  const sel = document.getElementById('supply-supplier-filter');
-  if(!sel || !SUPPLY_DATA) return;
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Все поставщики</option>' +
-    SUPPLY_DATA.suppliers.map(s=>`<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join('');
-}
-
-function renderSupplyTable(){
-  if(!SUPPLY_DATA) return;
-  const supplier = document.getElementById('supply-supplier-filter')?.value||'';
-  const status   = document.getElementById('supply-status-filter')?.value||'';
-  const search   = (document.getElementById('supply-search')?.value||'').toLowerCase().trim();
-  const mono     = 'font-family:JetBrains Mono,monospace';
-
-  let items = SUPPLY_DATA.items.filter(i=>{
-    if(supplier && i.supplier !== supplier) return false;
-    if(status   && i.status   !== status)   return false;
-    if(search   && !i.name.toLowerCase().includes(search) &&
-                   !i.supplier.toLowerCase().includes(search)) return false;
-    return true;
-  });
-
-  const tbody = document.getElementById('supply-tbody');
-  const empty = document.getElementById('supply-empty');
-  if(!tbody) return;
-
-  if(!items.length){
-    tbody.innerHTML = '';
-    if(empty) empty.style.display = '';
-    return;
-  }
-  if(empty) empty.style.display = 'none';
-
-  // Чистим наименование от артикулов вида "086с " в начале
-  const cleanName = n => n.replace(/^\d{2,4}[а-яёa-z]\s+/i, '').trim();
-
-  // Бейдж без эмодзи — просто цветная точка + текст
-  const statusBadge = s => {
-    const cfg = {
-      critical: { clr:'var(--red)',  bg:'rgba(255,69,96,.1)',  txt:'Критично' },
-      warning:  { clr:'var(--warn)', bg:'rgba(255,176,32,.1)', txt:'Мало' },
-      ordered:  { clr:'var(--acc)',  bg:'rgba(163,216,244,.1)',txt:'Заказ' },
-      ok:       { clr:'var(--grn)',  bg:'rgba(152,194,30,.1)', txt:'Норма' },
-    };
-    const c = cfg[s] || cfg.ok;
-    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:20px;background:${c.bg};color:${c.clr};font-weight:600">
-      <span style="width:5px;height:5px;border-radius:50%;background:${c.clr};flex-shrink:0"></span>${c.txt}</span>`;
-  };
-
-  const fmtN = v => v !== null && v !== undefined ? v.toLocaleString('ru-RU') : '—';
-
-  // Цвет колонки "Дней"
-  const daysClr = d => d===null ? 'var(--txt3)' : d<30 ? 'var(--red)' : d<90 ? 'var(--warn)' : 'var(--grn)';
-
-  // Группируем по поставщику
-  const bySupplier = {};
-  items.forEach(i=>{ (bySupplier[i.supplier]=bySupplier[i.supplier]||[]).push(i); });
-
-  tbody.innerHTML = Object.entries(bySupplier).map(([sup, rows])=>`
-    <tr>
-      <td colspan="9" style="padding:12px 12px 5px;font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--bd);background:var(--bg)">${sup}</td>
-    </tr>
-    ${rows.map((i,idx)=>`
-      <tr style="border-bottom:.5px solid var(--bd);transition:background .12s" onmouseover="this.style.background='var(--surf)'" onmouseout="this.style.background=''">
-      <td style="padding:9px 12px;max-width:240px">
-        <div style="font-size:12px;font-weight:500;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${i.name}">${cleanName(i.name)}</div>
-        <div style="margin-top:3px">${statusBadge(i.status)}</div>
-      </td>
-      <td style="padding:9px 12px;font-size:11px;color:var(--txt3)">${i.phone||'—'}</td>
-      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${i.price ? i.price.toLocaleString('ru-RU')+' ₽' : '—'}</td>
-      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${fmtN(i.monthQty)}</td>
-      <td style="padding:9px 12px;text-align:right;${mono};font-size:13px;font-weight:${i.status==='critical'||i.status==='warning'?'700':'400'};color:${i.status==='critical'?'var(--red)':i.status==='warning'?'var(--warn)':'var(--txt)'}">${fmtN(i.stock)}</td>
-      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt3)">${fmtN(i.atSupplier)}</td>
-      <td style="padding:9px 12px;text-align:right;${mono};font-size:13px;font-weight:700;color:${daysClr(i.days)}">${i.days !== null ? i.days : '—'}</td>
-      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:${i.ordered?'var(--acc)':'var(--txt3)'};font-weight:${i.ordered?'600':'400'}">${i.ordered ? fmtN(i.ordered) : '—'}</td>
-      <td style="padding:9px 12px;font-size:11px;color:var(--txt3);white-space:nowrap">${i.eta||'—'}</td>
-    </tr>`).join('')}
-  `).join('');
-}
-
-function resetSupplyFilter(){
-  ['supply-supplier-filter','supply-status-filter'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
-  });
-  const s=document.getElementById('supply-search'); if(s) s.value='';
-  renderSupplyTable();
-}
-
-// ══ СРАВНЕНИЕ ПЕРИОДОВ ═════════════════════════════════════════════════════════
-function cmpQuickFill(mode){
-  // Определяем доступный диапазон дат по выбранному разделу
-  const section = document.getElementById('cmp-section').value;
-  let allDates = [];
-  if(section==='deliveries' && DEL_DATA) allDates = DEL_DATA.meta.all_dates.map(d=>d.iso);
-  else if(section==='stops' && STOPS_DATA) allDates = STOPS_DATA.meta.all_dates.map(d=>d.iso);
-  else if(section==='wo' && periods.length) {
-    // Списания — берём из all_dates если есть в индексе
-    allDates = (window._woDates||[]).map(d=>d.iso||d.d);
-  }
-  if(!allDates.length){
-    // Фоллбэк — последние 60 дней от сегодня
-    const today = new Date();
-    for(let i=0;i<60;i++){ const d=new Date(today); d.setDate(d.getDate()-i); allDates.push(d.toISOString().slice(0,10)); }
-    allDates.sort();
-  }
-  allDates = [...new Set(allDates)].sort();
-  const last = allDates[allDates.length-1];
-  const lastD = new Date(last);
-  const span = mode==='week' ? 7 : 30;
-
-  // Период B (свежий): last-span+1 .. last
-  const bFrom = new Date(lastD); bFrom.setDate(bFrom.getDate()-span+1);
-  // Период A (предыдущий): на span раньше
-  const aTo = new Date(bFrom); aTo.setDate(aTo.getDate()-1);
-  const aFrom = new Date(aTo); aFrom.setDate(aFrom.getDate()-span+1);
-
-  const iso = d => d.toISOString().slice(0,10);
-  document.getElementById('cmp-a-from').value = iso(aFrom);
-  document.getElementById('cmp-a-to').value   = iso(aTo);
-  document.getElementById('cmp-b-from').value = iso(bFrom);
-  document.getElementById('cmp-b-to').value   = iso(lastD);
-  runCompare();
-}
-
-async function runCompare(){
-  const section = document.getElementById('cmp-section').value;
-  const aFrom = document.getElementById('cmp-a-from').value;
-  const aTo   = document.getElementById('cmp-a-to').value;
-  const bFrom = document.getElementById('cmp-b-from').value;
-  const bTo   = document.getElementById('cmp-b-to').value;
-
-  if(!aFrom||!aTo||!bFrom||!bTo){
-    document.getElementById('cmp-empty').style.display='block';
-    document.getElementById('cmp-result').style.display='none';
-    return;
-  }
-
-  let result;
-  if(section==='deliveries') result = compareDeliveries(aFrom,aTo,bFrom,bTo);
-  else if(section==='stops') result = compareStops(aFrom,aTo,bFrom,bTo);
-  else if(section==='wo')    result = await compareWriteoffs(aFrom,aTo,bFrom,bTo);
-
-  if(!result){
-    document.getElementById('cmp-empty').style.display='block';
-    document.getElementById('cmp-result').style.display='none';
-    return;
-  }
-  renderCompareResult(result);
-}
-
-// Универсальный рендер
-function renderCompareResult(res){
-  document.getElementById('cmp-empty').style.display='none';
-  document.getElementById('cmp-result').style.display='block';
-  const mono='font-family:JetBrains Mono,monospace';
-
-  const diffBadge = (a,b,invert)=>{
-    if(a===0 && b===0) return '<span style="color:var(--txt3)">—</span>';
-    const diff = b-a;
-    const pct = a!==0 ? Math.round(diff/a*1000)/10 : 100;
-    // invert: для списаний/стопов рост = плохо (красный)
-    const good = invert ? diff<0 : diff>0;
-    const clr = diff===0?'var(--txt3)':good?'var(--grn)':'var(--red)';
-    const sign = diff>0?'+':'';
-    return `<span style="color:${clr};font-weight:600;${mono}">${sign}${pct}%</span>`;
-  };
-
-  // KPI карточки
-  const kpiEl = document.getElementById('cmp-kpis');
-  kpiEl.innerHTML = res.kpis.map(k=>`
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
-      <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">${k.label}</div>
-      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-        <div><span style="font-size:10px;color:var(--acc)">A</span> <span style="font-size:16px;font-weight:700;${mono}">${k.fmtA}</span></div>
-        <div><span style="font-size:10px;color:var(--warn)">B</span> <span style="font-size:16px;font-weight:700;${mono}">${k.fmtB}</span></div>
-      </div>
-      <div style="margin-top:6px;font-size:12px">${diffBadge(k.a,k.b,k.invert)}</div>
-    </div>`).join('');
-
-  // Разбивка (таблица)
-  document.getElementById('cmp-breakdown-title').textContent = res.breakdownTitle||'Разбивка';
-  const bEl = document.getElementById('cmp-breakdown');
-  const maxVal = Math.max(...res.breakdown.map(r=>Math.max(r.a,r.b)), 1);
-  bEl.innerHTML = `
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr style="border-bottom:1px solid var(--bd)">
-        <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--txt3);font-weight:400">${res.breakdownCol||'Категория'}</th>
-        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--acc);font-weight:400">Период A</th>
-        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--warn);font-weight:400">Период B</th>
-        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--txt3);font-weight:400">Изменение</th>
-      </tr></thead>
-      <tbody>
-        ${res.breakdown.map(r=>`
-          <tr style="border-bottom:.5px solid var(--bd)">
-            <td style="padding:7px 8px;color:var(--txt)">${r.name}</td>
-            <td style="padding:7px 8px;text-align:right;${mono};color:var(--txt2)">${r.fmtA}</td>
-            <td style="padding:7px 8px;text-align:right;${mono};color:var(--txt2)">${r.fmtB}</td>
-            <td style="padding:7px 8px;text-align:right">${diffBadge(r.a,r.b,res.invert)}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
-}
-
-// ── Сравнение довозов ─────────────────────────────────────────────────────────
-function compareDeliveries(aFrom,aTo,bFrom,bTo){
-  if(!DEL_DATA) return null;
-  const inRange=(iso,f,t)=>iso>=f&&iso<=t;
-  const aRows=DEL_DATA.rows.filter(r=>inRange(r.iso,aFrom,aTo));
-  const bRows=DEL_DATA.rows.filter(r=>inRange(r.iso,bFrom,bTo));
-  const sum=(rows,f)=>rows.reduce((s,r)=>s+f(r),0);
-  const fmtR=v=>v.toLocaleString('ru-RU')+' ₽';
-
-  // Разбивка по точкам
-  const byPoint={};
-  aRows.forEach(r=>{(byPoint[r.point]=byPoint[r.point]||{a:0,b:0}).a+=r.cost;});
-  bRows.forEach(r=>{(byPoint[r.point]=byPoint[r.point]||{a:0,b:0}).b+=r.cost;});
-  const breakdown=Object.entries(byPoint).map(([name,v])=>({
-    name, a:v.a, b:v.b, fmtA:fmtR(v.a), fmtB:fmtR(v.b)
-  })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
-
-  return {
-    invert:true,
-    kpis:[
-      {label:'Кол-во довозов', a:aRows.length, b:bRows.length, fmtA:aRows.length, fmtB:bRows.length},
-      {label:'Сумма штрафов', a:sum(aRows,r=>r.cost), b:sum(bRows,r=>r.cost), fmtA:fmtR(sum(aRows,r=>r.cost)), fmtB:fmtR(sum(bRows,r=>r.cost))},
-      {label:'Точек затронуто', a:new Set(aRows.map(r=>r.point)).size, b:new Set(bRows.map(r=>r.point)).size, fmtA:new Set(aRows.map(r=>r.point)).size, fmtB:new Set(bRows.map(r=>r.point)).size},
-    ],
-    breakdownTitle:'По точкам', breakdownCol:'Точка', breakdown,
-  };
-}
-
-// ── Сравнение стопов ──────────────────────────────────────────────────────────
-function compareStops(aFrom,aTo,bFrom,bTo){
-  if(!STOPS_DATA) return null;
-  const collect=(f,t)=>{
-    let rows=[];
-    Object.keys(STOPS_DATA.days).forEach(iso=>{
-      if(iso>=f&&iso<=t){
-        const day=STOPS_DATA.days[iso];
-        if(day.by_pt) day.by_pt.forEach(p=>rows.push({pt:p.name,n:p.n,dur:p.tot||0}));
-      }
-    });
-    return rows;
-  };
-  const aRows=collect(aFrom,aTo), bRows=collect(bFrom,bTo);
-  const aTotal=aRows.reduce((s,r)=>s+r.n,0), bTotal=bRows.reduce((s,r)=>s+r.n,0);
-  const aDur=aRows.reduce((s,r)=>s+r.dur,0), bDur=bRows.reduce((s,r)=>s+r.dur,0);
-  const aAvg=aTotal?Math.round(aDur/aTotal):0, bAvg=bTotal?Math.round(bDur/bTotal):0;
-
-  const byPt={};
-  aRows.forEach(r=>{(byPt[r.pt]=byPt[r.pt]||{a:0,b:0}).a+=r.n;});
-  bRows.forEach(r=>{(byPt[r.pt]=byPt[r.pt]||{a:0,b:0}).b+=r.n;});
-  const breakdown=Object.entries(byPt).map(([name,v])=>({
-    name,a:v.a,b:v.b,fmtA:v.a+' стопов',fmtB:v.b+' стопов'
-  })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
-
-  return {
-    invert:true,
-    kpis:[
-      {label:'Всего стопов', a:aTotal, b:bTotal, fmtA:aTotal, fmtB:bTotal},
-      {label:'Ср. длительность', a:aAvg, b:bAvg, fmtA:aAvg+' мин', fmtB:bAvg+' мин'},
-      {label:'Точек со стопами', a:Object.keys(byPt).filter(k=>byPt[k].a).length, b:Object.keys(byPt).filter(k=>byPt[k].b).length, fmtA:Object.keys(byPt).filter(k=>byPt[k].a).length, fmtB:Object.keys(byPt).filter(k=>byPt[k].b).length},
-    ],
-    breakdownTitle:'По точкам', breakdownCol:'Точка', breakdown,
-  };
-}
-
-// ── Сравнение списаний ────────────────────────────────────────────────────────
-async function compareWriteoffs(aFrom,aTo,bFrom,bTo){
-  // Используем серверный range-эндпоинт (формат дат dd.mm.yyyy)
-  const toServerDate=iso=>{const[y,m,d]=iso.split('-');return `${d}.${m}.${y}`;};
-  try{
-    const fetchRange=async(f,t)=>{
-      const r=await fetch(`/api/writeoffs/range?from=${toServerDate(f)}&to=${toServerDate(t)}`,{headers:{'X-View-Password':sessionPassword}});
-      if(!r.ok) return null;
-      return await r.json();
-    };
-    const [aData,bData]=await Promise.all([fetchRange(aFrom,aTo),fetchRange(bFrom,bTo)]);
-    if(!aData||!bData) return null;
-    const fmtR=v=>(v||0).toLocaleString('ru-RU')+' ₽';
-
-    // Разбивка по складам
-    const byWh={};
-    (aData.warehouses||[]).forEach(w=>{(byWh[w.name]=byWh[w.name]||{a:0,b:0}).a=w.total;});
-    (bData.warehouses||[]).forEach(w=>{(byWh[w.name]=byWh[w.name]||{a:0,b:0}).b=w.total;});
-    const breakdown=Object.entries(byWh).map(([name,v])=>({
-      name,a:v.a,b:v.b,fmtA:fmtR(v.a),fmtB:fmtR(v.b)
-    })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
-
-    return {
-      invert:true,
-      kpis:[
-        {label:'Сумма списаний', a:aData.grand_total||0, b:bData.grand_total||0, fmtA:fmtR(aData.grand_total), fmtB:fmtR(bData.grand_total)},
-        {label:'Складов', a:(aData.warehouses||[]).length, b:(bData.warehouses||[]).length, fmtA:(aData.warehouses||[]).length, fmtB:(bData.warehouses||[]).length},
-        {label:'Ср. на склад', a:Math.round((aData.grand_total||0)/((aData.warehouses||[]).length||1)), b:Math.round((bData.grand_total||0)/((bData.warehouses||[]).length||1)), fmtA:fmtR(Math.round((aData.grand_total||0)/((aData.warehouses||[]).length||1))), fmtB:fmtR(Math.round((bData.grand_total||0)/((bData.warehouses||[]).length||1)))},
-      ],
-      breakdownTitle:'По складам', breakdownCol:'Склад', breakdown,
-    };
-  }catch(e){ console.error('compareWriteoffs:',e.message); return null; }
-}
-
-async function loadData(){
-  ss('spin','Загрузка...');
-  await initWoDateFilter(); // грузим индекс ВСЕГДА (источник синхронизации с Sheets)
-  try{
-    const r=await fetch('/api/periods',{headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const srv=await r.json();
-    if(srv.length){
-      periods=srv;
-      ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
-    } else if(WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.dates && WO_INDEX.meta.dates.length){
-      // Данные есть только в индексе (синхронизация из Sheets) — строим период из всего диапазона
-      buildPeriodFromIndex();
-      ss('ok','Синхронизировано из Sheets · '+WO_INDEX.meta.dates.length+' дней · '+new Date().toLocaleTimeString('ru-RU'));
-    } else {
-      ss('warn','Нет данных. Загрузите JSON или синхронизируйте Sheets');
-    }
-    if(document.getElementById('page-overview')?.classList.contains('active')) renderOverview();
-  } catch(e){
-    ss('warn','Ошибка загрузки: '+e.message);
-  }
-  cur=0;
-  const woFrom=document.getElementById('wo-date-from')?.value;
-  const woTo=document.getElementById('wo-date-to')?.value;
-  if(woFrom||woTo){
-    applyWoDateFilter(); // сам обновит статьи за период
-  } else {
-    render();
-    loadWoByPoint();
-  }
-}
-
-// Построить общий период из всего индекса (когда данные пришли из Sheets)
-function buildPeriodFromIndex(){
-  if(!WO_INDEX || !WO_INDEX.meta || !WO_INDEX.meta.dates.length) return;
-  const allDates = WO_INDEX.meta.dates.map(d=>d.d);
-  const merged = mergeWoDays(allDates);
-  if(merged){
-    merged.period = `${WO_INDEX.meta.dates[0].short} — ${WO_INDEX.meta.dates[WO_INDEX.meta.dates.length-1].short}`;
-    periods = [merged];
-  }
-}
-
-function render(){
-  const p=d(); if(!p){renderEmpty();return;}
-  renderKPIs(p); renderCards();
-}
-function renderEmpty(){
-  const k=document.getElementById('krow'); if(k)k.innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px 0;grid-column:1/-1">Нет данных. Загрузите JSON через «Управление».</div>';
-  const g=document.getElementById('grid'); if(g)g.innerHTML='';
-  const pt=document.getElementById('ptabs-wrap'); if(pt)pt.style.display='none';
-}
-
-function renderKPIs(p){
-  const prev=periods[cur+1];
-  const dt=prev?Math.round((p.grand_total-prev.grand_total)/prev.grand_total*100):null;
-  const crit=p.warehouses.filter(w=>w.total>100000).length;
-  const avg=Math.round(p.grand_total/p.warehouses.length);
-  const dh=dt!==null?`<div class="kd ${dt>0?'up':'dn'}">${dt>0?'↑':'↓'}${Math.abs(dt)}% vs прошлый</div>`:`<div class="kd fl">${periods.length>1?'—':'Загрузите ещё период'}</div>`;
-  document.getElementById('krow').innerHTML=`
-    <div class="kpi"><div class="kl">Общие списания</div><div class="kv">${fmtR(p.grand_total)}</div><div class="ks">${p.period}</div>${dh}</div>
-    <div class="kpi g"><div class="kl">Складов</div><div class="kv">${p.warehouses.length}</div><div class="ks">в периоде</div></div>
-    <div class="kpi r"><div class="kl">Критичных</div><div class="kv" style="color:var(--red)">${crit}</div><div class="ks">&gt;100k руб</div></div>
-    <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
-}
-
-// ══ WO BY POINT (статьи + выручка vs списания) ════════════════════════════
-let WO_BY_POINT = null;
-
-async function loadWoByPoint(){
-  // Приоритет — свежий индекс из синхронизации (есть articles_summary)
-  if(WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.articles_summary && WO_INDEX.meta.articles_summary.length){
-    WO_BY_POINT = {
-      meta: {
-        group_totals: WO_INDEX.meta.group_totals || {},
-        articles_summary: WO_INDEX.meta.articles_summary || [],
-      },
-      by_point: WO_INDEX.by_point || [],
-    };
-    renderWoArticlesSection();
-    return;
-  }
-  // Если индекс есть но пустой (данные удалены) — не грузим старый файл
-  if(WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.dates && WO_INDEX.meta.dates.length === 0){
-    WO_BY_POINT = null;
-    renderWoArticlesSection();
-    return;
-  }
-  // Фоллбэк — старый статичный файл (только если в нём есть данные)
+async function refreshWoData(){
+  if(!_woActiveSheet){await loadWoSheetList();return;}
+  const msg=document.getElementById('wo-status-msg');
+  if(msg) msg.textContent='⏳ Обновляю...';
   try {
-    const r = await fetch('/api/data/writeoffs_by_point', {headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) { WO_BY_POINT=null; renderWoArticlesSection(); return; }
-    const data = await r.json();
-    if(data && data.by_point && data.by_point.length){
-      WO_BY_POINT = data;
-    } else {
-      WO_BY_POINT = null;
-    }
-    renderWoArticlesSection();
-  } catch(e){ WO_BY_POINT=null; renderWoArticlesSection(); }
+    const r=await fetch(`/api/writeoffs/sheet?name=${encodeURIComponent(_woActiveSheet)}&nocache=1`,{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    WO_DATA=await r.json(); WO_FILTERED=WO_DATA;
+    if(msg){msg.textContent='✅ Обновлено';setTimeout(()=>msg.textContent='',3000);}
+    populateWoFilters(); applyWoFilters();
+  } catch(e){
+    if(msg){msg.textContent='❌ '+e.message;setTimeout(()=>msg.textContent='',5000);}
+  }
 }
 
-const WO_GRP_COLOR = {
-  'Потери':      '#E24B4A',
-  'Плановые':    '#EF9F27',
-  'Хоз. расходы':'#378ADD',
-  'Маркетинг':   '#1D9E75',
-  'Прочее':      '#888780',
-};
+function populateWoFilters(){
+  if(!WO_DATA) return;
+  const {dates,points,articles}=WO_DATA.meta;
+  const fromSel=document.getElementById('wo-date-from');
+  const toSel=document.getElementById('wo-date-to');
+  const dateOpts=dates.map(d=>`<option value="${d}">${d}</option>`).join('');
+  if(fromSel) fromSel.innerHTML='<option value="">С даты...</option>'+dateOpts;
+  if(toSel)   toSel.innerHTML='<option value="">По дату...</option>'+dateOpts;
+  const ptSel=document.getElementById('wo-point-filter');
+  if(ptSel) ptSel.innerHTML='<option value="">Все точки</option>'+
+    points.map(p=>`<option value="${p}">${p.replace(' склад','').replace(' Склад','')}</option>`).join('');
+  const artSel=document.getElementById('wo-article-filter');
+  if(artSel) artSel.innerHTML='<option value="">Все статьи</option>'+
+    articles.map(a=>`<option value="${a}">${a}</option>`).join('');
+}
 
-function renderWoArticlesSection(){
-  const sec = document.getElementById('wo-articles-section');
-  // Скрываем блок если данных нет или они пустые
-  const hasData = WO_BY_POINT && WO_BY_POINT.by_point && WO_BY_POINT.by_point.length &&
-                  WO_BY_POINT.meta && WO_BY_POINT.meta.articles_summary && WO_BY_POINT.meta.articles_summary.length;
-  if(!hasData){ if(sec) sec.style.display = 'none'; return; }
-  if(sec) sec.style.display = '';
+async function applyWoFilters(){
+  if(!WO_DATA||!_woActiveSheet) return;
+  const from=document.getElementById('wo-date-from')?.value||'';
+  const to=document.getElementById('wo-date-to')?.value||'';
+  const point=document.getElementById('wo-point-filter')?.value||'';
+  const article=document.getElementById('wo-article-filter')?.value||'';
+  if(!from&&!to&&!point&&!article){WO_FILTERED=WO_DATA;renderWo();return;}
+  const msg=document.getElementById('wo-status-msg');
+  if(msg) msg.textContent='⏳ Фильтрую...';
+  try {
+    let url=`/api/writeoffs/sheet?name=${encodeURIComponent(_woActiveSheet)}`;
+    if(from) url+=`&from=${encodeURIComponent(from)}`;
+    if(to)   url+=`&to=${encodeURIComponent(to)}`;
+    if(point)   url+=`&point=${encodeURIComponent(point)}`;
+    if(article) url+=`&article=${encodeURIComponent(article)}`;
+    const r=await fetch(url,{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    WO_FILTERED=await r.json();
+    if(msg) msg.textContent='';
+    renderWo();
+  } catch(e){
+    if(msg){msg.textContent='❌ '+e.message;setTimeout(()=>msg.textContent='',4000);}
+  }
+}
 
-  const meta = WO_BY_POINT.meta;
-  const monoSt = 'font-family:JetBrains Mono,monospace';
+function resetWoFiltersUI(){
+  ['wo-date-from','wo-date-to','wo-point-filter','wo-article-filter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const s=document.getElementById('wo-search');if(s)s.value='';
+}
+function resetWoFilters(){resetWoFiltersUI();if(WO_DATA){WO_FILTERED=WO_DATA;renderWo();}}
 
-  // ─ Группы статей ─
-  const grpTotals = meta.group_totals || {};
-  const grpTotal  = Object.values(grpTotals).reduce((s,v)=>s+v,0);
-  const grpOrder  = ['Потери','Плановые','Хоз. расходы','Маркетинг','Прочее'];
+function renderWo(){
+  if(!WO_FILTERED){
+    document.getElementById('wo-empty').style.display='block';
+    document.getElementById('wo-kpi-row').innerHTML='';
+    document.getElementById('wo-articles-section').style.display='none';
+    document.getElementById('wo-points-grid').innerHTML='';
+    return;
+  }
+  document.getElementById('wo-empty').style.display='none';
+  renderWoKpi(); renderWoArticles(); renderWoByDate(); renderWoPoints();
+  document.getElementById('wo-articles-section').style.display='block';
+}
 
-  const legendEl = document.getElementById('wo-groups-legend');
-  if(legendEl) legendEl.innerHTML = grpOrder.filter(g=>grpTotals[g])
-    .map(g=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${WO_GRP_COLOR[g]};display:inline-block"></span>${g}</span>`).join('');
+function renderWoKpi(){
+  const d=WO_FILTERED, meta=d.meta;
+  const total=(meta.filtered_cost??meta.total_cost)||0;
+  const recs=meta.filtered_records??meta.records;
+  const pts=d.by_point?d.by_point.length:0;
+  const maxPt=d.by_point&&d.by_point.length?d.by_point[0]:null;
+  document.getElementById('wo-kpi-row').innerHTML=`
+    <div class="kpi"><div class="kl">Сумма списаний</div><div class="kv">${total.toLocaleString('ru-RU')} ₽</div><div class="ks">${recs} записей</div></div>
+    <div class="kpi g"><div class="kl">Точек</div><div class="kv">${pts}</div><div class="ks">складов/точек</div></div>
+    <div class="kpi w"><div class="kl">Статей</div><div class="kv">${d.by_article?d.by_article.length:0}</div><div class="ks">категорий</div></div>
+    ${maxPt?`<div class="kpi"><div class="kl">Лидер</div><div class="kv" style="font-size:14px">${maxPt.name.replace(/ склад$/i,'')}</div><div class="ks">${maxPt.total.toLocaleString('ru-RU')} ₽</div></div>`:''}`;
+}
 
-  const barsEl = document.getElementById('wo-groups-bars');
-  if(barsEl) barsEl.innerHTML = grpOrder.filter(g=>grpTotals[g]).map(g=>{
-    const v = grpTotals[g];
-    const pct = grpTotal ? Math.round(v/grpTotal*1000)/10 : 0;
-    const barW = grpTotal ? Math.round(v/grpTotal*100) : 0;
-    const label = g==='Хоз. расходы'?'Хоз. расходы':g==='Плановые'?'Плановые (питание, отраб.)':g;
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="flex:0 0 190px;font-size:12px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
-      <div style="flex:1;height:7px;background:var(--bg);border-radius:4px;overflow:hidden">
-        <div style="width:${barW}%;height:100%;background:${WO_GRP_COLOR[g]};border-radius:4px"></div>
+const ART_COLORS=['#3B7FFF','#FB7185','#FFB020','#00D4AA','#A78BFA','#38BDF8','#22C55E','#F97316','#EC4899','#14B8A6'];
+
+function renderWoArticles(){
+  const el=document.getElementById('wo-articles-bars');
+  if(!el||!WO_FILTERED) return;
+  const arts=WO_FILTERED.by_article||[];
+  if(!arts.length){el.innerHTML='<div style="color:var(--txt3);font-size:13px">Нет данных</div>';return;}
+  const maxCost=arts[0].cost;
+  el.innerHTML=arts.map((a,i)=>{
+    const clr=ART_COLORS[i%ART_COLORS.length];
+    const pct=maxCost>0?a.cost/maxCost*100:0;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer" onclick="filterByArticle('${a.art.replace(/'/g,"\'")}')">
+      <div style="width:170px;font-size:11px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="${a.art}">${a.art}</div>
+      <div style="flex:1;height:18px;background:var(--surf);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${clr};border-radius:3px"></div>
       </div>
-      <div style="${monoSt};font-size:11px;color:var(--txt2);flex:0 0 75px;text-align:right">${v.toLocaleString('ru-RU')} ₽</div>
-      <div style="${monoSt};font-size:11px;color:var(--txt3);flex:0 0 38px;text-align:right">${pct}%</div>
+      <div style="font-size:11px;font-weight:700;color:${clr};width:85px;text-align:right">${a.cost.toLocaleString('ru-RU')} ₽</div>
+      <div style="font-size:10px;color:var(--txt3);width:32px;text-align:right">${a.pct}%</div>
     </div>`;
   }).join('');
+}
 
-  // ─ Статьи детально ─
-  const arts = (meta.articles_summary || []).map(a => ({ name: a.name, sum: a.total !== undefined ? a.total : a.sum, group: a.group }));
-  const artMax = arts[0]?.sum || 1;
-  const artBarsEl = document.getElementById('wo-articles-bars');
-  if(artBarsEl) artBarsEl.innerHTML = arts.slice(0,10).map(a=>{
-    const barW = Math.round(a.sum/artMax*100);
-    const clr = WO_GRP_COLOR[a.group] || '#888780';
-    const label = a.name.length > 20 ? a.name.slice(0,19)+'…' : a.name;
+function renderWoByDate(){
+  const el=document.getElementById('wo-by-date-chart');
+  if(!el||!WO_FILTERED) return;
+  const dates=WO_FILTERED.by_date||[];
+  if(!dates.length){el.innerHTML='<div style="color:var(--txt3);font-size:13px">Нет данных</div>';return;}
+  const maxCost=Math.max(...dates.map(d=>d.cost),1);
+  el.innerHTML=dates.map(d=>{
+    const pct=d.cost/maxCost*100;
+    const parts=d.date.split('.');
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
-      <div style="flex:0 0 140px;font-size:11px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${a.name}">${label}</div>
-      <div style="flex:1;height:7px;background:var(--bg);border-radius:4px;overflow:hidden">
-        <div style="width:${barW}%;height:100%;background:${clr};border-radius:4px"></div>
+      <div style="width:42px;font-size:11px;color:var(--txt3);text-align:right;flex-shrink:0">${parts[0]}.${parts[1]}</div>
+      <div style="flex:1;height:18px;background:var(--surf);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:var(--acc);border-radius:3px"></div>
       </div>
-      <div style="${monoSt};font-size:11px;color:var(--txt2);flex:0 0 68px;text-align:right">${Math.round(a.sum).toLocaleString('ru-RU')} ₽</div>
-    </div>`;
-  }).join('');
-
-  renderWoPointsTable();
-}
-
-function renderWoPointsTable(){
-  // Блок таблицы точек удалён из интерфейса
-  const tbody = document.getElementById('wo-points-tbody');
-  if(!tbody) return;
-  if(!WO_BY_POINT) return;
-  const sortVal = document.getElementById('wo-points-sort')?.value || 'name';
-  const monoSt = 'font-family:JetBrains Mono,monospace';
-
-  // Есть ли реальная выручка хоть у одной точки?
-  const hasRevenue = WO_BY_POINT.by_point.some(p => !p.rev_is_placeholder && p.sales_rev > 0);
-
-  let pts = [...WO_BY_POINT.by_point];
-  if(sortVal==='pct' && hasRevenue)  pts.sort((a,b)=>b.wo_rev_pct-a.wo_rev_pct);
-  else if(sortVal==='wo')  pts.sort((a,b)=>b.wo_total-a.wo_total);
-  else if(sortVal==='rev' && hasRevenue) pts.sort((a,b)=>b.sales_rev-a.sales_rev);
-  else pts.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
-
-  // Перестраиваем заголовок таблицы
-  const thead = document.querySelector('#wo-points-table thead tr');
-  if(thead){
-    if(hasRevenue){
-      thead.innerHTML = `
-        <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Точка</th>
-        <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Выручка</th>
-        <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Списания</th>
-        <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">%</th>
-        <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Главная статья</th>`;
-    } else {
-      thead.innerHTML = `
-        <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Точка / Склад</th>
-        <th style="text-align:right;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Списания</th>
-        <th style="text-align:left;padding:5px 8px;font-size:10px;font-weight:400;color:var(--txt3)">Главная статья</th>`;
-    }
-  }
-
-  const maxWo = Math.max(...pts.map(p=>p.wo_total), 1);
-
-  if(hasRevenue){
-    tbody.innerHTML = pts.map(p=>{
-      const pct = p.wo_rev_pct;
-      const pctClr = pct>=10 ? 'var(--red)' : pct>=5 ? 'var(--warn)' : 'var(--grn)';
-      const pctBg  = pct>=10 ? 'rgba(255,69,96,.1)' : pct>=5 ? 'rgba(255,176,32,.1)' : 'rgba(152,194,30,.1)';
-      return `<tr style="border-bottom:.5px solid var(--bd)">
-        <td style="padding:7px 8px;font-size:12px;font-weight:500;color:var(--txt)">${p.name}</td>
-        <td style="padding:7px 8px;text-align:right"><span style="font-weight:700;${monoSt}">${p.sales_rev.toLocaleString('ru-RU')} ₽</span></td>
-        <td style="padding:7px 8px;text-align:right;color:var(--red);${monoSt}">${p.wo_total.toLocaleString('ru-RU')} ₽</td>
-        <td style="padding:7px 8px;text-align:right"><span style="font-size:11px;padding:2px 7px;border-radius:20px;background:${pctBg};color:${pctClr};${monoSt}">${pct}%</span></td>
-        <td style="padding:7px 8px;font-size:11px;color:var(--txt3)">${p.top_article||'—'}</td>
-      </tr>`;
-    }).join('');
-  } else {
-    // Без выручки — показываем бар списаний + главную статью
-    tbody.innerHTML = pts.map(p=>{
-      const barW = Math.round(p.wo_total/maxWo*100);
-      return `<tr style="border-bottom:.5px solid var(--bd)">
-        <td style="padding:7px 8px;font-size:12px;font-weight:500;color:var(--txt)">${p.name}</td>
-        <td style="padding:7px 8px;text-align:right;white-space:nowrap">
-          <span style="color:var(--red);${monoSt};font-weight:600">${p.wo_total.toLocaleString('ru-RU')} ₽</span>
-        </td>
-        <td style="padding:7px 8px;font-size:11px;color:var(--txt3)">${p.top_article||'—'}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  // Заголовок блока и подпись
-  const titleEl = document.querySelector('#wo-articles-section [style*="uppercase"]');
-  const noteEl = document.getElementById('wo-points-note');
-  if(noteEl) noteEl.style.display = hasRevenue ? '' : 'none';
-}
-function renderOverview(){
-  const monoSt = 'font-family:JetBrains Mono,monospace';
-  const now = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-  const updEl = document.getElementById('overview-updated');
-  if(updEl) updEl.textContent = 'Обновлено: ' + now;
-
-  _renderOverviewSections();
-  _renderOverviewCharts();
-  _renderOverviewTops();
-  _renderOverviewAlerts();
-}
-
-function _renderOverviewSections(){
-  const monoSt='font-family:JetBrains Mono,monospace';
-  const sections = [];
-
-  if(periods&&periods.length){
-    const p=periods[0];
-    sections.push({icon:'📊',title:'Аналитика списаний',tab:'wo',color:'var(--acc)',
-      lines:[{label:'Сумма',value:p.grand_total.toLocaleString('ru-RU')+' ₽',bold:true},{label:'Складов',value:p.warehouses.length},{label:'Период',value:p.period}],
-      badge:p.warehouses.filter(w=>w.total>100000).length>0?{text:p.warehouses.filter(w=>w.total>100000).length+' критичных',color:'var(--red)'}:null});
-  } else sections.push({icon:'📊',title:'Аналитика списаний',tab:'wo',color:'var(--txt3)',empty:true});
-
-  if(STOPS_DATA&&STOPS_DATA.periods&&STOPS_DATA.periods.length){
-    const sp=expandPeriod(STOPS_DATA.periods[STOPS_DATA.periods.length-1]);
-    sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',color:'var(--warn)',
-      lines:[{label:'Стопов',value:sp.total_stops,bold:true},{label:'Точек',value:sp.total_points},{label:'Период',value:sp.period}],
-      badge:sp.active&&sp.active.length>0?{text:sp.active.length+' активных',color:'var(--red)'}:null});
-  } else sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',color:'var(--txt3)',empty:true});
-
-  if(DEL_DATA&&DEL_DATA.meta){
-    const totalCost=DEL_DATA.rows.reduce(function(s,r){return s+r.cost;},0);
-    const guiltyCount=DEL_DATA.rows.filter(function(r){return r.guilty&&r.guilty.length>0;}).length;
-    sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',color:'var(--grn)',
-      lines:[{label:'Записей',value:DEL_DATA.meta.total,bold:true},{label:'Штрафов',value:totalCost.toLocaleString('ru-RU')+' ₽'},{label:'Период',value:(DEL_DATA.meta.min||'').substring(0,7)}],
-      badge:guiltyCount>0?{text:guiltyCount+' с виновным',color:'var(--warn)'}:null});
-  } else sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',color:'var(--txt3)',empty:true});
-
-  if(PROD_DATA&&PROD_DATA.meta){
-    const activeDepts = PROD_DATA.depts.filter(d=>d.output_units>0);
-    const totalUnits = PROD_DATA.meta.total_units;
-    sections.push({icon:'🏭',title:'Производство',tab:'production',color:'var(--acc)',
-      lines:[{label:'Выпущено',value:totalUnits.toLocaleString('ru-RU')+' ед',bold:true},{label:'Цехов',value:activeDepts.length},{label:'ФОТ итого',value:(PROD_DATA.meta.total_fot||0).toLocaleString('ru-RU')+' ₽'}],
-      badge:nedov>0?{text:nedov+' недовложений',color:'var(--warn)'}:null});
-  } else sections.push({icon:'🏭',title:'Производство',tab:'production',color:'var(--txt3)',empty:true});
-
-  if(SEBES_DATA&&SEBES_DATA.meta){
-    const items = SEBES_DATA.all_items;
-    const growthCount = items.filter(function(i){return i.trend==='up';}).length;
-    const dropCount   = items.filter(function(i){return i.trend==='down';}).length;
-    const withCost    = items.filter(function(i){return i.cost>0;});
-    const avgCost     = withCost.length ? Math.round(withCost.reduce(function(s,i){return s+i.cost;},0)/withCost.length) : null;
-    const noCost      = items.filter(function(i){return !i.cost;}).length;
-    const badge = growthCount>0 ? {text:'↑'+growthCount+' выросло',color:'var(--red)'} : dropCount>0 ? {text:'↓'+dropCount+' снизилось',color:'var(--grn)'} : null;
-    sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',color:'var(--warn)',
-      lines:[
-        {label:'Позиций',      value:SEBES_DATA.meta.total_items, bold:true},
-        {label:'Ср. себест.',  value:avgCost ? avgCost.toLocaleString('ru-RU')+' ₽' : '—'},
-        {label:'↑ Рост',       value:growthCount, color:'var(--red)'},
-        {label:'↓ Снижение',   value:dropCount,   color:'var(--grn)'},
-        {label:'Без себест.',  value:noCost+' поз.'},
-      ],
-      badge:badge});
-  } else sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',color:'var(--txt3)',empty:true});
-
-  const el=document.getElementById('overview-sections');
-  if(!el)return;
-  el.innerHTML=sections.map(function(s){
-    const baseStyle='background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;cursor:pointer;transition:all .2s';
-    if(s.empty) return '<div style="'+baseStyle+';opacity:.5;border-top:3px solid var(--bd)" data-tab="'+s.tab+'">'
-      +'<div style="font-size:24px;margin-bottom:8px">'+s.icon+'</div>'
-      +'<div style="font-size:13px;font-weight:700;color:var(--txt2)">'+s.title+'</div>'
-      +'<div style="font-size:11px;color:var(--txt3);margin-top:6px">Нет данных</div></div>';
-    return '<div style="'+baseStyle+';border-top:3px solid '+s.color+'" data-tab="'+s.tab+'">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">'
-      +'<div style="font-size:20px">'+s.icon+'</div>'
-      +(s.badge?'<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:'+s.badge.color+'22;color:'+s.badge.color+';font-weight:700">'+s.badge.text+'</span>':'')
-      +'</div>'
-      +'<div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:10px">'+s.title+'</div>'
-      +s.lines.map(function(l){
-        const valClr = l.color ? l.color : (l.bold ? 'var(--txt)' : 'var(--txt2)');
-        return '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--bd)">'
-          +'<span style="font-size:11px;color:var(--txt3)">'+l.label+'</span>'
-          +'<span style="font-size:'+(l.bold?'14px':'12px')+';font-weight:'+(l.bold?'800':'600')+';color:'+valClr+';'+monoSt+'">'+l.value+'</span>'
-          +'</div>';
-      }).join('')
-      +'</div>';
-  }).join('');
-
-  // Вешаем обработчики через JS (без inline onclick)
-  el.querySelectorAll('[data-tab]').forEach(function(card){
-    card.addEventListener('mouseover',function(){this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.15)';});
-    card.addEventListener('mouseout', function(){this.style.transform='';this.style.boxShadow='';});
-    card.addEventListener('click',    function(){switchTabById(this.getAttribute('data-tab'));});
-  });
-}
-
-function _renderOverviewCharts(){
-  const monoSt='font-family:JetBrains Mono,monospace';
-
-  // Списания по дням — из WO_RAW_DATA или writeoffs_index
-  const woDates = (window.WO_RAW_DATA&&WO_RAW_DATA.meta) ? WO_RAW_DATA.meta.all_dates : null;
-  const woEl = document.getElementById('overview-wo-chart');
-  const woSub = document.getElementById('overview-wo-sub');
-  if(woEl && woDates && woDates.length){
-    const maxT = Math.max(...woDates.map(d=>d.total));
-    if(woSub) woSub.textContent = woDates[0].d+' — '+woDates[woDates.length-1].d+' · '+woDates.length+' дней';
-    woEl.innerHTML = woDates.map(function(d){
-      const h = Math.max(6,Math.round(d.total/maxT*55));
-      const isWE=d.dow==='Сб'||d.dow==='Вс';
-      const clr = d.total===maxT?'var(--red)':isWE?'var(--warn)':'var(--acc)';
-      return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.total.toLocaleString('ru-RU')+' ₽">'
-        +'<div class="dow-val" style="font-size:8px">'+Math.round(d.total/1000)+'k</div>'
-        +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
-        +'<div class="dow-lbl">'+d.d+'</div>'
-        +'<div class="dow-dow">'+d.dow+'</div></div>';
-    }).join('');
-  } else if(woEl){
-    woEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
-  }
-
-  // Стопы по дням
-  const stDates = (STOPS_DATA&&STOPS_DATA.meta) ? STOPS_DATA.meta.all_dates : null;
-  const stEl  = document.getElementById('overview-stops-chart');
-  const stSub = document.getElementById('overview-stops-sub');
-  if(stEl && stDates && stDates.length){
-    const maxN = Math.max(...stDates.map(d=>d.n));
-    if(stSub) stSub.textContent = stDates[0].d+' — '+stDates[stDates.length-1].d+' · '+stDates.length+' дней';
-    stEl.innerHTML = stDates.map(function(d){
-      const h = Math.max(6,Math.round(d.n/maxN*55));
-      const isWE=d.dow==='Сб'||d.dow==='Вс';
-      const clr=d.n===maxN?'var(--red)':isWE?'var(--warn)':'var(--grn)';
-      return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.n+' стопов">'
-        +'<div class="dow-val" style="font-size:9px">'+d.n+'</div>'
-        +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
-        +'<div class="dow-lbl">'+d.d+'</div>'
-        +'<div class="dow-dow">'+d.dow+'</div></div>';
-    }).join('');
-  } else if(stEl){
-    stEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
-  }
-}
-
-function _renderOverviewTops(){
-  const monoSt='font-family:JetBrains Mono,monospace';
-
-  // Топ виновных
-  const gEl=document.getElementById('overview-guilty');
-  if(gEl && DEL_DATA && DEL_DATA.rows){
-    const agg={};
-    DEL_DATA.rows.forEach(function(r){
-      (r.guilty||[]).forEach(function(g){
-        if(!agg[g])agg[g]={count:0,cost:0};
-        agg[g].count++;agg[g].cost+=r.cost;
-      });
-    });
-    const top=Object.entries(agg).sort((a,b)=>b[1].count-a[1].count).slice(0,7);
-    if(top.length){
-      const maxC=top[0][1].count;
-      gEl.innerHTML=top.map(function(e,i){
-        const clr=i===0?'var(--red)':i<3?'var(--warn)':'var(--txt2)';
-        return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
-          +'<span style="font-size:12px;flex:1;color:var(--txt);font-weight:600">'+e[0]+'</span>'
-          +'<div style="width:40px;background:var(--bd);border-radius:2px;height:3px;flex-shrink:0"><div style="height:3px;border-radius:2px;background:'+clr+';width:'+Math.round(e[1].count/maxC*100)+'%"></div></div>'
-          +'<span style="font-size:12px;font-weight:800;color:'+clr+';'+monoSt+';width:20px;text-align:right">'+e[1].count+'</span>'
-          +'</div>';
-      }).join('');
-    }
-  }
-
-  // Топ стопов по продуктам
-  const tsEl=document.getElementById('overview-top-stops');
-  if(tsEl && STOPS_DATA && STOPS_DATA.periods && STOPS_DATA.periods.length){
-    const lastP = expandPeriod(STOPS_DATA.periods[STOPS_DATA.periods.length-1]);
-    const top=(lastP.top_products||[]).slice(0,7);
-    const maxN=top.length?top[0].count:1;
-    tsEl.innerHTML=top.map(function(p,i){
-      const clr=i===0?'var(--red)':i<3?'var(--warn)':'var(--txt2)';
-      const nm=p.name.length>30?p.name.substring(0,29)+'…':p.name;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
-        +'<span style="font-size:11px;flex:1;color:var(--txt)" title="'+p.name+'">'+nm+'</span>'
-        +'<div style="width:40px;background:var(--bd);border-radius:2px;height:3px;flex-shrink:0"><div style="height:3px;border-radius:2px;background:'+clr+';width:'+Math.round(p.count/maxN*100)+'%"></div></div>'
-        +'<span style="font-size:12px;font-weight:800;color:'+clr+';'+monoSt+';width:28px;text-align:right">'+p.count+'×</span>'
-        +'</div>';
-    }).join('');
-  }
-
-  // Топ наценки
-  const tmEl=document.getElementById('overview-top-margin');
-  if(tmEl && SEBES_DATA && SEBES_DATA.top_margin){
-    const top=SEBES_DATA.top_margin.slice(0,7);
-    const maxM=top.length?top[0].markup:1;
-    tmEl.innerHTML=top.map(function(it,i){
-      const nm=it.name.length>28?it.name.substring(0,27)+'…':it.name;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
-        +'<span style="font-size:11px;flex:1;color:var(--txt)" title="'+it.name+'">'+nm+'</span>'
-        +'<div style="width:40px;background:var(--bd);border-radius:2px;height:3px;flex-shrink:0"><div style="height:3px;border-radius:2px;background:var(--grn);width:'+Math.round(it.markup/maxM*100)+'%"></div></div>'
-        +'<span style="font-size:12px;font-weight:800;color:var(--grn);'+monoSt+';width:45px;text-align:right">'+it.markup+'%</span>'
-        +'</div>';
-    }).join('');
-  }
-}
-
-function _renderOverviewAlerts(){
-  const alerts=[];
-
-  // Склады с критичными списаниями
-  if(periods&&periods.length){
-    const p=periods[0];
-    const crit=p.warehouses.filter(w=>w.total>100000);
-    if(crit.length) alerts.push({
-      type:'danger',icon:'📊',
-      text:'Критичные списания: '+crit.map(w=>w.name+' ('+Math.round(w.total/1000)+'k ₽)').join(', ')
-    });
-  }
-
-  // Много стопов
-  if(STOPS_DATA&&STOPS_DATA.periods&&STOPS_DATA.periods.length){
-    const sp=expandPeriod(STOPS_DATA.periods[STOPS_DATA.periods.length-1]);
-    if(sp.active&&sp.active.length>20) alerts.push({
-      type:'warn',icon:'🚫',
-      text:'Активных стопов: '+sp.active.length+' — значительно выше нормы'
-    });
-  }
-
-  // Много довозов без виновного
-  if(DEL_DATA&&DEL_DATA.rows){
-    const noGuilt=DEL_DATA.rows.filter(r=>!r.guilty||!r.guilty.length).length;
-    const pct=Math.round(noGuilt/DEL_DATA.rows.length*100);
-    if(pct>60) alerts.push({
-      type:'warn',icon:'🚚',
-      text:'Довозов без виновного: '+noGuilt+' из '+DEL_DATA.rows.length+' ('+pct+'%)'
-    });
-  }
-
-  // Позиции с низкой наценкой
-  if(SEBES_DATA&&SEBES_DATA.all_items){
-    const low=SEBES_DATA.all_items.filter(i=>i.markup>0&&i.markup<50).length;
-    if(low>0) alerts.push({
-      type:'danger',icon:'💰',
-      text:'Позиций с наценкой < 50%: '+low+' шт — срочно проверить ценообразование'
-    });
-  }
-
-  const wrap=document.getElementById('overview-alerts-wrap');
-  const el=document.getElementById('overview-alerts');
-  if(!wrap||!el)return;
-  if(!alerts.length){wrap.style.display='none';return;}
-  wrap.style.display='block';
-  el.innerHTML=alerts.map(function(a){
-    const clr=a.type==='danger'?'var(--red)':'var(--warn)';
-    const bg =a.type==='danger'?'rgba(255,69,96,.08)':'rgba(255,176,32,.08)';
-    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:'+bg+';border:1px solid '+clr+'33;border-radius:10px">'
-      +'<span style="font-size:18px;flex-shrink:0">'+a.icon+'</span>'
-      +'<span style="font-size:13px;color:var(--txt)">'+a.text+'</span>'
-      +'</div>';
-  }).join('');
-}
-
-// Переключить вкладку по id (из сводки)
-function switchTabById(tab){
-  const btn=document.querySelector('.tab-nav-btn[onclick*="'+tab+'"]');
-  if(btn)btn.click();
-}
-
-
-// ── WRITEOFFS FILTERS ────────────────────────────────────────────────────────
-let WO_INDEX = null;
-
-// Загружаем индекс с сервера (опционально — для фильтра по датам)
-async function initWoDateFilter(){
-  try {
-    const r = await fetch('/api/writeoffs/index', {headers:{'X-View-Password':sessionPassword}});
-    if (!r.ok) throw new Error('no index');
-    WO_INDEX = await r.json();
-    if (!WO_INDEX) throw new Error('null');
-    _fillWoSelects();
-  } catch(e) {
-    // Индекс недоступен — заполним из загруженных periods
-    _fillWoSelectsFromPeriods();
-  }
-}
-
-function _fillWoSelects(){
-  const dateOpts = WO_INDEX.meta.dates.map(d=>
-    `<option value="${d.d}">${d.short} (${d.dow}) — ${Math.round(d.total/1000)}k ₽</option>`
-  ).join('');
-  const fF=document.getElementById('wo-date-from');
-  const tF=document.getElementById('wo-date-to');
-  if(fF) fF.innerHTML='<option value="">С даты...</option>'+dateOpts;
-  if(tF) tF.innerHTML='<option value="">По дату...</option>'+dateOpts;
-
-  const wSel=document.getElementById('wo-wh-filter');
-  if(wSel) wSel.innerHTML='<option value="">Все склады</option>'+
-    WO_INDEX.meta.warehouses.map(w=>
-      `<option value="${w.name}">${w.name} — ${Math.round(w.total/1000)}k ₽</option>`
-    ).join('');
-}
-
-function _fillWoSelectsFromPeriods(){
-  // Собираем список складов из загруженных периодов
-  const whSet = new Set();
-  periods.forEach(p => (p.warehouses||[]).forEach(w => whSet.add(w.name)));
-  const wSel = document.getElementById('wo-wh-filter');
-  if(wSel && whSet.size) {
-    wSel.innerHTML = '<option value="">Все склады</option>'+
-      [...whSet].sort().map(w=>`<option value="${w}">${w}</option>`).join('');
-  }
-  // Даты — если индекса нет, оставляем пустыми (нет данных по дням)
-}
-
-async function applyWoDateFilter(){
-  const fromVal = document.getElementById('wo-date-from')?.value||'';
-  const toVal   = document.getElementById('wo-date-to')?.value||'';
-
-  const ws = document.getElementById('wo-wh-filter'); if(ws) ws.value='';
-  const rb = document.getElementById('wo-reset-btn');
-
-  if(!fromVal && !toVal){
-    if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
-    if(rb) rb.style.display='none';
-    render();
-    // Вернуть статьи/точки за весь период
-    loadWoByPoint();
-    return;
-  }
-
-  if(rb) rb.style.display='';
-
-  if(WO_INDEX){
-    // Если выбрана только одна граница — это один день, не открытый диапазон
-    const effFrom = fromVal || toVal;
-    const effTo   = toVal || fromVal;
-    const matchDates = WO_INDEX.meta.dates.filter(d=>
-      d.d >= effFrom && d.d <= effTo
-    );
-    if(!matchDates.length){ ss('warn','Нет данных за выбранный период'); return; }
-
-    if(matchDates.length === 1){
-      const data = WO_INDEX.by_day[matchDates[0].d];
-      if(data){
-        pushTmpPeriod(data);
-        ss('ok', matchDates[0].short+' · '+data.grand_total.toLocaleString('ru-RU')+' ₽');
-        render();
-      }
-    } else {
-      const merged = mergeWoDays(matchDates.map(d=>d.d));
-      if(merged){
-        merged.period = matchDates[0].short+' — '+matchDates[matchDates.length-1].short;
-        pushTmpPeriod(merged);
-        ss('ok', merged.period+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
-        render();
-      }
-    }
-
-    // Статьи и точки за тот же эффективный диапазон
-    await updateWoSectionsForRange(effFrom, effTo);
-  } else {
-    ss('warn','Фильтр по датам требует данных на сервере.');
-  }
-}
-
-// Пересчёт статей и точек за выбранный диапазон дат
-async function updateWoSectionsForRange(fromVal, toVal){
-  const toServerDate = iso => { const [y,m,d]=iso.split('-'); return `${d}.${m}.${y}`; };
-  try {
-    const r = await fetch(`/api/writeoffs/range?from=${toServerDate(fromVal)}&to=${toServerDate(toVal)}`,
-      {headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) return;
-    const data = await r.json();
-    WO_BY_POINT = {
-      meta: { group_totals: data.group_totals||{}, articles_summary: data.articles_summary||[] },
-      by_point: data.by_point||[],
-    };
-    renderWoArticlesSection();
-  } catch(e){ console.error('updateWoSectionsForRange:', e.message); }
-}
-
-function mergeWoDays(dateList){
-  if(!WO_INDEX) return null;
-  const byWh = {};
-  dateList.forEach(d=>{
-    const day = WO_INDEX.by_day[d]; if(!day) return;
-    day.warehouses.forEach(wh=>{
-      if(!byWh[wh.name]) byWh[wh.name] = {name:wh.name,total:0,n_items:wh.n_items,cats:wh.cats,top3:wh.top3,top10:wh.top10};
-      byWh[wh.name].total += wh.total;
-    });
-  });
-  const warehouses = Object.values(byWh).sort((a,b)=>b.total-a.total);
-  const grand = warehouses.reduce((s,w)=>s+w.total,0);
-  warehouses.forEach(w=>{ w.pct=grand?Math.round(w.total/grand*1000)/10:0; });
-  return {period:'', grand_total:Math.round(grand), warehouses};
-}
-
-function applyWoWhFilter(){
-  const whVal = document.getElementById('wo-wh-filter')?.value||'';
-  const rb = document.getElementById('wo-reset-btn');
-
-  // Сброс фильтра дат
-  const df=document.getElementById('wo-date-from'); if(df)df.value='';
-  const dt=document.getElementById('wo-date-to');   if(dt)dt.value='';
-
-  if(!whVal){
-    if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
-    if(rb) rb.style.display='none';
-    render(); return;
-  }
-
-  if(rb) rb.style.display='';
-
-  // Индекс есть — данные по складу
-  if(WO_INDEX && WO_INDEX.by_wh[whVal]){
-    pushTmpPeriod(WO_INDEX.by_wh[whVal]);
-    ss('ok', whVal+' · '+WO_INDEX.by_wh[whVal].grand_total.toLocaleString('ru-RU')+' ₽');
-    render(); return;
-  }
-
-  // Индекса нет — фильтруем из загруженных periods
-  const merged = mergeWhFromPeriods(whVal);
-  if(merged){
-    pushTmpPeriod(merged);
-    ss('ok', whVal+' · '+merged.grand_total.toLocaleString('ru-RU')+' ₽');
-    render();
-  }
-}
-
-function mergeWhFromPeriods(whName){
-  // Агрегируем один склад по всем загруженным периодам
-  const allItems = {}, allCats = {};
-  let total = 0;
-  periods.filter(p=>!p._tmp).forEach(p=>{
-    const wh = (p.warehouses||[]).find(w=>w.name===whName);
-    if(!wh) return;
-    total += wh.total;
-    (wh.top10||[]).forEach(it=>{
-      if(!allItems[it.name]) allItems[it.name]={name:it.name,cost:0,qty:it.qty,unit:it.unit};
-      allItems[it.name].cost += it.cost;
-    });
-    Object.entries(wh.cats||{}).forEach(([k,v])=>{ allCats[k]=(allCats[k]||0)+v; });
-  });
-  if(!total) return null;
-  const top10 = Object.values(allItems).sort((a,b)=>b.cost-a.cost).slice(0,10);
-  return {
-    period: whName,
-    grand_total: Math.round(total),
-    warehouses: [{
-      name: whName, total: Math.round(total), pct: 100,
-      n_items: top10.length, cats: allCats,
-      top3: top10.slice(0,3), top10
-    }]
-  };
-}
-
-function pushTmpPeriod(data){
-  if(periods[0]?._tmp) periods.shift();
-  periods.unshift({...data, _tmp:true});
-  cur = 0;
-}
-
-function resetWoFilters(){
-  ['wo-date-from','wo-date-to','wo-wh-filter'].forEach(id=>{
-    const el=document.getElementById(id); if(el)el.value='';
-  });
-  const rb=document.getElementById('wo-reset-btn'); if(rb)rb.style.display='none';
-  if(periods[0]?._tmp){ periods.shift(); if(cur>0)cur--; }
-  render();
-  ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
-}
-
-
-function renderCards(){
-  const p=d(); if(!p) return;
-  const q=document.getElementById('si').value.toLowerCase();
-  const whs=p.warehouses.filter(w=>{
-    const mf=flt==='all'||lvl(w.total)===flt;
-    const ms=!q||w.name.toLowerCase().includes(q)||(w.top3||[]).some(t=>t.name.toLowerCase().includes(q));
-    return mf&&ms;
-  });
-  const mx=p.warehouses[0]?.total||1;
-  document.getElementById('cc').textContent=`Показано ${whs.length} из ${p.warehouses.length} складов`;
-  document.getElementById('grid').innerHTML=whs.map(w=>{
-    const lv=lvl(w.total),bw=Math.round(w.total/mx*100);
-    const bc=lv==='danger'?'var(--red)':lv==='warn'?'var(--warn)':'var(--acc)';
-    const idx=p.warehouses.indexOf(w);
-    return `<div class="card l${lv[0]}" onclick="openWh(${idx})">
-      <div class="ch"><div class="cn">${w.name}</div><div class="ct ${lv[0]}">${fmt(w.total)} ₽</div></div>
-      <div class="cm">${w.pct}% от сети · ${w.n_items} позиций</div>
-      <div class="bb"><div class="bf" style="width:${bw}%;background:${bc}"></div></div>
-      <div class="cits">${(w.top3||[]).map(t=>{
-        const qs=t.qty>0?`${t.qty%1===0?t.qty.toFixed(0):t.qty} ${t.unit}`:'';
-        return `<div class="ci"><span class="cin">${t.name.length>40?t.name.substring(0,39)+'…':t.name}</span>
-          <div class="cir"><span class="cic">${t.cost.toLocaleString('ru-RU')} ₽</span>${qs?`<span class="ciq">${qs}</span>`:''}</div></div>`;
-      }).join('')}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt);width:90px;text-align:right">${d.cost.toLocaleString('ru-RU')} ₽</div>
     </div>`;
   }).join('');
 }
 
-function setF(f,btn){flt=f;document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('act'));btn.classList.add('act');renderCards();}
+function filterByArticle(art){const sel=document.getElementById('wo-article-filter');if(sel){sel.value=art;applyWoFilters();}}
 
-function openWh(idx){
-  const p=d(),w=p.warehouses[idx];
-  const lv=lvl(w.total),clr=lv==='danger'?'var(--red)':lv==='warn'?'var(--warn)':'var(--acc)';
-  document.getElementById('wmt').textContent=w.name;
-  document.getElementById('wmk').innerHTML=`
-    <div class="mk"><div class="mkv" style="color:${clr}">${fmtR(w.total)}</div><div class="mkl">Списания</div></div>
-    <div class="mk"><div class="mkv">${w.pct}%</div><div class="mkl">От сети</div></div>
-    <div class="mk"><div class="mkv">${w.n_items}</div><div class="mkl">Позиций</div></div>`;
-  const items=w.top10||w.top3||[],mx=items[0]?.cost||1;
-  document.getElementById('wmt10').innerHTML=items.map((t,i)=>{
-    const pct=(t.cost/w.total*100).toFixed(1),bw=Math.round(t.cost/mx*100);
-    const bc=i===0?'var(--warn)':i<3?'var(--acc)':'var(--txt3)';
-    const qs=t.qty>0?`${t.qty%1===0?t.qty.toFixed(0):t.qty} ${t.unit}`:'';
-    return `<div class="tr ${i===0?'t1':''}">
-      <span class="tn">${i+1}</span>
-      <div class="mb"><div class="mf" style="width:${bw}%;background:${bc}"></div></div>
-      <span class="tname">${t.name}</span>
-      <div class="tright"><span class="tcost">${fmtR(t.cost)}</span>${qs?`<span class="tqty">${qs}</span>`:''}<span class="tpct">${pct}% склада</span></div>
+function renderWoPoints(){
+  const el=document.getElementById('wo-points-grid');
+  const cntEl=document.getElementById('wo-points-count');
+  if(!el||!WO_FILTERED) return;
+  const search=(document.getElementById('wo-search')?.value||'').toLowerCase();
+  let points=WO_FILTERED.by_point||[];
+  if(search) points=points.filter(p=>p.name.toLowerCase().includes(search));
+  if(cntEl) cntEl.textContent=`Точки (${points.length})`;
+  if(!points.length){el.innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px">Нет данных</div>';return;}
+  const maxTotal=points[0].total;
+  const colorFor=t=>t>maxTotal*0.6?'#FB7185':t>maxTotal*0.3?'#FFB020':'#22C55E';
+  el.innerHTML=points.map((p,i)=>{
+    const clr=colorFor(p.total);
+    const pct=maxTotal>0?Math.round(p.total/maxTotal*100):0;
+    const topArt=p.artBreakdown&&p.artBreakdown[0]?p.artBreakdown[0].art:'';
+    return `<div onclick="openWoPointModal(${i})" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .15s"
+        onmouseenter="this.style.borderColor='${clr}'" onmouseleave="this.style.borderColor='var(--bd)'">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--txt);flex:1;line-height:1.3">${p.name.replace(/ склад$/i,'').replace(/ Склад$/,'')}</div>
+        <div style="font-size:14px;font-weight:800;color:${clr};margin-left:8px;white-space:nowrap">${p.total.toLocaleString('ru-RU')} ₽</div>
+      </div>
+      <div style="height:4px;background:var(--surf);border-radius:2px;margin-bottom:8px">
+        <div style="height:100%;width:${pct}%;background:${clr};border-radius:2px"></div>
+      </div>
+      <div style="font-size:10px;color:var(--txt3)">${topArt}</div>
     </div>`;
   }).join('');
-  const cats=Object.entries(w.cats||{}).sort((a,b)=>b[1]-a[1]);
-  const ct=cats.reduce((s,c)=>s+c[1],0);
-  document.getElementById('wmcats').innerHTML=cats.slice(0,8).map(([k,v])=>`<div class="cr"><div class="cdot" style="background:${CAT[k]||'#888'}"></div><div class="cname">${k}</div><div class="cpct">${Math.round(v/ct*100)}%</div></div>`).join('');
-  const he=document.getElementById('wmhist');
-  if(periods.length>1){
-    const rows=periods.map((pp,pi)=>{
-      const wh=pp.warehouses.find(x=>x.name===w.name);if(!wh)return'';
-      const pv=pi<periods.length-1?periods[pi+1].warehouses.find(x=>x.name===w.name):null;
-      const dt=pv?Math.round((wh.total-pv.total)/pv.total*100):null;
-      return `<div class="hr" ${pi===cur?'style="font-weight:800"':''}>
-        <span class="hp">${pp.period}</span>
-        <span style="display:flex;align-items:center;gap:6px">
-          ${dt!==null?`<span class="hd" style="color:${dt>0?'var(--red)':'var(--grn)'}">${dt>0?'↑':'↓'}${Math.abs(dt)}%</span>`:''}
-          <span class="hv">${fmtR(wh.total)}</span>
-        </span></div>`;
-    }).filter(Boolean).join('');
-    he.innerHTML=rows?`<div class="hs"><div class="st">Динамика по периодам</div>${rows}</div>`:'';
-  } else he.innerHTML='';
-  op('wm');
 }
+
+function openWoPointModal(idx){
+  const p=(WO_FILTERED.by_point||[])[idx];
+  if(!p) return;
+  const modal=document.getElementById('wo-point-modal');
+  const content=document.getElementById('wo-modal-content');
+  if(!modal||!content) return;
+  const maxItem=p.top10Items&&p.top10Items.length?p.top10Items[0].cost:1;
+  content.innerHTML=`
+    <div style="font-size:18px;font-weight:800;color:var(--txt);margin-bottom:2px">${p.name}</div>
+    <div style="font-size:26px;font-weight:800;color:var(--acc);margin-bottom:20px">${p.total.toLocaleString('ru-RU')} ₽</div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:10px">📋 Статьи — доля от суммы точки</div>
+    ${(p.artBreakdown||[]).map((a,i)=>{
+      const clr=ART_COLORS[i%ART_COLORS.length];
+      const pct2=p.total>0?a.cost/p.total*100:0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <div style="width:190px;font-size:11px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="${a.art}">${a.art}</div>
+        <div style="flex:1;height:16px;background:var(--surf);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(100,pct2)}%;background:${clr};border-radius:3px"></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:${clr};width:65px;text-align:right">${a.cost.toLocaleString('ru-RU')} ₽</div>
+        <div style="font-size:11px;color:var(--txt3);width:36px;text-align:right;font-weight:700">${a.pct}%</div>
+      </div>`;
+    }).join('')}
+    <div style="font-size:12px;font-weight:700;color:var(--txt);margin:18px 0 10px">🏆 Топ-10 позиций</div>
+    ${(p.top10Items||[]).map((item,i)=>{
+      const pct3=maxItem>0?item.cost/maxItem*100:0;
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <div style="font-size:11px;color:var(--txt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">${i+1}. ${item.item}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--txt);white-space:nowrap">${item.cost.toLocaleString('ru-RU')} ₽</div>
+        </div>
+        <div style="height:3px;background:var(--surf);border-radius:2px;margin-bottom:2px">
+          <div style="height:100%;width:${pct3}%;background:var(--acc);border-radius:2px"></div>
+        </div>
+        <div style="font-size:10px;color:var(--txt3)">${item.qty} ${item.unit}</div>
+      </div>`;
+    }).join('')}`;
+  modal.style.display='block';
+}
+
+function closeWoModal(){const m=document.getElementById('wo-point-modal');if(m)m.style.display='none';}
+async function loadWoData(){await loadWoSheetList();}
+
 
 function openCmp(){
   if(periods.length<2){alert('Загрузите 2+ периодов');return;}
