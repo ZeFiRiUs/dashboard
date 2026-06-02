@@ -4504,20 +4504,23 @@ async function doLogin(){
   const btn=document.getElementById('lbtn'),err=document.getElementById('lerr');
   btn.disabled=true;btn.textContent='Проверка...';err.textContent='';
   try{
-    const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':pw},body:'{}'});
-    let j;
-    try { j=await r.json(); } catch(e){ j={}; }
+    // Пароль передаём и в заголовке и в теле — на случай если прокси дропает кастомные заголовки
+    const r=await fetch('/api/auth',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-View-Password':pw,'X-Admin-Password':pw},
+      body:JSON.stringify({password:pw,pw:pw})
+    });
+    let j={};
+    try{j=await r.json();}catch(e){}
     if(j.ok){
       sessionPassword=pw;sessionStorage.setItem('dash_pw',pw);
       document.getElementById('ls').style.display='none';
       loadData();startAutoReload();
       _updateSheetsBarVisibility(j.role==='admin');
     } else {
-      // Показываем точный статус для диагностики
-      const hint = r.status===401 ? 'Неверный пароль' : `HTTP ${r.status}`;
-      err.textContent='❌ '+hint;
+      err.textContent='❌ Неверный пароль ('+r.status+')';
       btn.disabled=false;btn.textContent='Войти →';
-      document.getElementById('lpw').select();document.getElementById('lpw').focus();
+      document.getElementById('lpw').select();
     }
   }catch(e){
     err.textContent='❌ Нет связи с сервером';
@@ -4571,7 +4574,7 @@ function _updateSheetsBarVisibility(isAdmin){
 _updateSheetsBarVisibility(false); // скрыта по умолчанию
 
 if(sessionPassword){
-  fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':sessionPassword},body:'{}'})
+  fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':sessionPassword,'X-Admin-Password':sessionPassword},body:JSON.stringify({password:sessionPassword})})
     .then(r=>r.json()).then(j=>{
       if(j.ok){
         document.getElementById('ls').style.display='none';
