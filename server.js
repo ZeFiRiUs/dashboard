@@ -639,9 +639,15 @@ app.post('/api/writeoffs/sync', async (req, res) => {
 });
 
 
-const PROD_FILE_PATH  = 'data/production.json';
-const LOCAL_PROD_FILE = path.join(LOCAL_DATA_DIR, 'production.json');
+// ── Production (Производство) ─────────────────────────────────────────────────
+const PROD_FILE_PATH   = 'data/production.json';
+const LOCAL_PROD_FILE  = path.join(LOCAL_DATA_DIR, 'production.json');
+const PROD_SHEET_ID    = '1aQHL9lyceepk0bBTRY9s23VZQcbHPCDX';
+const PROD_GID         = '1287300396';
 if (!fs.existsSync(LOCAL_PROD_FILE)) fs.writeFileSync(LOCAL_PROD_FILE, 'null');
+
+let _prodCsvCache = null, _prodCsvCacheTs = 0;
+const PROD_CSV_CACHE_TTL = 5 * 60 * 1000;
 
 async function readProduction() {
   if (GH_TOKEN && GH_OWNER) {
@@ -666,20 +672,219 @@ async function writeProduction(data, sha) {
   return 'local';
 }
 
+// Парсер CSV листа производства
+function parseProductionCsv(csv) {
+  const parseNum = s => {
+    if (!s) return 0;
+    const n = parseFloat(String(s).replace(/\u00a0/g,'').replace(/\s/g,'').replace(',','.').replace(/[^\d.]/g,''));
+    return isNaN(n) ? 0 : n;
+  };
+
+  const lines = csv.split('\n');
+  function parseLine(line) {
+    const res = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { res.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    res.push(cur.trim()); return res;
+  }
+
+  const rows = lines.map(parseLine);
+
+  // ── Часть 1: сводная шапка (строки 0–34) ─────────────────────────────────
+  // Колонки: 0=Отделение, 1=ФИО, 4=Ставка, 5=Часы, 6=ЗП День, 7=ЗП Отдела, 8=Выпуск единиц, 9=ФОТ/ед
+  const SKIP_DEPT = new Set(['Отделение', '', 'ФИО']);
+  const depts = [];
+  let curDept = null;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const col0 = (r[0] || '').trim();
+    const col1 = (r[1] || '').trim();
+
+    // Строка-заголовок второй части (детализация по цехам)
+    if (col1 === 'ФИО' && (r[8] || '').trim()) break;
+
+    if (col0 && !SKIP_DEPT.has(col0)) {
+      curDept = {
+        name: col0,
+        pay_dept: parseNum(r[7]),
+        output_units: parseNum(r[8]),
+        fot_per_unit: parseNum(r[9]),
+        staff: [],
+      };
+      depts.push(curDept);
+    }
+
+    if (curDept && col1 && col1 !== '-' && !SKIP_DEPT.has(col1)) {
+      const hours = parseNum(r[5]), pay = parseNum(r[6]);
+      if (hours > 0 || pay > 0) {
+        curDept.staff.push({ fio: col1, hours, pay, rate: parseNum(r[4]) });
+      }
+    }
+  }
+
+  // ── Часть 2: детализация продукции по цехам ───────────────────────────────
+  // Начинается со строки, где col1==='ФИО' и col8 содержит название цеха
+  const productsByDept = {};
+  let detailDept = null;
+  let detailStart = -1;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if ((r[1]||'').trim() === 'ФИО' && (r[8]||'').trim()) {
+      detailStart = i; break;
+    }
+  }
+
+  if (detailStart >= 0) {
+    for (let i = detailStart; i < rows.length; i++) {
+      const r = rows[i];
+      const deptMarker = (r[8] || '').trim();
+      const prodName   = (r[9] || '').trim();
+      const unit       = (r[10] || '').trim();
+      const factRaw    = (r[11] || '').trim();
+      const hrsPerUnit = parseNum(r[12]);
+
+      // Маркер начала нового цеха-раздела (col1=ФИО AND col8 непустой)
+      if ((r[1]||'').trim() === 'ФИО' && deptMarker) {
+        detailDept = deptMarker;
+        if (!productsByDept[detailDept]) productsByDept[detailDept] = [];
+        continue;
+      }
+
+      // Строка с продуктом
+      if (detailDept && prodName && prodName !== 'Наименование' && prodName !== 'итог' && prodName !== 'Итог') {
+        const fact = parseNum(factRaw);
+        const hrsTotal = parseNum(r[13]);
+        productsByDept[detailDept].push({ name: prodName, unit, fact, hrs_per_unit: hrsPerUnit, hrs_total: hrsTotal });
+      }
+    }
+  }
+
+  // ── Считаем ФОТ на единицу для каждой позиции ─────────────────────────────
+  // Находим совпадение по имени цеха между depts и productsByDept
+  const normDept = s => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const deptMap = {};
+  depts.forEach(d => { deptMap[normDept(d.name)] = d; });
+
+  const deptsResult = depts.map(d => {
+    const key = normDept(d.name);
+    // Подбираем продукцию — точное совпадение или подстрока
+    let products = productsByDept[d.name] || [];
+    if (!products.length) {
+      // Нечёткий поиск по ключу
+      const found = Object.keys(productsByDept).find(k => normDept(k).includes(key.split(' ')[0]) || key.includes(normDept(k).split(' ')[0]));
+      if (found) products = productsByDept[found];
+    }
+
+    const activeProducts = products.filter(p => p.fact > 0);
+    const totalHrs = products.reduce((s, p) => s + p.hrs_total, 0);
+
+    // ФОТ на ед = pay_dept / output_units
+    const fotPerUnit = d.output_units > 0 ? Math.round(d.pay_dept / d.output_units * 100) / 100 : 0;
+
+    // Для каждой позиции — ФОТ на единицу = (hrs_per_unit / totalHrs) * pay_dept / fact  ИЛИ просто ФОТ/ед цеха * hrs_per_unit/avg_hrs
+    const productsWithFot = products.map(p => {
+      let fot_per_unit = 0;
+      if (p.hrs_per_unit > 0 && d.pay_dept > 0 && totalHrs > 0) {
+        // Доля трудозатрат этой позиции → ФОТ на единицу
+        const payPerHr = totalHrs > 0 ? d.pay_dept / totalHrs : 0;
+        fot_per_unit = p.fact > 0 ? Math.round(payPerHr * p.hrs_per_unit * 100) / 100 : 0;
+      }
+      return { ...p, fot_per_unit };
+    });
+
+    return {
+      name: d.name,
+      pay_dept: Math.round(d.pay_dept),
+      output_units: Math.round(d.output_units * 100) / 100,
+      fot_per_unit: Math.round(fotPerUnit * 100) / 100,
+      staff_count: d.staff.length,
+      total_hours: Math.round(d.staff.reduce((s, e) => s + e.hours, 0) * 10) / 10,
+      staff: d.staff,
+      products: productsWithFot,
+      active_products: activeProducts.length,
+    };
+  });
+
+  const totalFot = deptsResult.reduce((s, d) => s + d.pay_dept, 0);
+  const totalUnits = deptsResult.reduce((s, d) => s + d.output_units, 0);
+
+  return {
+    meta: {
+      source: 'Производство (Google Sheets)',
+      created_at: new Date().toISOString().slice(0, 10),
+      total_fot: totalFot,
+      total_units: Math.round(totalUnits * 100) / 100,
+      fot_per_unit_avg: totalUnits > 0 ? Math.round(totalFot / totalUnits * 100) / 100 : 0,
+      depts_count: deptsResult.filter(d => d.pay_dept > 0 || d.output_units > 0).length,
+    },
+    depts: deptsResult,
+  };
+}
+
+// GET /api/production — отдать сохранённые данные
 app.get('/api/production', async (req, res) => {
   if (!checkView(req, res)) return;
   const { data } = await readProduction();
   res.json(data);
 });
 
+// GET /api/production/csv — живые данные из Google Sheets (кэш 5 мин)
+app.get('/api/production/csv', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const now = Date.now();
+  const noCache = req.query.nocache === '1';
+  if (!noCache && _prodCsvCache && (now - _prodCsvCacheTs) < PROD_CSV_CACHE_TTL) {
+    return res.json(_prodCsvCache);
+  }
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=csv&gid=${PROD_GID}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    const result = parseProductionCsv(csv);
+    _prodCsvCache = result; _prodCsvCacheTs = now;
+    res.json(result);
+  } catch(e) {
+    console.error('Production CSV fetch error:', e.message);
+    if (_prodCsvCache) return res.json(_prodCsvCache);
+    res.status(502).json({ error: 'Не удалось получить данные: ' + e.message });
+  }
+});
+
+// POST /api/production/sync — синхронизация из Sheets + сохранение
+app.post('/api/production/sync', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    _prodCsvCache = null; _prodCsvCacheTs = 0;
+    const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=csv&gid=${PROD_GID}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    const result = parseProductionCsv(csv);
+    _prodCsvCache = result; _prodCsvCacheTs = Date.now();
+    const { sha } = await readProduction();
+    const dest = await writeProduction(result, sha);
+    res.json({ ok: true, depts: result.depts.length, total_fot: result.meta.total_fot, saved_to: dest });
+  } catch(e) {
+    console.error('Production sync error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/production — ручная загрузка JSON (старый формат, для совместимости)
 app.post('/api/production', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const data = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
-    if (!data.meta || !data.rows) return res.status(400).json({ error: 'Неверный формат' });
+    if (!data.meta) return res.status(400).json({ error: 'Неверный формат' });
     const { sha } = await readProduction();
     const dest = await writeProduction(data, sha);
-    res.json({ ok: true, rows: data.rows.length, saved_to: dest });
+    res.json({ ok: true, saved_to: dest });
   } catch(e) { res.status(400).json({ error: e.message }); }
 });
 
