@@ -364,7 +364,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <input class="login-inp" id="lpw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" autofocus>
     <button class="login-btn" id="lbtn" onclick="doLogin()">Войти →</button>
     <div class="login-err" id="lerr"></div>
-    <div class="login-hint">Пароль задаётся в переменных Railway:<br><code style="font-size:10px;color:var(--acc)">VIEW_PASSWORD</code> или <code style="font-size:10px;color:var(--acc)">ADMIN_PASSWORD</code><br><span style="color:var(--txt3)">По умолчанию: <b>view2026</b> / <b>admin2026</b></span></div>
+    <div class="login-hint">Обратитесь к администратору для получения пароля</div>
   </div>
 </div>
 
@@ -4504,29 +4504,23 @@ async function doLogin(){
   const btn=document.getElementById('lbtn'),err=document.getElementById('lerr');
   btn.disabled=true;btn.textContent='Проверка...';err.textContent='';
   try{
-    // Сначала проверяем что сервер вообще доступен
-    let serverOk = false;
-    try {
-      const h = await fetch('/health', { signal: AbortSignal.timeout(4000) });
-      serverOk = h.ok;
-    } catch(e) {
-      err.textContent='❌ Сервер недоступен. Проверьте деплой на Railway.';
-      btn.disabled=false;btn.textContent='Войти →';return;
-    }
     const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':pw},body:'{}'});
-    const j=await r.json();
+    let j;
+    try { j=await r.json(); } catch(e){ j={}; }
     if(j.ok){
       sessionPassword=pw;sessionStorage.setItem('dash_pw',pw);
       document.getElementById('ls').style.display='none';
       loadData();startAutoReload();
       _updateSheetsBarVisibility(j.role==='admin');
     } else {
-      err.textContent='❌ Неверный пароль';
+      // Показываем точный статус для диагностики
+      const hint = r.status===401 ? 'Неверный пароль' : `HTTP ${r.status}`;
+      err.textContent='❌ '+hint;
       btn.disabled=false;btn.textContent='Войти →';
-      document.getElementById('lpw').value='';document.getElementById('lpw').focus();
+      document.getElementById('lpw').select();document.getElementById('lpw').focus();
     }
   }catch(e){
-    err.textContent='❌ Ошибка соединения: '+(e.message||e);
+    err.textContent='❌ Нет связи с сервером';
     btn.disabled=false;btn.textContent='Войти →';
   }
 }
