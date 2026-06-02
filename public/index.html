@@ -504,89 +504,49 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <!-- ═══ WRITEOFFS TAB ═══ -->
 <div id="page-wo" class="page">
 <div class="wrap">
-
-  <!-- Шапка -->
   <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="sdot spin" id="sdot"></div>
-      <span id="stxt">Загрузка...</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <select id="wo-sheet-select" onchange="onWoSheetChange()"
-        style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer;min-width:100px">
-        <option value="">Период...</option>
-      </select>
-      <button onclick="refreshWoData()" style="font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">↻ Обновить</button>
-      <span id="wo-status-msg" style="font-size:11px;color:var(--grn)"></span>
+    <div style="display:flex;align-items:center;gap:8px"><div class="sdot spin" id="sdot"></div><span id="stxt">Загрузка...</span></div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
+      <span id="wo-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
+      <span id="wo-sheets-text">Sheets</span>
+      <button id="wo-sheets-btn" onclick="syncWoFromTab()" style="display:none;background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
     </div>
   </div>
+  <div id="krow" class="kpis"></div>
 
-  <!-- KPI -->
-  <div id="wo-kpi-row" class="kpis" style="margin-bottom:20px"></div>
-
-  <!-- Фильтры -->
-  <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
-    <select id="wo-date-from" onchange="applyWoFilters()"
-      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:130px">
-      <option value="">С даты...</option>
-    </select>
+  <div class="frow">
+    <select id="wo-date-from" onchange="applyWoDateFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
     <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-    <select id="wo-date-to" onchange="applyWoFilters()"
-      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:130px">
-      <option value="">По дату...</option>
-    </select>
-    <select id="wo-point-filter" onchange="applyWoFilters()"
-      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:170px">
-      <option value="">Все точки</option>
-    </select>
-    <select id="wo-article-filter" onchange="applyWoFilters()"
-      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:190px">
-      <option value="">Все статьи</option>
-    </select>
-    <div class="sw"><span class="sic">🔍</span>
-      <input class="si" id="wo-search" type="text" placeholder="Поиск по точке..." oninput="renderWoPoints()">
-    </div>
-    <button class="fbtn" onclick="resetWoFilters()">✕ Сбросить</button>
+    <select id="wo-date-to" onchange="applyWoDateFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
+    <select id="wo-wh-filter" onchange="applyWoWhFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все склады</option></select>
+    <button class="fbtn" id="wo-reset-btn" onclick="resetWoFilters()" style="display:none">✕ Сбросить</button>
+    <button class="fbtn act" onclick="setF('all',this)">Все</button>
+    <button class="fbtn" onclick="setF('danger',this)">🔴 &gt;100k</button>
+    <button class="fbtn" onclick="setF('warn',this)">🟡 45–100k</button>
+    <button class="fbtn" onclick="setF('ok',this)">🟢 &lt;45k</button>
+    <div class="sw"><span class="sic">🔍</span><input class="si" id="si" type="text" placeholder="Поиск по складу или позиции..." oninput="renderCards()"></div>
   </div>
-
-  <!-- Аналитика статей -->
+  <!-- Блоки аналитики статей и точек -->
   <div id="wo-articles-section" style="display:none;margin-bottom:20px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <!-- Группы статей -->
       <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
-        <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:14px">📋 Статьи списаний</div>
+        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Группы статей</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--txt2)" id="wo-groups-legend"></div>
+        <div id="wo-groups-bars"></div>
+      </div>
+      <!-- Статьи детально -->
+      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Статьи (детально)</div>
         <div id="wo-articles-bars"></div>
       </div>
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
-        <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:14px">📅 По дням</div>
-        <div id="wo-by-date-chart"></div>
-      </div>
     </div>
   </div>
 
-  <!-- Карточки точек -->
-  <div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:12px" id="wo-points-count"></div>
-  <div id="wo-points-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
-
-  <!-- Пустое состояние -->
-  <div id="wo-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
-    <div style="font-size:48px;margin-bottom:16px;opacity:.3">📊</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Выберите период</div>
-    <div style="font-size:13px">Список периодов загружается автоматически</div>
-  </div>
-
-</div><!-- /wrap -->
-</div><!-- /page-wo -->
-
-<!-- Модальное окно точки -->
-<div id="wo-point-modal" onclick="if(event.target===this)closeWoModal()"
-  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;overflow-y:auto;padding:20px">
-  <div style="max-width:600px;margin:40px auto;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:24px;position:relative">
-    <button onclick="closeWoModal()"
-      style="position:absolute;top:16px;right:16px;background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:4px 10px;color:var(--txt);cursor:pointer;font-size:13px">✕</button>
-    <div id="wo-modal-content"></div>
-  </div>
+  <div class="cc" id="cc"></div>
+  <div class="grid" id="grid"></div>
+  </div><!-- /page-wo wrap -->
 </div>
-
 
 <!-- ═══ STOPS TAB ═══ -->
 <div id="page-stops" class="page">
@@ -743,55 +703,34 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <!-- ═══ PRODUCTION TAB ═══ -->
 <div id="page-production" class="page">
 <div class="wrap">
-  <!-- Заголовок -->
   <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
     <div style="display:flex;align-items:center;gap:8px">
       <div class="sdot ok" id="prod-sdot"></div>
       <span>Производство<span id="prod-period-label"></span></span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <!-- Выбор листа (даты) -->
-      <select id="prod-sheet-select" onchange="onProdSheetChange()"
-        style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer;min-width:120px">
-        <option value="">Выберите дату...</option>
-      </select>
+    <div style="display:flex;gap:8px;align-items:center">
       <button id="prod-sync-btn" onclick="syncProductionFromSheets()"
-        style="font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">↻ Обновить</button>
+        style="font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">↻ Синхронизировать</button>
       <span id="prod-sync-msg" style="font-size:11px;color:var(--grn)"></span>
     </div>
   </div>
-
-  <!-- Загрузка списка -->
-  <div id="prod-loading" style="text-align:center;padding:40px;color:var(--txt3);display:none">
-    <div style="font-size:13px">⏳ Загрузка...</div>
-  </div>
-
-  <!-- Empty state -->
   <div id="prod-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
     <div style="font-size:48px;margin-bottom:16px;opacity:.3">🏭</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Выберите дату</div>
-    <div style="font-size:13px">Список доступных дней загружается автоматически</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные производства не загружены</div>
+    <div style="font-size:13px;margin-bottom:24px">Нажмите «↻ Синхронизировать»</div>
+    <button onclick="loadProductionLive()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer">Загрузить из Google Sheets</button>
   </div>
-
-  <!-- Данные -->
   <div id="prod-data-wrap" style="display:none">
-    <!-- KPI карточки цехов -->
     <div id="prod-dept-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px"></div>
-
-    <!-- Детализация по цеху -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <div style="font-size:13px;font-weight:700;color:var(--txt)">Цех:</div>
       <div id="prod-dept-tabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
     <div id="prod-dept-detail" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px"></div>
-
-    <!-- ФОТ/ед сравнение -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">💰 ФОТ на единицу продукции — сравнение цехов</div>
       <div id="prod-fot-chart"></div>
     </div>
-
-    <!-- Продукция -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="font-size:13px;font-weight:700;color:var(--txt)">📦 Выпуск продукции по позициям</div>
@@ -802,8 +741,6 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </div>
       <div id="prod-products-list"></div>
     </div>
-
-    <!-- Сотрудники -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:24px">
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">👥 Сотрудники по цехам</div>
       <div id="prod-staff-table"></div>
@@ -811,6 +748,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
 </div>
 </div><!-- /page-production -->
+
 
 <!-- ═══ SEBES TAB ═══ -->
 <div id="page-sebes" class="page">
@@ -1084,7 +1022,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         </div>
         <div id="wo-sheets-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button onclick="refreshWoData()" style="background:var(--acc);border:none;border-radius:6px;padding:5px 14px;color:#0a0a0a;font-size:11px;font-weight:600;font-family:Manrope,sans-serif;cursor:pointer">🔄 Синхронизировать списания</button>
+          <button onclick="syncWoFromTab()" style="background:var(--acc);border:none;border-radius:6px;padding:5px 14px;color:#0a0a0a;font-size:11px;font-weight:600;font-family:Manrope,sans-serif;cursor:pointer">🔄 Синхронизировать списания</button>
           <span style="font-size:10px;color:var(--txt3)">Название периода (4-10), GID из URL</span>
         </div>
       </div>
@@ -1393,98 +1331,52 @@ let PROD_DATA = null, PROD_ACTIVE_DEPT = null;
 async function loadProductionFromServer() {
   const sdot = document.getElementById('prod-sdot');
   if (sdot) sdot.className = 'sdot spin';
-  // Загружаем список листов
-  await loadProdSheetList();
-  // Пробуем загрузить сохранённые данные
   try {
-    const r = await fetch('/api/production', { headers: { 'X-View-Password': sessionPassword } });
+    const r = await fetch('/api/production/csv', { headers: { 'X-View-Password': sessionPassword } });
     if (r.ok) {
       const data = await r.json();
-      if (data && data.meta) {
-        applyProductionData(data);
-        // Выставляем выбранный лист в селект
-        const sel = document.getElementById('prod-sheet-select');
-        if (sel && data.meta.sheet) sel.value = data.meta.sheet;
-        return true;
-      }
+      if (data && data.meta) { applyProductionData(data); return true; }
     }
-  } catch(e) {}
-  if (sdot) sdot.className = 'sdot warn';
-  renderProduction();
-  return false;
+    const r2 = await fetch('/api/production', { headers: { 'X-View-Password': sessionPassword } });
+    if (r2.ok) {
+      const data = await r2.json();
+      if (data && data.meta) { applyProductionData(data); return true; }
+    }
+    if (sdot) sdot.className = 'sdot warn';
+    renderProduction(); return false;
+  } catch(e) { if (sdot) sdot.className = 'sdot warn'; renderProduction(); return false; }
 }
 
-async function loadProdSheetList() {
-  try {
-    const r = await fetch('/api/production/sheets', { headers: { 'X-View-Password': sessionPassword } });
-    if (!r.ok) return;
-    const sheets = await r.json();
-    const sel = document.getElementById('prod-sheet-select');
-    if (!sel || !sheets.length) return;
-    sel.innerHTML = '<option value="">Выберите дату...</option>' +
-      sheets.map(s => `<option value="${s.name}">${s.label}</option>`).join('');
-  } catch(e) { console.error('loadProdSheetList:', e); }
-}
-
-async function onProdSheetChange() {
-  const sel = document.getElementById('prod-sheet-select');
-  const name = sel ? sel.value : '';
-  if (!name) return;
+async function loadProductionLive() {
   const sdot = document.getElementById('prod-sdot');
-  const msg = document.getElementById('prod-sync-msg');
-  const loading = document.getElementById('prod-loading');
-  const wrap = document.getElementById('prod-data-wrap');
-  const empty = document.getElementById('prod-empty');
   if (sdot) sdot.className = 'sdot spin';
-  if (msg) msg.textContent = '⏳ Загружаю...';
-  if (loading) loading.style.display = 'block';
-  if (wrap) wrap.style.display = 'none';
-  if (empty) empty.style.display = 'none';
   try {
-    const r = await fetch(`/api/production/sheet?name=${encodeURIComponent(name)}`, {
-      headers: { 'X-View-Password': sessionPassword }
-    });
+    const r = await fetch('/api/production/csv?nocache=1', { headers: { 'X-View-Password': sessionPassword } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
-    if (data && data.meta) {
-      applyProductionData(data);
-      if (msg) { msg.textContent = '✅ ' + name; setTimeout(() => msg.textContent = '', 3000); }
-    } else throw new Error('Нет данных');
-  } catch(e) {
-    if (sdot) sdot.className = 'sdot warn';
-    if (msg) { msg.textContent = '❌ ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
-    if (loading) loading.style.display = 'none';
-    if (empty) empty.style.display = 'block';
-  }
+    if (data && data.meta) { applyProductionData(data); return; }
+    throw new Error('Нет данных');
+  } catch(e) { if (sdot) sdot.className = 'sdot warn'; alert('❌ ' + e.message); }
 }
 
 async function syncProductionFromSheets() {
-  const sel = document.getElementById('prod-sheet-select');
-  const name = sel ? sel.value : '';
   const btn = document.getElementById('prod-sync-btn');
   const msg = document.getElementById('prod-sync-msg');
   if (btn) btn.disabled = true;
-  if (msg) msg.textContent = '⏳ Обновляю список...';
-  // Сбрасываем кэш списка листов и перезагружаем
+  if (msg) msg.textContent = '⏳ Загрузка...';
   try {
-    // Если выбран лист — обновляем его данные
-    if (name) {
-      const r = await fetch(`/api/production/sheet?name=${encodeURIComponent(name)}&nocache=1`, {
-        headers: { 'X-View-Password': sessionPassword }
-      });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      if (data && data.meta) applyProductionData(data);
+    const r = await fetch('/api/production/csv?nocache=1', { headers: { 'X-View-Password': sessionPassword } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (!data || !data.meta) throw new Error('Нет данных');
+    applyProductionData(data);
+    if (msg) { msg.textContent = '✅ Обновлено'; setTimeout(() => msg.textContent = '', 4000); }
+    if (adminPw) {
+      fetch('/api/production/sync', { method:'POST', headers:{'X-Admin-Password':adminPw} }).catch(()=>{});
     }
-    // Обновляем список листов
-    await loadProdSheetList();
-    if (sel && name) sel.value = name;
-    if (msg) { msg.textContent = '✅ Обновлено'; setTimeout(() => msg.textContent = '', 3000); }
   } catch(e) {
     if (msg) { msg.textContent = '❌ ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+  } finally { if (btn) btn.disabled = false; }
 }
 
 function applyProductionData(data) {
@@ -1492,17 +1384,13 @@ function applyProductionData(data) {
   const sdot = document.getElementById('prod-sdot');
   if (sdot) sdot.className = 'sdot ok';
   const lbl = document.getElementById('prod-period-label');
-  if (lbl) lbl.innerHTML = data.meta.date_label ? ' · <b style="color:var(--txt)">' + data.meta.date_label + '</b>' : '';
-  const loading = document.getElementById('prod-loading');
-  if (loading) loading.style.display = 'none';
+  if (lbl) lbl.innerHTML = ' · <b style="color:var(--txt)">' + (data.meta.created_at || '') + '</b>';
   renderProduction();
 }
 
 function renderProduction() {
   const empty = document.getElementById('prod-empty');
   const wrap  = document.getElementById('prod-data-wrap');
-  const loading = document.getElementById('prod-loading');
-  if (loading) loading.style.display = 'none';
   if (!PROD_DATA || !PROD_DATA.depts) {
     if (empty) empty.style.display = 'block';
     if (wrap)  wrap.style.display  = 'none';
@@ -1512,8 +1400,6 @@ function renderProduction() {
   if (wrap)  wrap.style.display  = 'block';
   const depts = PROD_DATA.depts.filter(d => d.output_units > 0 || d.pay_dept > 0);
   const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
-
-  // KPI карточки
   const kpiEl = document.getElementById('prod-dept-kpis');
   if (kpiEl) kpiEl.innerHTML = depts.map((d, i) => {
     const clr = DEPT_COLORS[i % DEPT_COLORS.length];
@@ -1529,20 +1415,15 @@ function renderProduction() {
       </div>
     </div>`;
   }).join('');
-
-  // Табы
   const tabsEl = document.getElementById('prod-dept-tabs');
   if (tabsEl) tabsEl.innerHTML = depts.map((d, i) => {
     const clr = DEPT_COLORS[i % DEPT_COLORS.length];
     return `<button onclick="selectProdDept('${d.name.replace(/'/g,"\'")}',null)" data-dept-tab="${d.name}"
       style="padding:5px 14px;border-radius:20px;border:1px solid ${clr};background:var(--card);color:var(--txt2);cursor:pointer;font-size:11px;font-weight:600;transition:all .15s">${d.name}</button>`;
   }).join('');
-
-  // Фильтр продукции
   const deptFilter = document.getElementById('prod-dept-filter');
   if (deptFilter) deptFilter.innerHTML = '<option value="">Все цехи</option>' +
     depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
-
   renderProdFotChart(depts, DEPT_COLORS);
   if (depts[0]) selectProdDept(depts[0].name, null);
   renderProdProducts();
@@ -1690,7 +1571,6 @@ function resetProdFilter() {
   if (f) f.value = '';
   renderProdProducts();
 }
-
 
 // ══ SEBES (Себестоимость) ══════════════════════════════════════════════════
 let SEBES_DATA = null;
@@ -2060,6 +1940,13 @@ function _renderSebesChart(history){
 }
 
 
+function resetProdFilter(){
+  ['prod-date-from','prod-date-to','prod-wh-filter','prod-product-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
+  const s=document.getElementById('prod-search');if(s)s.value='';
+  applyProdFilter();
+}
+
+
 function resetDelFilters() {
   ['del-date-from','del-date-to','del-point-filter','del-reason-filter','del-dept-filter'].forEach(function(id){
     const el=document.getElementById(id); if(el) el.value='';
@@ -2106,10 +1993,6 @@ function switchTab(tab,btn){
     b.classList.toggle('active', b.getAttribute('data-tab')===tab);
   });
   if(tab==='overview'){ renderOverview(); }
-  if(tab==='wo'){
-    if(!WO_DATA){ loadWoData(); }
-    else renderWo();
-  }
   if(tab==='stops'){
     if(!STOPS_DATA){
       loadStopsFromServer().then(ok => { if(!ok) renderStops(); });
@@ -2480,16 +2363,65 @@ function removeSebesSheet(i){
 }
 
 // ── Листы списаний ────────────────────────────────────────────────────────────
-// WO sheets management — заменено новым API (загрузка по имени листа)
 let _woSheets = [];
-function renderWoSheetsList(){ 
-  const el=document.getElementById('wo-sheets-list');
-  if(el) el.innerHTML='<div style="font-size:11px;color:var(--txt3)">Листы загружаются автоматически из Google Sheets</div>';
+
+async function loadWoSheetsList(){
+  try {
+    const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) return;
+    const j = await r.json();
+    _woSheets = j.sheets || [];
+    renderWoSheetsList();
+  } catch(e){ console.error(e); }
 }
-async function loadWoSheetsList(){ await loadWoSheetList(); }
-async function addWoSheet(){ alert('Листы теперь загружаются автоматически из Google Sheets'); }
-function removeWoSheet(i){}
-async function saveWoSheetsToServer(){}
+
+function renderWoSheetsList(){
+  const el = document.getElementById('wo-sheets-list');
+  if(!el) return;
+  if(!_woSheets.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--txt3)">Нет листов. Нажмите "+ Добавить лист"</div>';
+    return;
+  }
+  el.innerHTML = _woSheets.map((s,i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px">
+      <span style="font-size:12px;font-weight:600;color:var(--txt);flex:0 0 70px">${s.name}</span>
+      <span style="font-size:11px;color:var(--txt3);flex:1">gid: ${s.gid}</span>
+      <button onclick="removeWoSheet(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px">×</button>
+    </div>`).join('');
+}
+
+async function addWoSheet(){
+  const name = prompt('Название периода (например 4-10):');
+  if(!name || !name.trim()){ return; }
+  const gid = prompt('GID листа (число из URL после ?gid=):');
+  if(!gid || !/^\d+$/.test(gid.trim())){ alert('GID должен быть числом'); return; }
+  // Получаем актуальный список
+  try {
+    const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
+    if(r.ok){ const j=await r.json(); _woSheets = j.sheets||[]; }
+  } catch(e){}
+  if(_woSheets.find(s=>s.name===name.trim())){ alert('Лист "'+name+'" уже есть'); return; }
+  _woSheets = [..._woSheets, {name: name.trim(), gid: gid.trim()}];
+  await saveWoSheetsToServer();
+}
+
+function removeWoSheet(i){
+  if(!confirm('Удалить лист "'+_woSheets[i].name+'"?')) return;
+  _woSheets.splice(i,1);
+  saveWoSheetsToServer();
+}
+
+async function saveWoSheetsToServer(){
+  try {
+    const r = await fetch('/api/writeoffs/sheets', {
+      method:'PUT',
+      headers:{'X-Admin-Password':adminPw,'Content-Type':'application/json'},
+      body: JSON.stringify({sheets: _woSheets, mode:'replace'})
+    });
+    if(r.ok){ renderWoSheetsList(); }
+    else { const j=await r.json(); alert('Ошибка: '+j.error); }
+  } catch(e){ alert('Ошибка: '+e.message); }
+}
 
 function parseSebesSheetDate(name){
   const m = name.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/);
@@ -2512,258 +2444,575 @@ async function saveSebesSheetsToServer(){
 
 
 // ══ WRITEOFFS GOOGLE SHEETS SYNC ═══════════════════════════════════════════════
-
-// ══ WO (Аналитика списаний) ═════════════════════════════════════════════════
-let WO_DATA = null, WO_FILTERED = null;
-let _woActiveSheet = '';
-
-async function loadWoSheetList() {
+async function syncWoFromTab(){
+  const dotEl  = document.getElementById('wo-sheets-dot');
+  const textEl = document.getElementById('wo-sheets-text');
+  if(dotEl) dotEl.style.background = 'var(--warn)';
+  if(textEl) textEl.textContent = 'Загрузка...';
   try {
-    const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
-    if (!r.ok) return;
-    const sheets = await r.json();
-    const sel = document.getElementById('wo-sheet-select');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">Период...</option>' +
-      sheets.map(s=>`<option value="${s.name}">${s.label}</option>`).join('');
-    if (sheets.length && !_woActiveSheet) {
-      sel.value = sheets[0].name;
-      _woActiveSheet = sheets[0].name;
-      await loadWoSheet(sheets[0].name);
+    const r = await fetch('/api/writeoffs/sync', {method:'POST', headers:{'X-Admin-Password':adminPw}});
+    if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||'HTTP '+r.status); }
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error||'Ошибка');
+    if(dotEl) dotEl.style.background = 'var(--grn)';
+    // Проверяем не загрузившиеся листы
+    const failed = (j.sheets||[]).filter(s=>s.error);
+    let statusMsg = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU') + ' · ' + j.total_rows + ' строк';
+    if(failed.length){
+      statusMsg += ' · ⚠ не загружены: ' + failed.map(s=>s.name+' ('+s.error+')').join(', ');
+      if(textEl) textEl.style.color = 'var(--warn)';
+    } else {
+      if(textEl) textEl.style.color = 'var(--txt3)';
     }
-  } catch(e) { console.error('loadWoSheetList:', e); }
-}
-
-async function loadWoSheet(sheetName) {
-  const msg=document.getElementById('wo-status-msg');
-  const sdot=document.getElementById('sdot');
-  if(sdot) sdot.className='sdot spin';
-  if(msg) msg.textContent='⏳ Загружаю...';
-  document.getElementById('wo-empty').style.display='none';
-  try {
-    const r=await fetch(`/api/writeoffs/sheet?name=${encodeURIComponent(sheetName)}`,{headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    WO_DATA=await r.json(); WO_FILTERED=WO_DATA; _woActiveSheet=sheetName;
-    if(sdot) sdot.className='sdot ok';
-    if(msg){msg.textContent='✅ '+sheetName;setTimeout(()=>msg.textContent='',3000);}
-    ss('ok',sheetName); populateWoFilters(); applyWoFilters();
+    if(textEl) textEl.textContent = statusMsg;
+    // Перезагрузка данных и лог — в отдельных try чтобы ошибка рендера не считалась ошибкой синхронизации
+    try { await loadData(); } catch(e){ console.error('loadData after sync:', e.message); }
+    try { if(typeof logSync==='function') logSync('wo','Google Sheets','Списания парс'); } catch(e){ console.error('logSync:', e.message); }
   } catch(e) {
-    if(sdot) sdot.className='sdot warn';
-    if(msg){msg.textContent='❌ '+e.message;setTimeout(()=>msg.textContent='',5000);}
-    ss('warn',e.message);
-    document.getElementById('wo-empty').style.display='block';
+    if(dotEl) dotEl.style.background = 'var(--red)';
+    if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
+    console.error('syncWoFromTab:', e.message);
   }
 }
 
-async function onWoSheetChange(){
-  const sel=document.getElementById('wo-sheet-select');
-  if(!sel||!sel.value) return;
-  resetWoFiltersUI(); await loadWoSheet(sel.value);
-}
-
-async function refreshWoData(){
-  if(!_woActiveSheet){await loadWoSheetList();return;}
-  const msg=document.getElementById('wo-status-msg');
-  if(msg) msg.textContent='⏳ Обновляю...';
+async function syncSebesFromTab(){
+  const dotEl  = document.getElementById('sebes-sheets-dot');
+  const textEl = document.getElementById('sebes-sheets-text');
+  if(dotEl) dotEl.style.background = 'var(--warn)';
+  if(textEl) textEl.textContent = 'Загрузка...';
   try {
-    const r=await fetch(`/api/writeoffs/sheet?name=${encodeURIComponent(_woActiveSheet)}&nocache=1`,{headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    WO_DATA=await r.json(); WO_FILTERED=WO_DATA;
-    if(msg){msg.textContent='✅ Обновлено';setTimeout(()=>msg.textContent='',3000);}
-    populateWoFilters(); applyWoFilters();
-  } catch(e){
-    if(msg){msg.textContent='❌ '+e.message;setTimeout(()=>msg.textContent='',5000);}
+    await loadSebesFromSheets(true);
+    if(dotEl) dotEl.style.background = 'var(--grn)';
+    if(textEl) textEl.textContent = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU');
+  } catch(e) {
+    if(dotEl) dotEl.style.background = 'var(--red)';
+    if(textEl) textEl.textContent = 'Ошибка: ' + e.message;
   }
 }
 
-function populateWoFilters(){
-  if(!WO_DATA) return;
-  const {dates,points,articles}=WO_DATA.meta;
-  const fromSel=document.getElementById('wo-date-from');
-  const toSel=document.getElementById('wo-date-to');
-  const dateOpts=dates.map(d=>`<option value="${d}">${d}</option>`).join('');
-  if(fromSel) fromSel.innerHTML='<option value="">С даты...</option>'+dateOpts;
-  if(toSel)   toSel.innerHTML='<option value="">По дату...</option>'+dateOpts;
-  const ptSel=document.getElementById('wo-point-filter');
-  if(ptSel) ptSel.innerHTML='<option value="">Все точки</option>'+
-    points.map(p=>`<option value="${p}">${p.replace(' склад','').replace(' Склад','')}</option>`).join('');
-  const artSel=document.getElementById('wo-article-filter');
-  if(artSel) artSel.innerHTML='<option value="">Все статьи</option>'+
-    articles.map(a=>`<option value="${a}">${a}</option>`).join('');
-}
-
-async function applyWoFilters(){
-  if(!WO_DATA||!_woActiveSheet) return;
-  const from=document.getElementById('wo-date-from')?.value||'';
-  const to=document.getElementById('wo-date-to')?.value||'';
-  const point=document.getElementById('wo-point-filter')?.value||'';
-  const article=document.getElementById('wo-article-filter')?.value||'';
-  if(!from&&!to&&!point&&!article){WO_FILTERED=WO_DATA;renderWo();return;}
-  const msg=document.getElementById('wo-status-msg');
-  if(msg) msg.textContent='⏳ Фильтрую...';
+async function loadSebesFromSheets(force){
   try {
-    let url=`/api/writeoffs/sheet?name=${encodeURIComponent(_woActiveSheet)}`;
-    if(from) url+=`&from=${encodeURIComponent(from)}`;
-    if(to)   url+=`&to=${encodeURIComponent(to)}`;
-    if(point)   url+=`&point=${encodeURIComponent(point)}`;
-    if(article) url+=`&article=${encodeURIComponent(article)}`;
-    const r=await fetch(url,{headers:{'X-View-Password':sessionPassword}});
+    const url = '/api/sebes/csv' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if(!data || !data.all_items) throw new Error('Нет данных');
+    SEBES_DATA = data;
+    renderSebes();
+  } catch(e){ console.error('loadSebesFromSheets:', e.message); throw e; }
+}
+
+function parseSebesCsv(csv){
+  function parseLine(line){
+    const res=[]; let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    res.push(cur.trim()); return res;
+  }
+  const lines=csv.split('\n').filter(l=>l.trim());
+  if(lines.length<2) throw new Error('Пустой файл');
+  const headers=parseLine(lines[0]).map(h=>h.toLowerCase());
+  const iName=headers.findIndex(h=>h.includes('номенкл')||h.includes('наимен'));
+  const iCat =headers.findIndex(h=>h.includes('катег'));
+  const iCost=headers.findIndex(h=>h.includes('стоим')||h.includes('себест')||h.includes('цена'));
+  if(iName<0||iCost<0) throw new Error('Не найдены колонки');
+  const SKIP=new Set(['итого','','nan']);
+  const nameUnitRe=/^(.+?),\s*(порц|шт|л|кг|мл|г)\.?\s*$/i;
+  const period=new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  const items=[];
+  for(let i=1;i<lines.length;i++){
+    const r=parseLine(lines[i]);
+    const raw=(r[iName]||'').trim();
+    if(!raw||SKIP.has(raw.toLowerCase()))continue;
+    const costRaw=r[iCost];
+    const cost=costRaw!==null&&!isNaN(+String(costRaw).replace(',','.'))?Math.round(+String(costRaw).replace(',','.')*100)/100:null;
+    const cat=iCat>=0?(r[iCat]||'').trim()||'Прочее':'Прочее';
+    const m=raw.match(nameUnitRe);
+    items.push({name:m?m[1].trim():raw,cat,unit:m?m[2]:'порц',cost,price:null,markup:null,
+                trend:'same',diff:null,diff_pct:null,total_diff:null,total_diff_pct:null,
+                history:cost!==null?[{period,cost}]:[]});
+  }
+  if(!items.length) throw new Error('Нет позиций');
+  const allCats=[...new Set(items.map(i=>i.cat).filter(Boolean))].sort();
+  return {
+    meta:{source:'Себес парс (Google Sheets)',periods:[period],total_items:items.length,
+          total_cats:allCats.length,with_history:0,growth_count:0,drop_count:0,
+          all_cats:allCats,avg_markup:null,no_cost:items.filter(i=>!i.cost).length,
+          created_at:new Date().toISOString().slice(0,10)},
+    top_growth:[],top_drop:[],top_margin:[],low_margin:[],all_items:items,
+  };
+}
+
+async function loadSupplyData(force){
+  if(!force && SUPPLY_DATA) return;
+  try {
+    const url = '/api/supply/csv' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    WO_FILTERED=await r.json();
-    if(msg) msg.textContent='';
-    renderWo();
+    const text = await r.text();
+    SUPPLY_DATA = parseSupplyCsv(text);
+    _supplyLastSync = new Date();
+    updateSupplySyncBar(true);
+    if(document.getElementById('page-supply')?.classList.contains('active')) renderSupplyPage();
   } catch(e){
-    if(msg){msg.textContent='❌ '+e.message;setTimeout(()=>msg.textContent='',4000);}
+    updateSupplySyncBar(false, e.message);
   }
 }
 
-function resetWoFiltersUI(){
-  ['wo-date-from','wo-date-to','wo-point-filter','wo-article-filter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const s=document.getElementById('wo-search');if(s)s.value='';
+function updateSupplySyncBar(ok, err){
+  const dot  = document.getElementById('supply-sync-dot');
+  const text = document.getElementById('supply-sync-text');
+  if(!dot||!text) return;
+  if(ok){
+    dot.style.background  = 'var(--grn)';
+    text.textContent = 'Синхронизировано · ' + _supplyLastSync.toLocaleTimeString('ru-RU') +
+      ' · ' + (SUPPLY_DATA?.items?.length||0) + ' позиций';
+  } else {
+    dot.style.background  = 'var(--red)';
+    text.textContent = 'Ошибка синхронизации' + (err ? ': '+err : '');
+  }
 }
-function resetWoFilters(){resetWoFiltersUI();if(WO_DATA){WO_FILTERED=WO_DATA;renderWo();}}
 
-function renderWo(){
-  if(!WO_FILTERED){
-    document.getElementById('wo-empty').style.display='block';
-    document.getElementById('wo-kpi-row').innerHTML='';
-    document.getElementById('wo-articles-section').style.display='none';
-    document.getElementById('wo-points-grid').innerHTML='';
+function parseNum(s){
+  if(!s && s !== 0) return null;
+  const n = parseFloat(String(s).replace(/\s/g,'').replace(',','.'));
+  return isNaN(n) ? null : n;
+}
+
+function parseSupplyCsv(csv){
+  // Правильный парсер CSV с учётом кавычек
+  function parseCsvLine(line) {
+    const result = [];
+    let cur = '', inQ = false;
+    for(let i = 0; i < line.length; i++){
+      const c = line[i];
+      if(c === '"'){
+        if(inQ && line[i+1] === '"'){ cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if(c === ',' && !inQ){
+        result.push(cur.trim()); cur = '';
+      } else cur += c;
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  const lines = csv.split('\n').filter(l => l.trim());
+  if(!lines.length) return { items:[], suppliers:[], critical:0, warning:0, ordered:0 };
+
+  // Строка 0 — заголовок, определяем индексы колонок
+  const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g,' '));
+  const idx = {
+    name:     headers.findIndex(h => h.includes('наимен')),
+    supplier: headers.findIndex(h => h.includes('поставщ')),
+    phone:    headers.findIndex(h => h.includes('телефон') || h.includes('номер')),
+    price:    headers.findIndex(h => h.includes('цена') || h.includes('послед')),
+    monthQty: headers.findIndex(h => h.includes('расход') && h.includes('мес')),
+    stock:    headers.findIndex(h => h.includes('остаток')),
+    atSupplier: headers.findIndex(h => h.includes('склад') && h.includes('поставщ')),
+    perDay:   headers.findIndex(h => h.includes('расход') && h.includes('ден')),
+    days:     headers.findIndex(h => h.includes('дней') || h.includes('кол-во')),
+    ordered:  headers.findIndex(h => h.includes('заказ')),
+    eta:      headers.findIndex(h => h.includes('ориент') || h.includes('приедет')),
+  };
+
+  // Fallback по позиции если заголовок не распознан
+  if(idx.name     < 0) idx.name     = 0;
+  if(idx.supplier < 0) idx.supplier = 1;
+  if(idx.phone    < 0) idx.phone    = 2;
+  if(idx.price    < 0) idx.price    = 3;
+  if(idx.monthQty < 0) idx.monthQty = 4;
+  if(idx.stock    < 0) idx.stock    = 5;
+  if(idx.atSupplier < 0) idx.atSupplier = 6;
+  if(idx.perDay   < 0) idx.perDay   = 7;
+  if(idx.days     < 0) idx.days     = 8;
+  if(idx.ordered  < 0) idx.ordered  = 9;
+  if(idx.eta      < 0) idx.eta      = 10;
+
+  const items = [];
+  let currentSupplier = null;
+
+  for(let i = 1; i < lines.length; i++){
+    const r = parseCsvLine(lines[i]);
+    const name = (r[idx.name]||'').trim();
+    if(!name) continue;
+
+    const supplierCell = (r[idx.supplier]||'').trim();
+    const priceCell    = (r[idx.price]||'').trim();
+    const phoneCell    = (r[idx.phone]||'').trim();
+
+    // Строка-разделитель поставщика: название в col0, остальные пустые
+    const nonEmpty = r.filter(c => c && c.trim()).length;
+    if(nonEmpty <= 2 && !priceCell && !phoneCell){
+      currentSupplier = name;
+      continue;
+    }
+
+    const supplier   = supplierCell || currentSupplier || '';
+    const phone      = phoneCell;
+    const price      = parseNum(priceCell);
+    const monthQty   = parseNum(r[idx.monthQty]);
+    const stock      = parseNum(r[idx.stock]);
+    const atSup      = r[idx.atSupplier] && r[idx.atSupplier]!=='-' ? parseNum(r[idx.atSupplier]) : null;
+    const perDay     = parseNum(r[idx.perDay]);
+    const daysRaw    = r[idx.days]||'';
+    const days       = daysRaw==='-'||daysRaw==='' ? null : parseNum(daysRaw);
+    const ordRaw     = r[idx.ordered]||'';
+    const ordered    = ordRaw==='-'||ordRaw==='' ? null : parseNum(ordRaw);
+    const eta        = (r[idx.eta]||'').trim();
+
+    const status = (() => {
+      if(ordered && ordered > 0) return 'ordered';
+      if(days === null) return 'ok';
+      if(days < 30)  return 'critical';
+      if(days < 90)  return 'warning';
+      return 'ok';
+    })();
+
+    items.push({ name, supplier, phone, price, monthQty,
+                 stock, atSupplier:atSup, perDay, days, ordered, eta, status });
+  }
+
+  const suppliers = [...new Set(items.map(i=>i.supplier).filter(Boolean))].sort();
+  return {
+    items,
+    suppliers,
+    critical: items.filter(i=>i.status==='critical').length,
+    warning:  items.filter(i=>i.status==='warning').length,
+    ordered:  items.filter(i=>i.status==='ordered').length,
+  };
+}
+
+function renderSupplyPage(){
+  if(!SUPPLY_DATA){ loadSupplyData(); return; }
+  renderSupplyKpis();
+  renderSupplyFilters();
+  renderSupplyTable();
+}
+
+function renderSupplyKpis(){
+  const d = SUPPLY_DATA;
+  const el = document.getElementById('supply-kpis');
+  if(!el) return;
+  const mono = 'font-family:JetBrains Mono,monospace';
+  el.innerHTML = [
+    {label:'Позиций',       val: d.items.length,   sub:'в таблице',     clr:'var(--txt)'},
+    {label:'🔴 Критично',   val: d.critical,        sub:'менее 30 дней',  clr: d.critical>0?'var(--red)':'var(--txt)'},
+    {label:'🟡 Мало',       val: d.warning,         sub:'30–90 дней',      clr: d.warning>0?'var(--warn)':'var(--txt)'},
+    {label:'📦 Заказано',   val: d.ordered,         sub:'в пути',        clr: d.ordered>0?'var(--acc)':'var(--txt)'},
+  ].map(k=>`
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:6px">${k.label}</div>
+      <div style="font-size:22px;font-weight:700;color:${k.clr};${mono}">${k.val}</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:2px">${k.sub}</div>
+    </div>`).join('');
+}
+
+function renderSupplyFilters(){
+  const sel = document.getElementById('supply-supplier-filter');
+  if(!sel || !SUPPLY_DATA) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Все поставщики</option>' +
+    SUPPLY_DATA.suppliers.map(s=>`<option value="${s}"${s===cur?' selected':''}>${s}</option>`).join('');
+}
+
+function renderSupplyTable(){
+  if(!SUPPLY_DATA) return;
+  const supplier = document.getElementById('supply-supplier-filter')?.value||'';
+  const status   = document.getElementById('supply-status-filter')?.value||'';
+  const search   = (document.getElementById('supply-search')?.value||'').toLowerCase().trim();
+  const mono     = 'font-family:JetBrains Mono,monospace';
+
+  let items = SUPPLY_DATA.items.filter(i=>{
+    if(supplier && i.supplier !== supplier) return false;
+    if(status   && i.status   !== status)   return false;
+    if(search   && !i.name.toLowerCase().includes(search) &&
+                   !i.supplier.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('supply-tbody');
+  const empty = document.getElementById('supply-empty');
+  if(!tbody) return;
+
+  if(!items.length){
+    tbody.innerHTML = '';
+    if(empty) empty.style.display = '';
     return;
   }
-  document.getElementById('wo-empty').style.display='none';
-  renderWoKpi(); renderWoArticles(); renderWoByDate(); renderWoPoints();
-  document.getElementById('wo-articles-section').style.display='block';
+  if(empty) empty.style.display = 'none';
+
+  // Чистим наименование от артикулов вида "086с " в начале
+  const cleanName = n => n.replace(/^\d{2,4}[а-яёa-z]\s+/i, '').trim();
+
+  // Бейдж без эмодзи — просто цветная точка + текст
+  const statusBadge = s => {
+    const cfg = {
+      critical: { clr:'var(--red)',  bg:'rgba(255,69,96,.1)',  txt:'Критично' },
+      warning:  { clr:'var(--warn)', bg:'rgba(255,176,32,.1)', txt:'Мало' },
+      ordered:  { clr:'var(--acc)',  bg:'rgba(163,216,244,.1)',txt:'Заказ' },
+      ok:       { clr:'var(--grn)',  bg:'rgba(152,194,30,.1)', txt:'Норма' },
+    };
+    const c = cfg[s] || cfg.ok;
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:20px;background:${c.bg};color:${c.clr};font-weight:600">
+      <span style="width:5px;height:5px;border-radius:50%;background:${c.clr};flex-shrink:0"></span>${c.txt}</span>`;
+  };
+
+  const fmtN = v => v !== null && v !== undefined ? v.toLocaleString('ru-RU') : '—';
+
+  // Цвет колонки "Дней"
+  const daysClr = d => d===null ? 'var(--txt3)' : d<30 ? 'var(--red)' : d<90 ? 'var(--warn)' : 'var(--grn)';
+
+  // Группируем по поставщику
+  const bySupplier = {};
+  items.forEach(i=>{ (bySupplier[i.supplier]=bySupplier[i.supplier]||[]).push(i); });
+
+  tbody.innerHTML = Object.entries(bySupplier).map(([sup, rows])=>`
+    <tr>
+      <td colspan="9" style="padding:12px 12px 5px;font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--bd);background:var(--bg)">${sup}</td>
+    </tr>
+    ${rows.map((i,idx)=>`
+      <tr style="border-bottom:.5px solid var(--bd);transition:background .12s" onmouseover="this.style.background='var(--surf)'" onmouseout="this.style.background=''">
+      <td style="padding:9px 12px;max-width:240px">
+        <div style="font-size:12px;font-weight:500;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${i.name}">${cleanName(i.name)}</div>
+        <div style="margin-top:3px">${statusBadge(i.status)}</div>
+      </td>
+      <td style="padding:9px 12px;font-size:11px;color:var(--txt3)">${i.phone||'—'}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${i.price ? i.price.toLocaleString('ru-RU')+' ₽' : '—'}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt2)">${fmtN(i.monthQty)}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:13px;font-weight:${i.status==='critical'||i.status==='warning'?'700':'400'};color:${i.status==='critical'?'var(--red)':i.status==='warning'?'var(--warn)':'var(--txt)'}">${fmtN(i.stock)}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:var(--txt3)">${fmtN(i.atSupplier)}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:13px;font-weight:700;color:${daysClr(i.days)}">${i.days !== null ? i.days : '—'}</td>
+      <td style="padding:9px 12px;text-align:right;${mono};font-size:12px;color:${i.ordered?'var(--acc)':'var(--txt3)'};font-weight:${i.ordered?'600':'400'}">${i.ordered ? fmtN(i.ordered) : '—'}</td>
+      <td style="padding:9px 12px;font-size:11px;color:var(--txt3);white-space:nowrap">${i.eta||'—'}</td>
+    </tr>`).join('')}
+  `).join('');
 }
 
-function renderWoKpi(){
-  const d=WO_FILTERED, meta=d.meta;
-  const total=(meta.filtered_cost??meta.total_cost)||0;
-  const recs=meta.filtered_records??meta.records;
-  const pts=d.by_point?d.by_point.length:0;
-  const maxPt=d.by_point&&d.by_point.length?d.by_point[0]:null;
-  document.getElementById('wo-kpi-row').innerHTML=`
-    <div class="kpi"><div class="kl">Сумма списаний</div><div class="kv">${total.toLocaleString('ru-RU')} ₽</div><div class="ks">${recs} записей</div></div>
-    <div class="kpi g"><div class="kl">Точек</div><div class="kv">${pts}</div><div class="ks">складов/точек</div></div>
-    <div class="kpi w"><div class="kl">Статей</div><div class="kv">${d.by_article?d.by_article.length:0}</div><div class="ks">категорий</div></div>
-    ${maxPt?`<div class="kpi"><div class="kl">Лидер</div><div class="kv" style="font-size:14px">${maxPt.name.replace(/ склад$/i,'')}</div><div class="ks">${maxPt.total.toLocaleString('ru-RU')} ₽</div></div>`:''}`;
+function resetSupplyFilter(){
+  ['supply-supplier-filter','supply-status-filter'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const s=document.getElementById('supply-search'); if(s) s.value='';
+  renderSupplyTable();
 }
 
-const ART_COLORS=['#3B7FFF','#FB7185','#FFB020','#00D4AA','#A78BFA','#38BDF8','#22C55E','#F97316','#EC4899','#14B8A6'];
+// ══ СРАВНЕНИЕ ПЕРИОДОВ ═════════════════════════════════════════════════════════
+function cmpQuickFill(mode){
+  // Определяем доступный диапазон дат по выбранному разделу
+  const section = document.getElementById('cmp-section').value;
+  let allDates = [];
+  if(section==='deliveries' && DEL_DATA) allDates = DEL_DATA.meta.all_dates.map(d=>d.iso);
+  else if(section==='stops' && STOPS_DATA) allDates = STOPS_DATA.meta.all_dates.map(d=>d.iso);
+  else if(section==='wo' && periods.length) {
+    // Списания — берём из all_dates если есть в индексе
+    allDates = (window._woDates||[]).map(d=>d.iso||d.d);
+  }
+  if(!allDates.length){
+    // Фоллбэк — последние 60 дней от сегодня
+    const today = new Date();
+    for(let i=0;i<60;i++){ const d=new Date(today); d.setDate(d.getDate()-i); allDates.push(d.toISOString().slice(0,10)); }
+    allDates.sort();
+  }
+  allDates = [...new Set(allDates)].sort();
+  const last = allDates[allDates.length-1];
+  const lastD = new Date(last);
+  const span = mode==='week' ? 7 : 30;
 
-function renderWoArticles(){
-  const el=document.getElementById('wo-articles-bars');
-  if(!el||!WO_FILTERED) return;
-  const arts=WO_FILTERED.by_article||[];
-  if(!arts.length){el.innerHTML='<div style="color:var(--txt3);font-size:13px">Нет данных</div>';return;}
-  const maxCost=arts[0].cost;
-  el.innerHTML=arts.map((a,i)=>{
-    const clr=ART_COLORS[i%ART_COLORS.length];
-    const pct=maxCost>0?a.cost/maxCost*100:0;
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer" onclick="filterByArticle('${a.art.replace(/'/g,"\'")}')">
-      <div style="width:170px;font-size:11px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="${a.art}">${a.art}</div>
-      <div style="flex:1;height:18px;background:var(--surf);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${clr};border-radius:3px"></div>
+  // Период B (свежий): last-span+1 .. last
+  const bFrom = new Date(lastD); bFrom.setDate(bFrom.getDate()-span+1);
+  // Период A (предыдущий): на span раньше
+  const aTo = new Date(bFrom); aTo.setDate(aTo.getDate()-1);
+  const aFrom = new Date(aTo); aFrom.setDate(aFrom.getDate()-span+1);
+
+  const iso = d => d.toISOString().slice(0,10);
+  document.getElementById('cmp-a-from').value = iso(aFrom);
+  document.getElementById('cmp-a-to').value   = iso(aTo);
+  document.getElementById('cmp-b-from').value = iso(bFrom);
+  document.getElementById('cmp-b-to').value   = iso(lastD);
+  runCompare();
+}
+
+async function runCompare(){
+  const section = document.getElementById('cmp-section').value;
+  const aFrom = document.getElementById('cmp-a-from').value;
+  const aTo   = document.getElementById('cmp-a-to').value;
+  const bFrom = document.getElementById('cmp-b-from').value;
+  const bTo   = document.getElementById('cmp-b-to').value;
+
+  if(!aFrom||!aTo||!bFrom||!bTo){
+    document.getElementById('cmp-empty').style.display='block';
+    document.getElementById('cmp-result').style.display='none';
+    return;
+  }
+
+  let result;
+  if(section==='deliveries') result = compareDeliveries(aFrom,aTo,bFrom,bTo);
+  else if(section==='stops') result = compareStops(aFrom,aTo,bFrom,bTo);
+  else if(section==='wo')    result = await compareWriteoffs(aFrom,aTo,bFrom,bTo);
+
+  if(!result){
+    document.getElementById('cmp-empty').style.display='block';
+    document.getElementById('cmp-result').style.display='none';
+    return;
+  }
+  renderCompareResult(result);
+}
+
+// Универсальный рендер
+function renderCompareResult(res){
+  document.getElementById('cmp-empty').style.display='none';
+  document.getElementById('cmp-result').style.display='block';
+  const mono='font-family:JetBrains Mono,monospace';
+
+  const diffBadge = (a,b,invert)=>{
+    if(a===0 && b===0) return '<span style="color:var(--txt3)">—</span>';
+    const diff = b-a;
+    const pct = a!==0 ? Math.round(diff/a*1000)/10 : 100;
+    // invert: для списаний/стопов рост = плохо (красный)
+    const good = invert ? diff<0 : diff>0;
+    const clr = diff===0?'var(--txt3)':good?'var(--grn)':'var(--red)';
+    const sign = diff>0?'+':'';
+    return `<span style="color:${clr};font-weight:600;${mono}">${sign}${pct}%</span>`;
+  };
+
+  // KPI карточки
+  const kpiEl = document.getElementById('cmp-kpis');
+  kpiEl.innerHTML = res.kpis.map(k=>`
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">${k.label}</div>
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <div><span style="font-size:10px;color:var(--acc)">A</span> <span style="font-size:16px;font-weight:700;${mono}">${k.fmtA}</span></div>
+        <div><span style="font-size:10px;color:var(--warn)">B</span> <span style="font-size:16px;font-weight:700;${mono}">${k.fmtB}</span></div>
       </div>
-      <div style="font-size:11px;font-weight:700;color:${clr};width:85px;text-align:right">${a.cost.toLocaleString('ru-RU')} ₽</div>
-      <div style="font-size:10px;color:var(--txt3);width:32px;text-align:right">${a.pct}%</div>
-    </div>`;
-  }).join('');
+      <div style="margin-top:6px;font-size:12px">${diffBadge(k.a,k.b,k.invert)}</div>
+    </div>`).join('');
+
+  // Разбивка (таблица)
+  document.getElementById('cmp-breakdown-title').textContent = res.breakdownTitle||'Разбивка';
+  const bEl = document.getElementById('cmp-breakdown');
+  const maxVal = Math.max(...res.breakdown.map(r=>Math.max(r.a,r.b)), 1);
+  bEl.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:1px solid var(--bd)">
+        <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--txt3);font-weight:400">${res.breakdownCol||'Категория'}</th>
+        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--acc);font-weight:400">Период A</th>
+        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--warn);font-weight:400">Период B</th>
+        <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--txt3);font-weight:400">Изменение</th>
+      </tr></thead>
+      <tbody>
+        ${res.breakdown.map(r=>`
+          <tr style="border-bottom:.5px solid var(--bd)">
+            <td style="padding:7px 8px;color:var(--txt)">${r.name}</td>
+            <td style="padding:7px 8px;text-align:right;${mono};color:var(--txt2)">${r.fmtA}</td>
+            <td style="padding:7px 8px;text-align:right;${mono};color:var(--txt2)">${r.fmtB}</td>
+            <td style="padding:7px 8px;text-align:right">${diffBadge(r.a,r.b,res.invert)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
 }
 
-function renderWoByDate(){
-  const el=document.getElementById('wo-by-date-chart');
-  if(!el||!WO_FILTERED) return;
-  const dates=WO_FILTERED.by_date||[];
-  if(!dates.length){el.innerHTML='<div style="color:var(--txt3);font-size:13px">Нет данных</div>';return;}
-  const maxCost=Math.max(...dates.map(d=>d.cost),1);
-  el.innerHTML=dates.map(d=>{
-    const pct=d.cost/maxCost*100;
-    const parts=d.date.split('.');
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
-      <div style="width:42px;font-size:11px;color:var(--txt3);text-align:right;flex-shrink:0">${parts[0]}.${parts[1]}</div>
-      <div style="flex:1;height:18px;background:var(--surf);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:var(--acc);border-radius:3px"></div>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt);width:90px;text-align:right">${d.cost.toLocaleString('ru-RU')} ₽</div>
-    </div>`;
-  }).join('');
+// ── Сравнение довозов ─────────────────────────────────────────────────────────
+function compareDeliveries(aFrom,aTo,bFrom,bTo){
+  if(!DEL_DATA) return null;
+  const inRange=(iso,f,t)=>iso>=f&&iso<=t;
+  const aRows=DEL_DATA.rows.filter(r=>inRange(r.iso,aFrom,aTo));
+  const bRows=DEL_DATA.rows.filter(r=>inRange(r.iso,bFrom,bTo));
+  const sum=(rows,f)=>rows.reduce((s,r)=>s+f(r),0);
+  const fmtR=v=>v.toLocaleString('ru-RU')+' ₽';
+
+  // Разбивка по точкам
+  const byPoint={};
+  aRows.forEach(r=>{(byPoint[r.point]=byPoint[r.point]||{a:0,b:0}).a+=r.cost;});
+  bRows.forEach(r=>{(byPoint[r.point]=byPoint[r.point]||{a:0,b:0}).b+=r.cost;});
+  const breakdown=Object.entries(byPoint).map(([name,v])=>({
+    name, a:v.a, b:v.b, fmtA:fmtR(v.a), fmtB:fmtR(v.b)
+  })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
+
+  return {
+    invert:true,
+    kpis:[
+      {label:'Кол-во довозов', a:aRows.length, b:bRows.length, fmtA:aRows.length, fmtB:bRows.length},
+      {label:'Сумма штрафов', a:sum(aRows,r=>r.cost), b:sum(bRows,r=>r.cost), fmtA:fmtR(sum(aRows,r=>r.cost)), fmtB:fmtR(sum(bRows,r=>r.cost))},
+      {label:'Точек затронуто', a:new Set(aRows.map(r=>r.point)).size, b:new Set(bRows.map(r=>r.point)).size, fmtA:new Set(aRows.map(r=>r.point)).size, fmtB:new Set(bRows.map(r=>r.point)).size},
+    ],
+    breakdownTitle:'По точкам', breakdownCol:'Точка', breakdown,
+  };
 }
 
-function filterByArticle(art){const sel=document.getElementById('wo-article-filter');if(sel){sel.value=art;applyWoFilters();}}
+// ── Сравнение стопов ──────────────────────────────────────────────────────────
+function compareStops(aFrom,aTo,bFrom,bTo){
+  if(!STOPS_DATA) return null;
+  const collect=(f,t)=>{
+    let rows=[];
+    Object.keys(STOPS_DATA.days).forEach(iso=>{
+      if(iso>=f&&iso<=t){
+        const day=STOPS_DATA.days[iso];
+        if(day.by_pt) day.by_pt.forEach(p=>rows.push({pt:p.name,n:p.n,dur:p.tot||0}));
+      }
+    });
+    return rows;
+  };
+  const aRows=collect(aFrom,aTo), bRows=collect(bFrom,bTo);
+  const aTotal=aRows.reduce((s,r)=>s+r.n,0), bTotal=bRows.reduce((s,r)=>s+r.n,0);
+  const aDur=aRows.reduce((s,r)=>s+r.dur,0), bDur=bRows.reduce((s,r)=>s+r.dur,0);
+  const aAvg=aTotal?Math.round(aDur/aTotal):0, bAvg=bTotal?Math.round(bDur/bTotal):0;
 
-function renderWoPoints(){
-  const el=document.getElementById('wo-points-grid');
-  const cntEl=document.getElementById('wo-points-count');
-  if(!el||!WO_FILTERED) return;
-  const search=(document.getElementById('wo-search')?.value||'').toLowerCase();
-  let points=WO_FILTERED.by_point||[];
-  if(search) points=points.filter(p=>p.name.toLowerCase().includes(search));
-  if(cntEl) cntEl.textContent=`Точки (${points.length})`;
-  if(!points.length){el.innerHTML='<div style="color:var(--txt3);font-size:13px;padding:20px">Нет данных</div>';return;}
-  const maxTotal=points[0].total;
-  const colorFor=t=>t>maxTotal*0.6?'#FB7185':t>maxTotal*0.3?'#FFB020':'#22C55E';
-  el.innerHTML=points.map((p,i)=>{
-    const clr=colorFor(p.total);
-    const pct=maxTotal>0?Math.round(p.total/maxTotal*100):0;
-    const topArt=p.artBreakdown&&p.artBreakdown[0]?p.artBreakdown[0].art:'';
-    return `<div onclick="openWoPointModal(${i})" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .15s"
-        onmouseenter="this.style.borderColor='${clr}'" onmouseleave="this.style.borderColor='var(--bd)'">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <div style="font-size:12px;font-weight:700;color:var(--txt);flex:1;line-height:1.3">${p.name.replace(/ склад$/i,'').replace(/ Склад$/,'')}</div>
-        <div style="font-size:14px;font-weight:800;color:${clr};margin-left:8px;white-space:nowrap">${p.total.toLocaleString('ru-RU')} ₽</div>
-      </div>
-      <div style="height:4px;background:var(--surf);border-radius:2px;margin-bottom:8px">
-        <div style="height:100%;width:${pct}%;background:${clr};border-radius:2px"></div>
-      </div>
-      <div style="font-size:10px;color:var(--txt3)">${topArt}</div>
-    </div>`;
-  }).join('');
+  const byPt={};
+  aRows.forEach(r=>{(byPt[r.pt]=byPt[r.pt]||{a:0,b:0}).a+=r.n;});
+  bRows.forEach(r=>{(byPt[r.pt]=byPt[r.pt]||{a:0,b:0}).b+=r.n;});
+  const breakdown=Object.entries(byPt).map(([name,v])=>({
+    name,a:v.a,b:v.b,fmtA:v.a+' стопов',fmtB:v.b+' стопов'
+  })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
+
+  return {
+    invert:true,
+    kpis:[
+      {label:'Всего стопов', a:aTotal, b:bTotal, fmtA:aTotal, fmtB:bTotal},
+      {label:'Ср. длительность', a:aAvg, b:bAvg, fmtA:aAvg+' мин', fmtB:bAvg+' мин'},
+      {label:'Точек со стопами', a:Object.keys(byPt).filter(k=>byPt[k].a).length, b:Object.keys(byPt).filter(k=>byPt[k].b).length, fmtA:Object.keys(byPt).filter(k=>byPt[k].a).length, fmtB:Object.keys(byPt).filter(k=>byPt[k].b).length},
+    ],
+    breakdownTitle:'По точкам', breakdownCol:'Точка', breakdown,
+  };
 }
 
-function openWoPointModal(idx){
-  const p=(WO_FILTERED.by_point||[])[idx];
-  if(!p) return;
-  const modal=document.getElementById('wo-point-modal');
-  const content=document.getElementById('wo-modal-content');
-  if(!modal||!content) return;
-  const maxItem=p.top10Items&&p.top10Items.length?p.top10Items[0].cost:1;
-  content.innerHTML=`
-    <div style="font-size:18px;font-weight:800;color:var(--txt);margin-bottom:2px">${p.name}</div>
-    <div style="font-size:26px;font-weight:800;color:var(--acc);margin-bottom:20px">${p.total.toLocaleString('ru-RU')} ₽</div>
-    <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:10px">📋 Статьи — доля от суммы точки</div>
-    ${(p.artBreakdown||[]).map((a,i)=>{
-      const clr=ART_COLORS[i%ART_COLORS.length];
-      const pct2=p.total>0?a.cost/p.total*100:0;
-      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
-        <div style="width:190px;font-size:11px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="${a.art}">${a.art}</div>
-        <div style="flex:1;height:16px;background:var(--surf);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${Math.min(100,pct2)}%;background:${clr};border-radius:3px"></div>
-        </div>
-        <div style="font-size:11px;font-weight:700;color:${clr};width:65px;text-align:right">${a.cost.toLocaleString('ru-RU')} ₽</div>
-        <div style="font-size:11px;color:var(--txt3);width:36px;text-align:right;font-weight:700">${a.pct}%</div>
-      </div>`;
-    }).join('')}
-    <div style="font-size:12px;font-weight:700;color:var(--txt);margin:18px 0 10px">🏆 Топ-10 позиций</div>
-    ${(p.top10Items||[]).map((item,i)=>{
-      const pct3=maxItem>0?item.cost/maxItem*100:0;
-      return `<div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-          <div style="font-size:11px;color:var(--txt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">${i+1}. ${item.item}</div>
-          <div style="font-size:11px;font-weight:700;color:var(--txt);white-space:nowrap">${item.cost.toLocaleString('ru-RU')} ₽</div>
-        </div>
-        <div style="height:3px;background:var(--surf);border-radius:2px;margin-bottom:2px">
-          <div style="height:100%;width:${pct3}%;background:var(--acc);border-radius:2px"></div>
-        </div>
-        <div style="font-size:10px;color:var(--txt3)">${item.qty} ${item.unit}</div>
-      </div>`;
-    }).join('')}`;
-  modal.style.display='block';
+// ── Сравнение списаний ────────────────────────────────────────────────────────
+async function compareWriteoffs(aFrom,aTo,bFrom,bTo){
+  // Используем серверный range-эндпоинт (формат дат dd.mm.yyyy)
+  const toServerDate=iso=>{const[y,m,d]=iso.split('-');return `${d}.${m}.${y}`;};
+  try{
+    const fetchRange=async(f,t)=>{
+      const r=await fetch(`/api/writeoffs/range?from=${toServerDate(f)}&to=${toServerDate(t)}`,{headers:{'X-View-Password':sessionPassword}});
+      if(!r.ok) return null;
+      return await r.json();
+    };
+    const [aData,bData]=await Promise.all([fetchRange(aFrom,aTo),fetchRange(bFrom,bTo)]);
+    if(!aData||!bData) return null;
+    const fmtR=v=>(v||0).toLocaleString('ru-RU')+' ₽';
+
+    // Разбивка по складам
+    const byWh={};
+    (aData.warehouses||[]).forEach(w=>{(byWh[w.name]=byWh[w.name]||{a:0,b:0}).a=w.total;});
+    (bData.warehouses||[]).forEach(w=>{(byWh[w.name]=byWh[w.name]||{a:0,b:0}).b=w.total;});
+    const breakdown=Object.entries(byWh).map(([name,v])=>({
+      name,a:v.a,b:v.b,fmtA:fmtR(v.a),fmtB:fmtR(v.b)
+    })).sort((x,y)=>(y.a+y.b)-(x.a+x.b)).slice(0,15);
+
+    return {
+      invert:true,
+      kpis:[
+        {label:'Сумма списаний', a:aData.grand_total||0, b:bData.grand_total||0, fmtA:fmtR(aData.grand_total), fmtB:fmtR(bData.grand_total)},
+        {label:'Складов', a:(aData.warehouses||[]).length, b:(bData.warehouses||[]).length, fmtA:(aData.warehouses||[]).length, fmtB:(bData.warehouses||[]).length},
+        {label:'Ср. на склад', a:Math.round((aData.grand_total||0)/((aData.warehouses||[]).length||1)), b:Math.round((bData.grand_total||0)/((bData.warehouses||[]).length||1)), fmtA:fmtR(Math.round((aData.grand_total||0)/((aData.warehouses||[]).length||1))), fmtB:fmtR(Math.round((bData.grand_total||0)/((bData.warehouses||[]).length||1)))},
+      ],
+      breakdownTitle:'По складам', breakdownCol:'Склад', breakdown,
+    };
+  }catch(e){ console.error('compareWriteoffs:',e.message); return null; }
 }
-
-function closeWoModal(){const m=document.getElementById('wo-point-modal');if(m)m.style.display='none';}
-async function loadWoData(){await loadWoSheetList();}
-
 
 async function loadData(){
   ss('spin','Загрузка...');
@@ -3540,7 +3789,6 @@ function openWh(idx){
   op('wm');
 }
 
-
 function openCmp(){
   if(periods.length<2){alert('Загрузите 2+ периодов');return;}
   let html='';
@@ -3591,7 +3839,7 @@ const ADMIN_SECTIONS = [
    dataInfo:function(){return DEL_DATA?(DEL_DATA.meta.total+' записей'):''},
    deleteFn:'deleteAdminData', deleteKey:'deliveries'},
   {key:'production',icon:'🏭',label:'Производство', fileId:'prod-jfu',  hasData:function(){return !!(PROD_DATA);},
-   dataInfo:function(){return PROD_DATA?(PROD_DATA.depts.filter(d=>d.output_units>0).length+' цехов'):''},
+   dataInfo:function(){return PROD_DATA?(PROD_DATA.meta.total_rows+' строк'):''},
    deleteFn:'deleteAdminData', deleteKey:'production'},
   {key:'sebes',   icon:'💰', label:'Себестоимость', fileId:'sebes-jfu', hasData:function(){return !!(SEBES_DATA);},
    dataInfo:function(){
@@ -3655,7 +3903,7 @@ async function deleteAdminData(key){
     const j=await r.json();
     if(j.ok){
       // Сбросить данные в памяти
-      if(key==='wo'){WO_DATA=null;WO_FILTERED=null;_woActiveSheet='';document.getElementById('wo-empty').style.display='block';document.getElementById('wo-articles-section').style.display='none';document.getElementById('wo-points-grid').innerHTML='';document.getElementById('wo-kpi-row').innerHTML='';}
+      if(key==='wo'){periods=[];cur=0;WO_INDEX=null;WO_BY_POINT=null;render();const sec=document.getElementById('wo-articles-section');if(sec)sec.style.display='none';}
       if(key==='stops'){STOPS_DATA=null;STOPS_PERIODS=[];stopsIdx=0;_currentStopsByPoint=null;renderStops();}
       if(key==='deliveries'){DEL_DATA=null;renderDeliveries();}
       if(key==='production'){PROD_DATA=null;renderProduction();}
@@ -4201,47 +4449,13 @@ function loadStopsDay(isoDate){
 }
 
 // LOGIN
-async function runDiag(){
-  const out=document.getElementById('diag-out');
-  out.style.display='block';out.textContent='Проверяем...\n';
-  const log=s=>{out.textContent+=s+'\n';};
-  // 1. health
-  try{
-    const r=await fetch('/health');
-    const j=await r.json();
-    log('✅ /health: '+JSON.stringify(j));
-  }catch(e){log('❌ /health: '+e.message);}
-  // 2. auth без пароля
-  try{
-    const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    log('auth (no pw): HTTP '+r.status);
-  }catch(e){log('❌ auth (no pw): '+e.message);}
-  // 3. auth с паролем из поля
-  const pw=document.getElementById('lpw').value.trim();
-  if(pw){
-    try{
-      const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':pw,'X-Admin-Password':pw},body:JSON.stringify({password:pw})});
-      const t=await r.text();
-      log('auth (с паролем): HTTP '+r.status+' → '+t);
-    }catch(e){log('❌ auth (с паролем): '+e.message);}
-  } else {
-    log('ℹ️ Введите пароль в поле выше для полной проверки');
-  }
-}
-
 async function doLogin(){
   const pw=document.getElementById('lpw').value.trim();if(!pw)return;
   const btn=document.getElementById('lbtn'),err=document.getElementById('lerr');
   btn.disabled=true;btn.textContent='Проверка...';err.textContent='';
   try{
-    // Пароль передаём и в заголовке и в теле — на случай если прокси дропает кастомные заголовки
-    const r=await fetch('/api/auth',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','X-View-Password':pw,'X-Admin-Password':pw},
-      body:JSON.stringify({password:pw,pw:pw})
-    });
-    let j={};
-    try{j=await r.json();}catch(e){}
+    const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':pw,'X-Admin-Password':pw},body:JSON.stringify({password:pw})});
+    let j={};try{j=await r.json();}catch(e){}
     if(j.ok){
       sessionPassword=pw;sessionStorage.setItem('dash_pw',pw);
       document.getElementById('ls').style.display='none';
@@ -4252,10 +4466,7 @@ async function doLogin(){
       btn.disabled=false;btn.textContent='Войти →';
       document.getElementById('lpw').select();
     }
-  }catch(e){
-    err.textContent='❌ Нет связи с сервером';
-    btn.disabled=false;btn.textContent='Войти →';
-  }
+  }catch(e){err.textContent='❌ Нет связи с сервером';btn.disabled=false;btn.textContent='Войти →';}
 }
 
 
@@ -4298,12 +4509,13 @@ function _updateSheetsBarVisibility(isAdmin){
   const sb = document.getElementById('del-sheets-bar');
   if(sb) sb.style.display = isAdmin ? 'flex' : 'none';
   // Кнопка синхронизации списаний — только для admin (использует /sync с паролем)
-  // wo-sheets-btn removed
+  const woBtn = document.getElementById('wo-sheets-btn');
+  if(woBtn) woBtn.style.display = isAdmin ? 'inline-block' : 'none';
 }
 _updateSheetsBarVisibility(false); // скрыта по умолчанию
 
 if(sessionPassword){
-  fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':sessionPassword,'X-Admin-Password':sessionPassword},body:JSON.stringify({password:sessionPassword})})
+  fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':sessionPassword},body:'{}'})
     .then(r=>r.json()).then(j=>{
       if(j.ok){
         document.getElementById('ls').style.display='none';
