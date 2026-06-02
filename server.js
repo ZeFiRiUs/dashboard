@@ -702,15 +702,20 @@ function parseProductionCsv(csv) {
   // ── Часть 1: сводная шапка (строки 0–34) ─────────────────────────────────
   // Колонки: 0=Отделение, 1=ФИО, 4=Ставка, 5=Часы, 6=ЗП День, 7=ЗП Отдела, 8=Выпуск единиц, 9=ФОТ/ед
   const SKIP_DEPT = new Set(['Отделение', '', 'ФИО']);
+  // Заголовки детальной части: col1==='ФИО', col8 содержит название цеха (не 'Выпуск едениц')
+  const SUMMARY_HEADERS = new Set(['выпуск едениц', 'выпуск единиц', 'на ед продукции', 'наименование']);
   const depts = [];
   let curDept = null;
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const col0 = (r[0] || '').trim();
     const col1 = (r[1] || '').trim();
+    const col8 = (r[8] || '').trim();
 
-    // Строка-заголовок второй части (детализация по цехам)
-    if (col1 === 'ФИО' && (r[8] || '').trim()) break;
+    // Строка-заголовок второй части: col1==='ФИО' AND col8 содержит название цеха (не сводный заголовок)
+    if (col1 === 'ФИО' && col8 && !SUMMARY_HEADERS.has(col8.toLowerCase())) {
+      break; // начинается детальная часть
+    }
 
     if (col0 && !SKIP_DEPT.has(col0)) {
       curDept = {
@@ -753,8 +758,8 @@ function parseProductionCsv(csv) {
       const factRaw    = (r[11] || '').trim();
       const hrsPerUnit = parseNum(r[12]);
 
-      // Маркер начала нового цеха-раздела (col1=ФИО AND col8 непустой)
-      if ((r[1]||'').trim() === 'ФИО' && deptMarker) {
+      // Маркер начала нового цеха-раздела: col1=ФИО AND col8 непустой И не сводный заголовок
+      if ((r[1]||'').trim() === 'ФИО' && deptMarker && !SUMMARY_HEADERS.has(deptMarker.toLowerCase())) {
         detailDept = deptMarker;
         if (!productsByDept[detailDept]) productsByDept[detailDept] = [];
         continue;
