@@ -708,68 +708,61 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div class="sdot ok" id="prod-sdot"></div>
       <span>Производство<span id="prod-period-label"></span></span>
     </div>
-    <span id="prod-upload-msg" style="font-size:11px;color:var(--grn)"></span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="prod-sync-btn" onclick="syncProductionFromSheets()" style="display:none;font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">↻ Синхронизировать</button>
+      <span id="prod-sync-msg" style="font-size:11px;color:var(--grn)"></span>
+    </div>
   </div>
 
   <!-- Empty state -->
   <div id="prod-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
     <div style="font-size:48px;margin-bottom:16px;opacity:.3">🏭</div>
     <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные производства не загружены</div>
-    <div style="font-size:13px;margin-bottom:24px">Загрузите JSON через «Управление»</div>
+    <div style="font-size:13px;margin-bottom:24px">Нажмите «Синхронизировать» или войдите как admin</div>
+    <button onclick="loadProductionLive()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer">Загрузить из Google Sheets</button>
   </div>
 
   <!-- Data -->
   <div id="prod-data-wrap" style="display:none">
 
-    <!-- KPIs -->
-    <div id="prod-kpis" class="kpis" style="margin-bottom:20px"></div>
+    <!-- KPI карточки цехов -->
+    <div id="prod-dept-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px"></div>
 
-    <!-- Filters -->
-    <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
-      <select id="prod-date-from" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
-      <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-      <select id="prod-date-to" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
-      <select id="prod-wh-filter" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:170px"><option value="">Все склады</option></select>
-      <select id="prod-product-filter" onchange="applyProdFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:180px"><option value="">Все продукты</option></select>
-      <button class="fbtn" onclick="resetProdFilter()">✕ Сбросить</button>
+    <!-- Детализация по цеху -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="font-size:13px;font-weight:700;color:var(--txt)">Цех:</div>
+      <div id="prod-dept-tabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
 
-    <!-- График по датам -->
+    <!-- Текущий цех — карточка -->
+    <div id="prod-dept-detail" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px"></div>
+
+    <!-- ФОТ на единицу: сравнение цехов -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Выпуск по датам</div>
-      <div class="dow-row" id="prod-by-date" style="overflow-x:auto"></div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">💰 ФОТ на единицу продукции — сравнение цехов</div>
+      <div id="prod-fot-chart"></div>
     </div>
 
-    <!-- Топ продуктов -->
+    <!-- Топ продукция по выпуску -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🏆 Топ продуктов по выпуску</div>
-      <div id="prod-top-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--txt)">📦 Выпуск продукции по позициям</div>
+        <select id="prod-dept-filter" onchange="renderProdProducts()" style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer">
+          <option value="">Все цехи</option>
+        </select>
+      </div>
+      <div id="prod-products-list"></div>
     </div>
 
-    <!-- Таблица -->
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-      <div style="font-size:14px;font-weight:700;color:var(--txt)">
-        Все записи <span id="prod-rows-count" style="font-size:12px;color:var(--txt3);font-weight:400"></span>
-      </div>
-      <div class="sw" style="max-width:280px">
-        <span class="sic">🔍</span>
-        <input class="si" id="prod-search" type="text" placeholder="Поиск по продукту или документу..." oninput="applyProdFilter()">
-      </div>
-    </div>
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
-      <table class="stops-tbl">
-        <thead><tr>
-          <th style="cursor:pointer;user-select:none" onclick="toggleProdSort()" title="Сортировать"><span id="prod-sort-icon">↓</span> Дата</th>
-          <th>Склад</th><th>Продукт</th><th>Кол-во</th><th>Норма</th><th>Факт</th><th>Недовл.</th>
-        </tr></thead>
-        <tbody id="prod-tbody"></tbody>
-      </table>
+    <!-- Сотрудники -->
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:24px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">👥 Сотрудники по цехам</div>
+      <div id="prod-staff-table"></div>
     </div>
 
   </div>
 </div>
 </div><!-- /page-production -->
-
 
 <!-- ═══ SEBES TAB ═══ -->
 <div id="page-sebes" class="page">
@@ -1347,149 +1340,294 @@ function openDelModal(idx){
 
 
 // ══ PRODUCTION ═════════════════════════════════════════════════════════════
-let PROD_DATA = null, PROD_SORT_DESC = true;
+let PROD_DATA = null, PROD_ACTIVE_DEPT = null;
 
-async function loadProductionFromServer(){
-  const sdot=document.getElementById('prod-sdot');
-  if(sdot)sdot.className='sdot spin';
-  try{
-    const r=await fetch('/api/production',{headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const data=await r.json();
-    if(data&&data.meta){applyProductionData(data);return true;}
-    if(sdot)sdot.className='sdot warn';renderProduction();return false;
-  }catch(e){const s2=document.getElementById('prod-sdot');if(s2)s2.className='sdot warn';renderProduction();return false;}
+async function loadProductionFromServer() {
+  const sdot = document.getElementById('prod-sdot');
+  if (sdot) sdot.className = 'sdot spin';
+  try {
+    // Сначала пробуем живые данные из Sheets
+    const r = await fetch('/api/production/csv', { headers: { 'X-View-Password': sessionPassword } });
+    if (r.ok) {
+      const data = await r.json();
+      if (data && data.meta) { applyProductionData(data); return true; }
+    }
+    // Fallback — сохранённые данные
+    const r2 = await fetch('/api/production', { headers: { 'X-View-Password': sessionPassword } });
+    if (r2.ok) {
+      const data = await r2.json();
+      if (data && data.meta) { applyProductionData(data); return true; }
+    }
+    if (sdot) sdot.className = 'sdot warn';
+    renderProduction(); return false;
+  } catch(e) {
+    if (sdot) sdot.className = 'sdot warn';
+    renderProduction(); return false;
+  }
 }
-function applyProductionData(data){
-  PROD_DATA=data;
-  const sdot=document.getElementById('prod-sdot');if(sdot)sdot.className='sdot ok';
-  const lbl=document.getElementById('prod-period-label');
-  if(lbl)lbl.innerHTML=' · <b style="color:var(--txt)">Синхронизировано</b>';
+
+async function loadProductionLive() {
+  const sdot = document.getElementById('prod-sdot');
+  if (sdot) sdot.className = 'sdot spin';
+  try {
+    const r = await fetch('/api/production/csv?nocache=1', { headers: { 'X-View-Password': sessionPassword } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (data && data.meta) { applyProductionData(data); return; }
+    throw new Error('Нет данных');
+  } catch(e) {
+    if (sdot) sdot.className = 'sdot warn';
+    alert('❌ ' + e.message);
+  }
+}
+
+async function syncProductionFromSheets() {
+  if (!adminPw) return;
+  const btn = document.getElementById('prod-sync-btn');
+  const msg = document.getElementById('prod-sync-msg');
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = '⏳ Синхронизация...';
+  try {
+    const r = await fetch('/api/production/sync', {
+      method: 'POST',
+      headers: { 'X-Admin-Password': adminPw }
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error);
+    if (msg) { msg.textContent = '✅ Сохранено'; setTimeout(() => msg.textContent = '', 4000); }
+    await loadProductionLive();
+  } catch(e) {
+    if (msg) { msg.textContent = '❌ ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function applyProductionData(data) {
+  PROD_DATA = data;
+  const sdot = document.getElementById('prod-sdot');
+  if (sdot) sdot.className = 'sdot ok';
+  const lbl = document.getElementById('prod-period-label');
+  if (lbl) lbl.innerHTML = ' · <b style="color:var(--txt)">' + (data.meta.created_at || '') + '</b>';
+  // Показываем кнопку синхронизации для admin
+  const syncBtn = document.getElementById('prod-sync-btn');
+  if (syncBtn && adminPw) syncBtn.style.display = '';
   renderProduction();
 }
-async function uploadProductionJson(e){
-  const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=async ev=>{
-    try{
-      const data=JSON.parse(ev.target.result);
-      if(!data.meta||!data.rows)throw new Error('Неверный формат');
-      const msg=document.getElementById('prod-upload-msg');if(msg)msg.textContent='Загрузка...';
-      const fd=new FormData();fd.append('file',file);
-      const r=await fetch('/api/production',{method:'POST',headers:{'X-Admin-Password':adminPw},body:fd});
-      const j=await r.json();
-      if(j.ok){applyProductionData(data);if(msg){msg.textContent='✅ '+j.rows+' записей';setTimeout(()=>msg.textContent='',4000);}}
-      else throw new Error(j.error);
-    }catch(err){alert('❌ '+err.message);}
-  };
-  reader.readAsText(file);e.target.value='';
+
+function renderProduction() {
+  const empty = document.getElementById('prod-empty');
+  const wrap  = document.getElementById('prod-data-wrap');
+  if (!PROD_DATA || !PROD_DATA.depts) {
+    if (empty) empty.style.display = 'block';
+    if (wrap)  wrap.style.display  = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (wrap)  wrap.style.display  = 'block';
+
+  const depts = PROD_DATA.depts.filter(d => d.output_units > 0 || d.pay_dept > 0);
+
+  // ── KPI карточки цехов ────────────────────────────────────────────────────
+  const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
+  const kpiEl = document.getElementById('prod-dept-kpis');
+  if (kpiEl) {
+    kpiEl.innerHTML = depts.map((d, i) => {
+      const clr = DEPT_COLORS[i % DEPT_COLORS.length];
+      const hasUnits = d.output_units > 0;
+      return `<div onclick="selectProdDept('${d.name.replace(/'/g,"\\'")}',this)" style="background:var(--card);border:2px solid ${clr}33;border-radius:12px;padding:14px 16px;cursor:pointer;transition:border .15s" data-dept="${d.name}">
+        <div style="font-size:11px;font-weight:700;color:${clr};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${d.name}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--txt);margin-bottom:2px">${hasUnits ? d.output_units.toLocaleString('ru-RU') : '—'}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">единиц выпущено</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <div><div style="font-size:10px;color:var(--txt3)">ФОТ цеха</div><div style="font-size:13px;font-weight:700;color:var(--txt)">${d.pay_dept.toLocaleString('ru-RU')} ₽</div></div>
+          ${hasUnits ? `<div><div style="font-size:10px;color:var(--txt3)">ФОТ / ед</div><div style="font-size:13px;font-weight:700;color:${clr}">${d.fot_per_unit.toFixed(2)} ₽</div></div>` : ''}
+          <div><div style="font-size:10px;color:var(--txt3)">Сотрудников</div><div style="font-size:13px;font-weight:700;color:var(--txt)">${d.staff_count}</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Табы цехов ────────────────────────────────────────────────────────────
+  const tabsEl = document.getElementById('prod-dept-tabs');
+  if (tabsEl) {
+    tabsEl.innerHTML = depts.map((d, i) => {
+      const clr = DEPT_COLORS[i % DEPT_COLORS.length];
+      return `<button onclick="selectProdDept('${d.name.replace(/'/g,"\\'")}',null)" data-dept-tab="${d.name}"
+        style="padding:5px 14px;border-radius:20px;border:1px solid ${clr};background:var(--card);color:var(--txt2);cursor:pointer;font-size:11px;font-weight:600;transition:all .15s">${d.name}</button>`;
+    }).join('');
+  }
+
+  // ── Фильтр по цехам для продукции ────────────────────────────────────────
+  const deptFilter = document.getElementById('prod-dept-filter');
+  if (deptFilter) {
+    deptFilter.innerHTML = '<option value="">Все цехи</option>' +
+      depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+  }
+
+  // ── ФОТ/ед — горизонтальный бар-чарт ─────────────────────────────────────
+  renderProdFotChart(depts, DEPT_COLORS);
+
+  // Выбираем первый цех по умолчанию
+  const firstDept = depts[0];
+  if (firstDept) selectProdDept(firstDept.name, null);
+
+  renderProdProducts();
+  renderProdStaff();
 }
-function renderProduction(){
-  const empty=document.getElementById('prod-empty');
-  const wrap=document.getElementById('prod-data-wrap');
-  if(!PROD_DATA){if(empty)empty.style.display='block';if(wrap)wrap.style.display='none';return;}
-  if(empty)empty.style.display='none';if(wrap)wrap.style.display='block';
-  const dateOpts=PROD_DATA.meta.all_dates.map(d=>'<option value="'+d.iso+'">'+d.d+' ('+d.dow+') — '+d.n_items+' поз.</option>').join('');
-  const fF=document.getElementById('prod-date-from');const tF=document.getElementById('prod-date-to');
-  if(fF)fF.innerHTML='<option value="">С даты...</option>'+dateOpts;
-  if(tF)tF.innerHTML='<option value="">По дату...</option>'+dateOpts;
-  const whF=document.getElementById('prod-wh-filter');
-  if(whF&&PROD_DATA.meta.warehouses) whF.innerHTML='<option value="">Все склады</option>'+
-    PROD_DATA.meta.warehouses.map(w=>'<option value="'+w+'">'+w+'</option>').join('');
-  const pF=document.getElementById('prod-product-filter');
-  if(pF)pF.innerHTML='<option value="">Все продукты</option>'+PROD_DATA.meta.all_products.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
-  applyProdFilter();
-}
-function toggleProdSort(){
-  PROD_SORT_DESC=!PROD_SORT_DESC;
-  const ic=document.getElementById('prod-sort-icon');if(ic)ic.textContent=PROD_SORT_DESC?'↓':'↑';
-  applyProdFilter();
-}
-function applyProdFilter(){
-  if(!PROD_DATA)return;
-  const fromVal=document.getElementById('prod-date-from')?.value||'';
-  const toVal=document.getElementById('prod-date-to')?.value||'';
-  const whVal=document.getElementById('prod-wh-filter')?.value||'';
-  const prodVal=document.getElementById('prod-product-filter')?.value||'';
-  const searchVal=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
-  let rows=PROD_DATA.rows.filter(r=>
-    (!fromVal||r.iso>=fromVal)&&(!toVal||r.iso<=toVal)&&
-    (!whVal||r.warehouse===whVal)&&
-    (!prodVal||r.name===prodVal)&&
-    (!searchVal||r.name.toLowerCase().includes(searchVal)||r.doc.toLowerCase().includes(searchVal)||
-      (r.warehouse||'').toLowerCase().includes(searchVal))
-  );
-  rows=[...rows].sort((a,b)=>PROD_SORT_DESC?b.iso.localeCompare(a.iso):a.iso.localeCompare(b.iso));
-  const totalQty=rows.reduce((s,r)=>s+r.qty,0);
-  const totalNedov=rows.reduce((s,r)=>s+r.nedov,0);
-  const uniqProds=new Set(rows.map(r=>r.name)).size;
-  const uniqDates=new Set(rows.map(r=>r.iso)).size;
-  const kEl=document.getElementById('prod-kpis');
-  // Разбивка по складам
-  const qtyByWh={};
-  rows.forEach(r=>{qtyByWh[r.warehouse]=(qtyByWh[r.warehouse]||0)+r.qty;});
-  const whBreakdown=Object.entries(qtyByWh).map(([w,q])=>w.replace('Цех ','')+':<b style="color:var(--acc)"> '+q.toLocaleString('ru-RU')+'</b>').join(' / ');
-  if(kEl)kEl.innerHTML=
-    '<div class="kpi"><div class="kl">Позиций выпущено</div><div class="kv">'+rows.length+'</div><div class="ks">записей</div></div>'+
-    '<div class="kpi g"><div class="kl">Итого кол-во</div><div class="kv">'+totalQty.toLocaleString('ru-RU')+'</div><div class="ks" style="line-height:1.4">'+whBreakdown+'</div></div>'+
-    '<div class="kpi w"><div class="kl">Недовложения</div><div class="kv">'+(totalNedov>0?totalNedov.toFixed(1):'—')+'</div><div class="ks">единиц</div></div>'+
-    '<div class="kpi"><div class="kl">Продуктов</div><div class="kv">'+uniqProds+'</div><div class="ks">за '+uniqDates+' дн.</div></div>';
-  const dateAgg={};rows.forEach(r=>{dateAgg[r.iso]=(dateAgg[r.iso]||0)+r.qty;});
-  const filtDates=PROD_DATA.meta.all_dates.filter(d=>(!fromVal||d.iso>=fromVal)&&(!toVal||d.iso<=toVal));
-  const maxN=filtDates.length?Math.max(...filtDates.map(d=>dateAgg[d.iso]||0),1):1;
-  const dEl=document.getElementById('prod-by-date');
-  if(dEl)dEl.innerHTML=filtDates.map(d=>{
-    const n=dateAgg[d.iso]||0;
-    const isWE=d.dow==='Сб'||d.dow==='Вс';
-    const barH=Math.max(6,Math.round(n/maxN*55));
-    const clr=n===maxN?'var(--acc)':isWE?'var(--warn)':'var(--grn)';
-    return '<div class="dow-col" style="min-width:34px" title="'+d.d+': '+n.toLocaleString('ru-RU')+'">'+
-      '<div class="dow-val" style="font-size:9px">'+(n>=1000?Math.round(n/1000)+'k':n)+'</div>'+
-      '<div class="dow-bar" style="height:'+barH+'px;background:'+clr+'"></div>'+
-      '<div class="dow-lbl">'+d.d+'</div><div class="dow-dow">'+d.dow+'</div></div>';
-  }).join('');
-  const prodAgg={};
-  rows.forEach(r=>{
-    if(!prodAgg[r.name])prodAgg[r.name]={qty:0,nedov:0,days:new Set()};
-    prodAgg[r.name].qty+=r.qty;prodAgg[r.name].nedov+=r.nedov;prodAgg[r.name].days.add(r.iso);
+
+function selectProdDept(deptName, cardEl) {
+  PROD_ACTIVE_DEPT = deptName;
+  // Подсветка карточек
+  document.querySelectorAll('#prod-dept-kpis > div').forEach(el => {
+    el.style.borderColor = el.dataset.dept === deptName
+      ? el.style.borderColor.replace('33','') : el.style.borderColor.slice(0,7)+'33';
   });
-  const topP=Object.entries(prodAgg).sort((a,b)=>b[1].qty-a[1].qty).slice(0,15);
-  const maxQ=topP.length?topP[0][1].qty:1;
-  const pEl=document.getElementById('prod-top-list');
-  if(pEl)pEl.innerHTML=topP.map(function(entry,i){
-    const name=entry[0],v=entry[1];
-    const encName=encodeURIComponent(name);
-    const clr=i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt)';
-    const barClr=i===0?'var(--acc)':i<3?'var(--grn)':'var(--txt3)';
-    return '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer" onclick="selectProdProduct(this);" data-prod="'+encName+'">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-      +'<span style="font-size:11px;font-weight:700;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+name+'</span>'
-      +'<span style="font-size:14px;font-weight:800;color:'+clr+';font-family:JetBrains Mono,monospace;margin-left:8px;flex-shrink:0">'+v.qty.toLocaleString('ru-RU')+'</span></div>'
-      +'<div style="background:var(--bd);border-radius:2px;height:3px;margin-bottom:4px">'
-      +'<div style="height:3px;border-radius:2px;background:'+barClr+';width:'+Math.round(v.qty/maxQ*100)+'%"></div></div>'
-      +'<div style="font-size:10px;color:var(--txt3)">'+v.days.size+' дн.'+(v.nedov>0?' · недовл: '+v.nedov.toFixed(1):'')+' </div></div>';
-  }).join('');
-  const rcEl=document.getElementById('prod-rows-count');if(rcEl)rcEl.textContent='('+rows.length+' записей)';
-  const tbEl=document.getElementById('prod-tbody');
-  const monoSt='font-family:JetBrains Mono,monospace';
-  if(tbEl)tbEl.innerHTML=rows.map(function(r){
-    const whClr=r.warehouse==='Цех пекарня'?'var(--acc)':'var(--grn)';
-    return '<tr>'
-      +'<td style="'+monoSt+';font-size:11px;white-space:nowrap;color:var(--txt)">'+r.date+'</td>'
-      +'<td style="font-size:10px;font-weight:600;white-space:nowrap;color:'+whClr+'">'+r.warehouse.replace('Цех ','')+'</td>'
-      +'<td style="font-size:12px;color:var(--txt);max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+r.name+'">'+r.name+'</td>'
-      +'<td style="'+monoSt+';font-size:12px;font-weight:700;color:var(--acc);white-space:nowrap">'+r.qty.toLocaleString('ru-RU')+'</td>'
-      +'<td style="'+monoSt+';font-size:11px;color:var(--txt2)">'+r.norm+'</td>'
-      +'<td style="'+monoSt+';font-size:11px;color:var(--txt2)">'+r.fact+'</td>'
-      +'<td style="'+monoSt+';font-size:11px;color:'+(r.nedov>0?'var(--red)':'var(--txt3)')+';font-weight:'+(r.nedov>0?'700':'400')+'">'+(r.nedov>0?r.nedov.toFixed(2):'—')+'</td></tr>';
+  // Подсветка табов
+  const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
+  const depts = PROD_DATA.depts.filter(d => d.output_units > 0 || d.pay_dept > 0);
+  document.querySelectorAll('[data-dept-tab]').forEach(btn => {
+    const idx = depts.findIndex(d => d.name === btn.dataset.deptTab);
+    const clr = DEPT_COLORS[idx % DEPT_COLORS.length] || '#3B7FFF';
+    const active = btn.dataset.deptTab === deptName;
+    btn.style.background = active ? clr : 'var(--card)';
+    btn.style.color = active ? '#000' : 'var(--txt2)';
+  });
+  renderProdDeptDetail(deptName);
+}
+
+function renderProdDeptDetail(deptName) {
+  const d = PROD_DATA.depts.find(x => x.name === deptName);
+  const el = document.getElementById('prod-dept-detail');
+  if (!el || !d) return;
+  const active = d.products.filter(p => p.fact > 0);
+  const totalHrs = d.products.reduce((s, p) => s + p.hrs_total, 0);
+  const fotPerHr = totalHrs > 0 ? d.pay_dept / totalHrs : 0;
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">🏭 ${d.name} — детализация</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px">
+      <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:var(--txt3)">Общий выпуск</div>
+        <div style="font-size:18px;font-weight:800;color:var(--txt)">${d.output_units.toLocaleString('ru-RU')}<span style="font-size:12px;font-weight:400;color:var(--txt3);margin-left:4px">ед</span></div>
+      </div>
+      <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:var(--txt3)">ФОТ цеха</div>
+        <div style="font-size:18px;font-weight:800;color:var(--txt)">${d.pay_dept.toLocaleString('ru-RU')}<span style="font-size:12px;font-weight:400;color:var(--txt3);margin-left:4px">₽</span></div>
+      </div>
+      <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:var(--txt3)">ФОТ / единица</div>
+        <div style="font-size:18px;font-weight:800;color:var(--acc)">${d.fot_per_unit.toFixed(2)}<span style="font-size:12px;font-weight:400;color:var(--txt3);margin-left:4px">₽</span></div>
+      </div>
+      <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
+        <div style="font-size:10px;color:var(--txt3)">ФОТ / час</div>
+        <div style="font-size:18px;font-weight:800;color:var(--warn)">${fotPerHr.toFixed(1)}<span style="font-size:12px;font-weight:400;color:var(--txt3);margin-left:4px">₽</span></div>
+      </div>
+    </div>
+    ${active.length ? `
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:10px">Продукция (активные позиции):</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">
+      ${active.map(p => {
+        const pct = d.output_units > 0 ? p.fact / d.output_units * 100 : 0;
+        return `<div style="background:var(--surf);border-radius:8px;padding:10px 12px">
+          <div style="font-size:11px;font-weight:600;color:var(--txt);margin-bottom:4px">${p.name}</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--txt3)">${p.fact.toLocaleString('ru-RU')} ${p.unit}</span>
+            <span style="font-size:11px;color:var(--acc);font-weight:700">${p.fot_per_unit > 0 ? p.fot_per_unit.toFixed(2)+' ₽/ед' : ''}</span>
+          </div>
+          <div style="height:3px;background:var(--bd);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${Math.min(100,pct)}%;background:var(--acc);border-radius:2px"></div>
+          </div>
+          ${p.hrs_per_unit > 0 ? `<div style="font-size:10px;color:var(--txt3);margin-top:3px">${p.hrs_per_unit} ч/ед · ${p.hrs_total.toFixed(2)} ч итого</div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>` : '<div style="color:var(--txt3);font-size:13px">Нет активных позиций за период</div>'}
+  `;
+}
+
+function renderProdFotChart(depts, colors) {
+  const el = document.getElementById('prod-fot-chart');
+  if (!el) return;
+  const withFot = depts.filter(d => d.fot_per_unit > 0);
+  if (!withFot.length) { el.innerHTML = '<div style="color:var(--txt3);font-size:13px">Нет данных</div>'; return; }
+  const maxFot = Math.max(...withFot.map(d => d.fot_per_unit));
+  el.innerHTML = withFot.map((d, i) => {
+    const pct = maxFot > 0 ? d.fot_per_unit / maxFot * 100 : 0;
+    const clr = colors[depts.indexOf(d) % colors.length];
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:140px;font-size:12px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${d.name}</div>
+      <div style="flex:1;height:22px;background:var(--surf);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${clr};border-radius:4px;transition:width .4s;display:flex;align-items:center;padding-left:8px">
+          <span style="font-size:11px;font-weight:700;color:#000;white-space:nowrap">${pct > 20 ? d.fot_per_unit.toFixed(2)+' ₽' : ''}</span>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:${clr};width:70px;text-align:right">${d.fot_per_unit.toFixed(2)} ₽</div>
+      <div style="font-size:11px;color:var(--txt3);width:80px;text-align:right">${d.output_units.toLocaleString('ru-RU')} ед</div>
+    </div>`;
   }).join('');
 }
-function selectProdProduct(el){
-  const name=decodeURIComponent(el.getAttribute('data-prod'));
-  const pf=document.getElementById('prod-product-filter');
-  if(pf)pf.value=name;
-  applyProdFilter();
+
+function renderProdProducts() {
+  const el = document.getElementById('prod-products-list');
+  if (!el || !PROD_DATA) return;
+  const filterDept = document.getElementById('prod-dept-filter')?.value || '';
+  const depts = PROD_DATA.depts.filter(d => !filterDept || d.name === filterDept);
+  let allProds = [];
+  const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
+  depts.forEach(d => {
+    const di = PROD_DATA.depts.indexOf(d);
+    d.products.filter(p => p.fact > 0).forEach(p => allProds.push({ ...p, dept: d.name, clr: DEPT_COLORS[di % DEPT_COLORS.length] }));
+  });
+  allProds.sort((a, b) => b.fact - a.fact);
+  if (!allProds.length) { el.innerHTML = '<div style="color:var(--txt3);padding:16px">Нет данных</div>'; return; }
+  const maxFact = allProds[0].fact;
+  el.innerHTML = `<div style="overflow-x:auto"><table class="stops-tbl"><thead><tr>
+    <th>Продукт</th><th>Цех</th><th style="text-align:right">Факт</th><th>Ед.</th><th style="text-align:right">ч/ед</th><th style="text-align:right">ФОТ/ед ₽</th><th style="min-width:120px">Доля</th>
+  </tr></thead><tbody>
+  ${allProds.map(p => {
+    const pct = maxFact > 0 ? p.fact / maxFact * 100 : 0;
+    return `<tr>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name}">${p.name}</td>
+      <td><span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${p.clr}22;color:${p.clr};font-weight:700">${p.dept}</span></td>
+      <td style="text-align:right;font-weight:700">${p.fact.toLocaleString('ru-RU')}</td>
+      <td style="color:var(--txt3)">${p.unit}</td>
+      <td style="text-align:right;color:var(--txt3)">${p.hrs_per_unit > 0 ? p.hrs_per_unit : '—'}</td>
+      <td style="text-align:right;color:var(--acc);font-weight:700">${p.fot_per_unit > 0 ? p.fot_per_unit.toFixed(2) : '—'}</td>
+      <td><div style="height:6px;background:var(--surf);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${p.clr};border-radius:3px"></div>
+      </div></td>
+    </tr>`;
+  }).join('')}
+  </tbody></table></div>`;
 }
+
+function renderProdStaff() {
+  const el = document.getElementById('prod-staff-table');
+  if (!el || !PROD_DATA) return;
+  const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
+  const depts = PROD_DATA.depts.filter(d => d.staff && d.staff.length > 0);
+  el.innerHTML = `<div style="overflow-x:auto"><table class="stops-tbl"><thead><tr>
+    <th>Цех</th><th>Сотрудник</th><th style="text-align:right">Часы</th><th style="text-align:right">ЗП день</th><th style="text-align:right">Ставка</th>
+  </tr></thead><tbody>
+  ${depts.map((d, i) => {
+    const clr = DEPT_COLORS[i % DEPT_COLORS.length];
+    return d.staff.map((s, si) => `<tr>
+      ${si === 0 ? `<td rowspan="${d.staff.length}" style="font-weight:700;color:${clr};vertical-align:top;padding-top:10px">${d.name}</td>` : ''}
+      <td>${s.fio}</td>
+      <td style="text-align:right">${s.hours}</td>
+      <td style="text-align:right;font-weight:600">${s.pay.toLocaleString('ru-RU')} ₽</td>
+      <td style="text-align:right;color:var(--txt3)">${s.rate}</td>
+    </tr>`).join('');
+  }).join('')}
+  </tbody></table></div>`;
+}
+
+function resetProdFilter() {
+  const f = document.getElementById('prod-dept-filter');
+  if (f) f.value = '';
+  renderProdProducts();
+}
+
+
 // ══ SEBES (Себестоимость) ══════════════════════════════════════════════════
 let SEBES_DATA = null;
 let SEBES_SORT_COL = 'markup', SEBES_SORT_DESC = true;
@@ -1858,13 +1996,6 @@ function _renderSebesChart(history){
 }
 
 
-function resetProdFilter(){
-  ['prod-date-from','prod-date-to','prod-wh-filter','prod-product-filter'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';});
-  const s=document.getElementById('prod-search');if(s)s.value='';
-  applyProdFilter();
-}
-
-
 function resetDelFilters() {
   ['del-date-from','del-date-to','del-point-filter','del-reason-filter','del-dept-filter'].forEach(function(id){
     const el=document.getElementById(id); if(el) el.value='';
@@ -1923,6 +2054,7 @@ function switchTab(tab,btn){
   if(tab==='production'){
     if(!PROD_DATA){ loadProductionFromServer().then(ok=>{ if(!ok) renderProduction(); }); }
     else renderProduction();
+  }
   }
   if(tab==='sebes'){
     if(!SEBES_DATA) loadSebesFromServer().then(ok=>{ if(!ok) renderSebes(); });
@@ -3206,10 +3338,10 @@ function _renderOverviewSections(){
   } else sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',color:'var(--txt3)',empty:true});
 
   if(PROD_DATA&&PROD_DATA.meta){
-    const totalQty=PROD_DATA.rows.reduce(function(s,r){return s+r.qty;},0);
-    const nedov=PROD_DATA.rows.filter(function(r){return r.nedov>0;}).length;
+    const activeDepts = PROD_DATA.depts.filter(d=>d.output_units>0);
+    const totalUnits = PROD_DATA.meta.total_units;
     sections.push({icon:'🏭',title:'Производство',tab:'production',color:'var(--acc)',
-      lines:[{label:'Выпущено',value:totalQty.toLocaleString('ru-RU')+' шт',bold:true},{label:'Позиций',value:PROD_DATA.meta.total_products},{label:'Период',value:(PROD_DATA.meta.min||'').substring(0,7)}],
+      lines:[{label:'Выпущено',value:totalUnits.toLocaleString('ru-RU')+' ед',bold:true},{label:'Цехов',value:activeDepts.length},{label:'ФОТ итого',value:(PROD_DATA.meta.total_fot||0).toLocaleString('ru-RU')+' ₽'}],
       badge:nedov>0?{text:nedov+' недовложений',color:'var(--warn)'}:null});
   } else sections.push({icon:'🏭',title:'Производство',tab:'production',color:'var(--txt3)',empty:true});
 
@@ -3757,7 +3889,7 @@ const ADMIN_SECTIONS = [
    dataInfo:function(){return DEL_DATA?(DEL_DATA.meta.total+' записей'):''},
    deleteFn:'deleteAdminData', deleteKey:'deliveries'},
   {key:'production',icon:'🏭',label:'Производство', fileId:'prod-jfu',  hasData:function(){return !!(PROD_DATA);},
-   dataInfo:function(){return PROD_DATA?(PROD_DATA.meta.total_rows+' строк'):''},
+   dataInfo:function(){return PROD_DATA?(PROD_DATA.depts.filter(d=>d.output_units>0).length+' цехов'):''},
    deleteFn:'deleteAdminData', deleteKey:'production'},
   {key:'sebes',   icon:'💰', label:'Себестоимость', fileId:'sebes-jfu', hasData:function(){return !!(SEBES_DATA);},
    dataInfo:function(){
