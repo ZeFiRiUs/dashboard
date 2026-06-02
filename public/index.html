@@ -364,10 +364,6 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
     <input class="login-inp" id="lpw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" autofocus>
     <button class="login-btn" id="lbtn" onclick="doLogin()">Войти →</button>
     <div class="login-err" id="lerr"></div>
-    <div style="margin-top:12px">
-      <button onclick="runDiag()" style="background:transparent;border:1px solid var(--bd);border-radius:8px;padding:6px 14px;color:var(--txt3);font-size:11px;cursor:pointer">🔍 Диагностика</button>
-    </div>
-    <pre id="diag-out" style="display:none;margin-top:12px;background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:10px;font-size:10px;color:var(--txt);text-align:left;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto"></pre>
     <div class="login-hint">Обратитесь к администратору для получения пароля</div>
   </div>
 </div>
@@ -2058,7 +2054,6 @@ function switchTab(tab,btn){
   if(tab==='production'){
     if(!PROD_DATA){ loadProductionFromServer().then(ok=>{ if(!ok) renderProduction(); }); }
     else renderProduction();
-  }
   }
   if(tab==='sebes'){
     if(!SEBES_DATA) loadSebesFromServer().then(ok=>{ if(!ok) renderSebes(); });
