@@ -23,8 +23,8 @@ const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'periods.json');
 const LOCAL_STOPS_FILE = path.join(LOCAL_DATA_DIR, 'stops_raw.json');
 const LOCAL_STOPS_FULL = path.join(LOCAL_DATA_DIR, 'stops_full.json');
 const WO_RAW_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_raw.json');
-if (!fs.existsSync(LOCAL_STOPS_FULL)) fs.writeFileSync(LOCAL_STOPS_FULL, 'null');
 fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
+if (!fs.existsSync(LOCAL_STOPS_FULL)) fs.writeFileSync(LOCAL_STOPS_FULL, 'null');
 if (!fs.existsSync(LOCAL_DATA_FILE))  fs.writeFileSync(LOCAL_DATA_FILE,  JSON.stringify([]));
 if (!fs.existsSync(LOCAL_STOPS_FILE)) fs.writeFileSync(LOCAL_STOPS_FILE, JSON.stringify({rows:[],min_date:'',max_date:''}));
 
@@ -57,7 +57,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 
 app.use(express.json({ limit: '10mb' }));
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,X-Admin-Password,X-View-Password');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
@@ -639,6 +639,7 @@ app.post('/api/writeoffs/sync', async (req, res) => {
 });
 
 
+const PROD_FILE_PATH  = 'data/production.json';
 const LOCAL_PROD_FILE = path.join(LOCAL_DATA_DIR, 'production.json');
 if (!fs.existsSync(LOCAL_PROD_FILE)) fs.writeFileSync(LOCAL_PROD_FILE, 'null');
 
@@ -1717,44 +1718,32 @@ app.delete('/api/data/:key', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Writeoffs dates & range — MUST be before the catch-all route ─────────────
+app.get('/api/writeoffs/dates', (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE, 'utf8'));
+    const totals = {};
+    raw.rows.forEach(r => { totals[r.d] = (totals[r.d]||0) + r.cost; });
+    res.json(Object.entries(totals).sort().map(([d,t])=>({d, total:Math.round(t)})));
+  } catch { res.json([]); }
+});
+
+app.get('/api/writeoffs/range', (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    const { from, to } = req.query; // dd.mm.yyyy
+    if (!from || !to) return res.status(400).json({ error: 'Параметры from и to обязательны' });
+    const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE, 'utf8'));
+    const rows = raw.rows.filter(r => r.d >= from && r.d <= to);
+    res.json(aggregateWriteoffs(rows, `${from} — ${to}`));
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(d) { const [y,m,day]=d.split('-'); return `${day}.${m}.${y}`; }
-
-function aggregateStops(rows, period) {
-  if (!rows.length) return { period, total_stops:0, total_points:0, total_products:0,
-    avg_duration:0, by_date:[], all_points:[], active:[], by_point:[], top_products:[] };
-  const DOW=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
-  const byDate={}, byPt={}, byProd={};
-  rows.forEach(r=>{
-    byDate[r.d]=(byDate[r.d]||0)+1;
-    if(!byPt[r.pt]) byPt[r.pt]={count:0,dur:0,prods:{}};
-    byPt[r.pt].count++; byPt[r.pt].dur+=r.mn;
-    byPt[r.pt].prods[r.pr]=(byPt[r.pt].prods[r.pr]||0)+1;
-    if(!byProd[r.pr]) byProd[r.pr]={count:0,dur:0,pts:new Set()};
-    byProd[r.pr].count++; byProd[r.pr].dur+=r.mn; byProd[r.pr].pts.add(r.pt);
-  });
-  const totalDur=rows.reduce((s,r)=>s+r.mn,0);
-  return {
-    period, total_stops:rows.length,
-    total_points:Object.keys(byPt).length,
-    total_products:Object.keys(byProd).length,
-    avg_duration:rows.length?Math.round(totalDur/rows.length):0,
-    by_date:Object.entries(byDate).sort().map(([d,c])=>{
-      const dt=new Date(d); return{date:fmtDate(d),dow:DOW[dt.getDay()],count:c};
-    }),
-    all_points:Object.keys(byPt).sort(),
-    active:rows.filter(r=>!r.rm).map(r=>({point:r.pt,product:r.pr,since:r.ad,dur:r.mn})).slice(0,200),
-    by_point:Object.entries(byPt).map(([name,v])=>({
-      name,count:v.count,avg_dur:Math.round(v.dur/v.count),total_dur:v.dur,
-      top_products:Object.entries(v.prods).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0])
-    })).sort((a,b)=>b.count-a.count),
-    top_products:Object.entries(byProd).map(([name,v])=>({
-      name,count:v.count,avg_dur:Math.round(v.dur/v.count),points:[...v.pts].slice(0,5)
-    })).sort((a,b)=>b.count-a.count).slice(0,20)
-  };
-}
 
 app.listen(PORT, async () => {
   console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
@@ -1772,91 +1761,3 @@ app.use((err, req, res, next) => {
 process.on('uncaughtException', err => { console.error('uncaughtException:', err.message); });
 process.on('unhandledRejection', err => { console.error('unhandledRejection:', err?.message || err); });
 
-// ── WRITEOFFS RAW ─────────────────────────────────────────────────────────────
-// WO_RAW_FILE определён в начале файла
-
-app.get('/api/writeoffs/dates', (req, res) => {
-  if (!checkView(req, res)) return;
-  try {
-    const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE, 'utf8'));
-    const totals = {};
-    raw.rows.forEach(r => { totals[r.d] = (totals[r.d]||0) + r.cost; });
-    res.json(Object.entries(totals).sort().map(([d,t])=>({d, total:Math.round(t)})));
-  } catch { res.json([]); }
-});
-
-app.get('/api/writeoffs/range', (req, res) => {
-  if (!checkView(req, res)) return;
-  try {
-    const { from, to } = req.query; // dd.mm.yyyy
-    const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE, 'utf8'));
-    const rows = raw.rows.filter(r => r.d >= from && r.d <= to);
-    res.json(aggregateWriteoffs(rows, `${from} — ${to}`));
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-function aggregateWriteoffs(rows, period) {
-  const CAT = n => {
-    n = n.toLowerCase();
-    if(/кофе|молоко|сок|чай|сироп/.test(n)) return 'Напитки/Бар';
-    if(/курица|свинина|говяж|бедро|филе|колбас|котлет|мясо|сосиск/.test(n)) return 'Мясо/Птица';
-    if(/огурц|помидор|лимон|лайм|капуст|салат|банан|манго|айсберг|пюре|морковь/.test(n)) return 'Овощи/Фрукты';
-    if(/булочка|лаваш|тортилья|бриошь|хлеб/.test(n)) return 'Выпечка/Хлеб';
-    if(/соус|майонез/.test(n)) return 'Соусы';
-    if(/пакет|салфетк|пергамент|бумажн|зубочист|скотч|полотенц/.test(n)) return 'Упаковка/Расходники';
-    if(/тирамис|панна|сырник|медовик|мороженое|желе|варенье|десерт/.test(n)) return 'Десерты';
-    if(/^тсп |^п\/ф /.test(n)) return 'Полуфабрикаты';
-    return 'Прочее';
-  };
-  const byWh = {};
-  rows.forEach(r => {
-    if (!byWh[r.wh]) byWh[r.wh] = {total:0,items:{},cats:{}};
-    byWh[r.wh].total += r.cost;
-    const cat = CAT(r.nm);
-    byWh[r.wh].cats[cat] = (byWh[r.wh].cats[cat]||0)+r.cost;
-    if (!byWh[r.wh].items[r.nm]) byWh[r.wh].items[r.nm]={cost:0,qty:0,unit:r.unit};
-    byWh[r.wh].items[r.nm].cost += r.cost;
-    byWh[r.wh].items[r.nm].qty  += r.qty;
-  });
-  const grand = Object.values(byWh).reduce((s,v)=>s+v.total,0);
-  const warehouses = Object.entries(byWh)
-    .sort((a,b)=>b[1].total-a[1].total)
-    .map(([name,v])=>{
-      const items = Object.entries(v.items).sort((a,b)=>b[1].cost-a[1].cost);
-      const top10 = items.slice(0,10).map(([nm,i])=>({name:nm,cost:Math.round(i.cost),qty:Math.round(i.qty*100)/100,unit:i.unit}));
-      return { name, total:Math.round(v.total),
-        pct: grand?Math.round(v.total/grand*1000)/10:0,
-        n_items: items.length,
-        cats: Object.fromEntries(Object.entries(v.cats).map(([k,vv])=>[k,Math.round(vv)])),
-        top3: top10.slice(0,3), top10 };
-    });
-
-  // Статьи и группы за период
-  const GROUP = a => {
-    const s = (a||'').toLowerCase();
-    if(/недостач|потери|порч|испорчен|брак|просроч/.test(s)) return 'Потери';
-    if(/питание|отработка|рецептур/.test(s)) return 'Плановые';
-    if(/хоз|уборк|инвентар/.test(s)) return 'Хоз.расходы';
-    if(/маркетинг|реклам|дегустац|промо/.test(s)) return 'Маркетинг';
-    return 'Прочее';
-  };
-  const articleAgg = {}, groupAgg = {}, pointAgg = {};
-  rows.forEach(r => {
-    const art = r.article || 'Не указана';
-    articleAgg[art] = (articleAgg[art]||0) + r.cost;
-    groupAgg[GROUP(art)] = (groupAgg[GROUP(art)]||0) + r.cost;
-    if(!pointAgg[r.wh]) pointAgg[r.wh] = { wo_total:0, articles:{} };
-    pointAgg[r.wh].wo_total += r.cost;
-    pointAgg[r.wh].articles[art] = (pointAgg[r.wh].articles[art]||0) + r.cost;
-  });
-
-  return {
-    period, grand_total:Math.round(grand), warehouses,
-    articles_summary: Object.entries(articleAgg).sort((a,b)=>b[1]-a[1]).map(([name,total])=>({name,total:Math.round(total)})),
-    group_totals: Object.fromEntries(Object.entries(groupAgg).map(([k,v])=>[k,Math.round(v)])),
-    by_point: Object.entries(pointAgg).sort((a,b)=>b[1].wo_total-a[1].wo_total).map(([name,v])=>({
-      name, wo_total:Math.round(v.wo_total), sales_rev:0, rev_is_placeholder:true, wo_rev_pct:0,
-      top_article: Object.entries(v.articles).sort((a,b)=>b[1]-a[1])[0]?.[0] || '',
-    })),
-  };
-}
