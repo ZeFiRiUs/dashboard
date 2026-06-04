@@ -3591,9 +3591,11 @@ async function applyWoDateFilter(){
     // Если выбрана только одна граница — это один день, не открытый диапазон
     const effFrom = fromVal || toVal;
     const effTo   = toVal || fromVal;
-    const matchDates = WO_INDEX.meta.dates.filter(d=>
-      d.d >= effFrom && d.d <= effTo
-    );
+    const parseDMY = s => { const [dd,mm,yy] = s.split('.'); return new Date(+yy, +mm-1, +dd); };
+    const fromTs = parseDMY(effFrom), toTs = parseDMY(effTo);
+    const matchDates = WO_INDEX.meta.dates.filter(d => {
+      const dt = parseDMY(d.d); return dt >= fromTs && dt <= toTs;
+    });
     if(!matchDates.length){ ss('warn','Нет данных за выбранный период'); return; }
 
     if(matchDates.length === 1){
