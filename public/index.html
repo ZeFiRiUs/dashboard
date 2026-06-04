@@ -3625,9 +3625,9 @@ async function applyWoDateFilter(){
   if(rb) rb.style.display='';
 
   if(WO_INDEX){
-    // Если выбрана только одна граница — это один день, не открытый диапазон
-    const effFrom = fromVal || toVal;
-    const effTo   = toVal || fromVal;
+    const _dates   = WO_INDEX.meta.dates;
+    const effFrom  = fromVal || _dates[0]?.d;
+    const effTo    = toVal   || _dates[_dates.length - 1]?.d;
     const parseDMY = s => { const [dd,mm,yy] = s.split('.'); return new Date(+yy, +mm-1, +dd); };
     const fromTs = parseDMY(effFrom), toTs = parseDMY(effTo);
     const matchDates = WO_INDEX.meta.dates.filter(d => {
@@ -4557,7 +4557,7 @@ async function doLogin(){
     if(j.ok){
       sessionPassword=pw;sessionStorage.setItem('dash_pw',pw);
       document.getElementById('ls').style.display='none';
-      loadSettings().then(()=>{ loadData();startAutoReload(); });
+      loadSettings().then(()=>{ loadData(); });
       _updateSheetsBarVisibility(j.role==='admin');
     } else {
       err.textContent='❌ Неверный пароль ('+r.status+')';
@@ -4592,11 +4592,6 @@ function toggleMobMenu(){
 // Мобильная синхронизация встроена в switchTab ниже
 
 
-let _autoReloadInterval = null;
-function startAutoReload(){
-  if(_autoReloadInterval) return; // уже запущен — не создавать второй
-  _autoReloadInterval = setInterval(loadData, 30000);
-}
 
 // INIT
 function op(id){document.getElementById(id).classList.add('open');}
@@ -4645,7 +4640,7 @@ if(sessionPassword){
     .then(r=>r.json()).then(j=>{
       if(j.ok){
         document.getElementById('ls').style.display='none';
-        loadSettings().then(()=>{ loadData();startAutoReload(); });
+        loadSettings().then(()=>{ loadData(); });
         _updateSheetsBarVisibility(j.role==='admin');
       } else{sessionStorage.removeItem('dash_pw');sessionPassword='';}
     }).catch(()=>{document.getElementById('ls').style.display='none';loadData();});
