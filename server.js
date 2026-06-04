@@ -15,18 +15,15 @@ const GH_OWNER  = process.env.GH_OWNER  || '';
 const GH_REPO   = process.env.GH_REPO   || 'dashboard';
 const GH_BRANCH = process.env.GH_BRANCH || 'main';
 const DATA_PATH = 'data/periods.json';
-const STOPS_PATH= 'data/stops_raw.json';
 
 // Local cache (in-memory + local fallback)
 const LOCAL_DATA_DIR  = path.join(__dirname, 'data');
 const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'periods.json');
-const LOCAL_STOPS_FILE = path.join(LOCAL_DATA_DIR, 'stops_raw.json');
 const LOCAL_STOPS_FULL = path.join(LOCAL_DATA_DIR, 'stops_full.json');
 const WO_RAW_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_raw.json');
 fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
 if (!fs.existsSync(LOCAL_STOPS_FULL)) fs.writeFileSync(LOCAL_STOPS_FULL, 'null');
 if (!fs.existsSync(LOCAL_DATA_FILE))  fs.writeFileSync(LOCAL_DATA_FILE,  JSON.stringify([]));
-if (!fs.existsSync(LOCAL_STOPS_FILE)) fs.writeFileSync(LOCAL_STOPS_FILE, JSON.stringify({rows:[],min_date:'',max_date:''}));
 
 // При старте — пробуем загрузить данные из GitHub если токен есть
 async function initFromGitHub() {
@@ -1801,7 +1798,6 @@ app.post('/api/writeoffs/xlsx', upload.single('file'), async (req, res) => {
     const existing = JSON.parse(fs.readFileSync(LOCAL_DATA_FILE, 'utf8'));
     existing.push(data);
     fs.writeFileSync(LOCAL_DATA_FILE, JSON.stringify(existing));
-    rebuildWriteoffsIndex();
     if (GH_TOKEN && GH_OWNER) {
       try {
         const r = await ghRead(DATA_PATH);
@@ -1852,6 +1848,87 @@ app.delete('/api/data/:key', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Aggregation helper for writeoffs rows ────────────────────────────────────
+function aggregateWriteoffs(rows, label) {
+  const cat = n => {
+    n = n.toLowerCase();
+    if (/кофе|молоко|сок|чай|сироп/.test(n))              return 'Напитки/Бар';
+    if (/курица|свинина|говяж|бедро|филе|колбас|котлет|мясо/.test(n)) return 'Мясо/Птица';
+    if (/огурц|помидор|лимон|лайм|капуст|салат|банан|манго|пюре|морковь/.test(n)) return 'Овощи/Фрукты';
+    if (/булочка|лаваш|тортилья|бриошь|хлеб/.test(n))    return 'Выпечка/Хлеб';
+    if (/соус|майонез/.test(n))                            return 'Соусы';
+    if (/пакет|салфетк|пергамент|бумажн/.test(n))         return 'Упаковка';
+    return 'Прочее';
+  };
+  const GROUP = a => {
+    const s = (a || '').toLowerCase();
+    if (/недостач|потери|порч|испорчен|брак|просроч/.test(s)) return 'Потери';
+    if (/питание|отработка|рецептур/.test(s))                 return 'Плановые';
+    if (/хоз|уборк|инвентар/.test(s))                        return 'Хоз.расходы';
+    if (/маркетинг|реклам|дегустац|промо/.test(s))            return 'Маркетинг';
+    return 'Прочее';
+  };
+
+  const byWh = {};
+  const articleAgg = {}, groupAgg = {}, pointAgg = {};
+
+  rows.forEach(r => {
+    // По складам
+    if (!byWh[r.wh]) byWh[r.wh] = { total: 0, items: {}, cats: {} };
+    byWh[r.wh].total += r.cost;
+    const c = cat(r.nm);
+    byWh[r.wh].cats[c] = (byWh[r.wh].cats[c] || 0) + r.cost;
+    if (!byWh[r.wh].items[r.nm]) byWh[r.wh].items[r.nm] = { cost: 0, qty: 0, unit: r.unit };
+    byWh[r.wh].items[r.nm].cost += r.cost;
+    byWh[r.wh].items[r.nm].qty  += r.qty;
+
+    // По статьям и группам
+    const art = r.article || 'Не указана';
+    articleAgg[art] = (articleAgg[art] || 0) + r.cost;
+    const g = GROUP(art);
+    groupAgg[g] = (groupAgg[g] || 0) + r.cost;
+
+    // По точкам
+    if (!pointAgg[r.wh]) pointAgg[r.wh] = { wo_total: 0, articles: {} };
+    pointAgg[r.wh].wo_total += r.cost;
+    pointAgg[r.wh].articles[art] = (pointAgg[r.wh].articles[art] || 0) + r.cost;
+  });
+
+  const grand = Object.values(byWh).reduce((s, v) => s + v.total, 0);
+  const warehouses = Object.entries(byWh)
+    .sort((a, b) => b[1].total - a[1].total)
+    .map(([name, v]) => {
+      const items = Object.entries(v.items).sort((a, b) => b[1].cost - a[1].cost);
+      const top10 = items.slice(0, 10).map(([nm, i]) => ({ name: nm, cost: Math.round(i.cost), qty: Math.round(i.qty * 100) / 100, unit: i.unit }));
+      return {
+        name, total: Math.round(v.total),
+        pct: grand ? Math.round(v.total / grand * 1000) / 10 : 0,
+        n_items: items.length,
+        cats: Object.fromEntries(Object.entries(v.cats).map(([k, vv]) => [k, Math.round(vv)])),
+        top3: top10.slice(0, 3), top10,
+      };
+    });
+
+  const by_point = Object.entries(pointAgg)
+    .sort((a, b) => b[1].wo_total - a[1].wo_total)
+    .map(([name, v]) => ({
+      name,
+      wo_total: Math.round(v.wo_total),
+      sales_rev: 0, rev_is_placeholder: true, wo_rev_pct: 0,
+      top_article: Object.entries(v.articles).sort((a, b) => b[1] - a[1])[0]?.[0] || '',
+      articles: Object.fromEntries(Object.entries(v.articles).map(([k, vv]) => [k, Math.round(vv)])),
+    }));
+
+  return {
+    period: label,
+    grand_total: Math.round(grand),
+    warehouses,
+    articles_summary: Object.entries(articleAgg).sort((a, b) => b[1] - a[1]).map(([name, total]) => ({ name, total: Math.round(total) })),
+    group_totals: Object.fromEntries(Object.entries(groupAgg).map(([k, v]) => [k, Math.round(v)])),
+    by_point,
+  };
+}
+
 // ── Writeoffs dates & range — MUST be before the catch-all route ─────────────
 app.get('/api/writeoffs/dates', (req, res) => {
   if (!checkView(req, res)) return;
@@ -1869,7 +1946,9 @@ app.get('/api/writeoffs/range', (req, res) => {
     const { from, to } = req.query; // dd.mm.yyyy
     if (!from || !to) return res.status(400).json({ error: 'Параметры from и to обязательны' });
     const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE, 'utf8'));
-    const rows = raw.rows.filter(r => r.d >= from && r.d <= to);
+    const parseDMY = s => { const [d, m, y] = s.split('.'); return new Date(+y, +m - 1, +d); };
+    const fromDate = parseDMY(from), toDate = parseDMY(to);
+    const rows = raw.rows.filter(r => { const rd = parseDMY(r.d); return rd >= fromDate && rd <= toDate; });
     res.json(aggregateWriteoffs(rows, `${from} — ${to}`));
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1910,20 +1989,17 @@ app.post('/api/settings', express.json(), (req, res) => {
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function fmtDate(d) { const [y,m,day]=d.split('-'); return `${day}.${m}.${y}`; }
+// ── Глобальный обработчик ошибок Express ─────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('Express error:', err.message);
+  if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл слишком большой (макс. 25MB)' });
+  res.status(500).json({ error: err.message || 'Внутренняя ошибка сервера' });
+});
 
 app.listen(PORT, async () => {
   console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
   await initFromGitHub();
   rebuildWriteoffsIndex();
-});
-
-// ── Глобальный обработчик ошибок Express ──────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error('Express error:', err.message);
-  if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл слишком большой (макс. 25MB)' });
-  res.status(500).json({ error: err.message || 'Внутренняя ошибка сервера' });
 });
 
 process.on('uncaughtException', err => { console.error('uncaughtException:', err.message); });
