@@ -567,22 +567,21 @@ function extractZipEntry(buf, entryName) {
   return null;
 }
 
-// Парсит шит-листы из workbook.xml — возвращает [{name, gid}]
+// Парсит имена листов из workbook.xml (только names — GID в XLSX не совпадают с Google GID)
 function parseWorkbookXml(xml) {
   const sheets = [];
   const re = /<sheet\b([^>]*?)(?:\/>|>)/g;
   let m;
   while ((m = re.exec(xml)) !== null) {
-    const attrs = m[1];
-    const nameM = attrs.match(/name="([^"]*)"/);
-    const idM   = attrs.match(/sheetId="(\d+)"/);
-    if (nameM && idM) sheets.push({ name: nameM[1].trim(), gid: idM[1] });
+    const nameM = m[1].match(/name="([^"]*)"/);
+    if (nameM) sheets.push({ name: nameM[1].trim(), gid: '' });
   }
   return sheets;
 }
 
-// Авто-обнаружение листов: скачиваем XLSX, читаем xl/workbook.xml из ZIP.
-// Google сохраняет GID как sheetId → получаем реальные GID без API-ключа.
+// Авто-обнаружение листов: скачиваем XLSX, читаем имена из xl/workbook.xml.
+// GID специально не извлекаем — XLSX sheetId это внутренний ID (1,2,3…), не Google GID.
+// Синхронизация будет идти по имени листа через gviz-эндпоинт (sheet=NAME).
 async function autoDiscoverWoSheets() {
   try {
     const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=xlsx`;
@@ -590,48 +589,48 @@ async function autoDiscoverWoSheets() {
     if (!r.ok) throw new Error('XLSX export HTTP ' + r.status);
     const buf = Buffer.from(await r.arrayBuffer());
 
-    // Метод 1: читаем workbook.xml через собственный ZIP-парсер (быстро, точные GID)
+    // Метод 1: читаем workbook.xml через ZIP-парсер
     const xml = extractZipEntry(buf, 'xl/workbook.xml');
     if (xml) {
       const sheets = parseWorkbookXml(xml);
       if (sheets.length) {
-        console.log(`WO discover (zip): ${sheets.length} листов:`, sheets.map(s=>`${s.name}(${s.gid})`).join(', '));
+        console.log(`WO discover (zip): ${sheets.length} листов:`, sheets.map(s => s.name).join(', '));
         return sheets;
       }
     }
 
-    // Метод 2: fallback через xlsx-библиотеку
+    // Метод 2: fallback через xlsx-библиотеку (только имена)
     console.log('WO discover: ZIP-метод не дал результата, пробуем xlsx-библиотеку');
     const XLSX = getXlsx();
-    const wb = XLSX.read(buf, { type: 'buffer' });
-    const wbSheets = wb.Workbook?.Sheets || [];
-    const sheets = wbSheets.map((s, i) => ({
-      name: (wb.SheetNames[i] || s.name || '').trim(),
-      // SheetJS сохраняет sheetId из workbook.xml (= Google GID)
-      gid: s.sheetId != null ? String(s.sheetId) : '',
-    })).filter(s => s.name);
-    if (sheets.length) {
-      console.log(`WO discover (xlsx): ${sheets.length} листов:`, sheets.map(s=>`${s.name}(${s.gid||'?'})`).join(', '));
-      return sheets;
+    const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
+    if (wb.SheetNames?.length) {
+      console.log(`WO discover (xlsx): ${wb.SheetNames.length} листов:`, wb.SheetNames.join(', '));
+      return wb.SheetNames.map(name => ({ name: name.trim(), gid: '' }));
     }
 
-    throw new Error('Листы не найдены ни одним из методов');
+    throw new Error('Листы не найдены');
   } catch(e) {
     console.error('autoDiscoverWoSheets:', e.message);
     return null;
   }
 }
 
+// Настоящие Google GID: 0 (первый лист) или большое число (≥100).
+// Маленькие ненулевые GID (1–99) — это внутренние XLSX sheetId, не Google GID.
+const isRealGid = g => g === '0' || g === 0 || (g && parseInt(g) >= 100);
+
 // Мержит обнаруженные листы с существующим списком:
 // - добавляет новые листы
-// - обновляет GID у листов с пустым gid (результат предыдущей версии)
+// - сбрасывает ошибочные маленькие GID (1–99) в '' → синхронизация по имени
 function mergeDiscoveredSheets(existing, discovered) {
   let added = 0, updated = 0;
   const merged = existing.map(e => {
     const disc = discovered.find(d => d.name === e.name);
-    if (disc && (!e.gid || e.gid === '') && disc.gid) {
+    if (!disc) return e;
+    // Сбрасываем подозрительные маленькие GID (XLSX sequential, не Google)
+    if (e.gid && !isRealGid(e.gid)) {
       updated++;
-      return { ...e, gid: disc.gid };
+      return { ...e, gid: '' };
     }
     return e;
   });
