@@ -359,7 +359,8 @@ function rebuildWriteoffsIndex() {
         });
       return {period:label,grand_total:Math.round(grand),warehouses};
     };
-    const dates = [...new Set(rows.map(r=>r.d))].sort();
+    const parseDMY = s => { const [d,m,y]=s.split('.'); return new Date(+y,+m-1,+d); };
+    const dates = [...new Set(rows.map(r=>r.d))].sort((a,b)=>parseDMY(a)-parseDMY(b));
     const whs   = [...new Set(rows.map(r=>r.wh))].sort();
     const dateTotal = {}, whTotal = {};
     rows.forEach(r=>{ dateTotal[r.d]=(dateTotal[r.d]||0)+r.cost; whTotal[r.wh]=(whTotal[r.wh]||0)+r.cost; });
@@ -525,25 +526,81 @@ function parseWriteoffsSheet(csv) {
   return rows;
 }
 
-// Авто-обнаружение всех листов из Google Spreadsheet через XLSX-экспорт
-// (работает для любой публично доступной таблицы — так же как CSV-экспорт)
+// Извлекает файл из ZIP-архива (XLSX = ZIP). Использует встроенный zlib.
+function extractZipEntry(buf, entryName) {
+  try {
+    let pos = 0;
+    while (pos + 30 < buf.length) {
+      if (buf[pos] !== 0x50 || buf[pos+1] !== 0x4B ||
+          buf[pos+2] !== 0x03 || buf[pos+3] !== 0x04) { pos++; continue; }
+      const compMethod = buf.readUInt16LE(pos + 8);
+      const compSize   = buf.readUInt32LE(pos + 18);
+      const fnLen      = buf.readUInt16LE(pos + 26);
+      const extraLen   = buf.readUInt16LE(pos + 28);
+      const fn         = buf.slice(pos + 30, pos + 30 + fnLen).toString('utf8');
+      const dataStart  = pos + 30 + fnLen + extraLen;
+      if (fn === entryName) {
+        const data = buf.slice(dataStart, dataStart + compSize);
+        if (compMethod === 8) return require('zlib').inflateRawSync(data).toString('utf8');
+        if (compMethod === 0) return data.toString('utf8');
+      }
+      const nextPos = dataStart + compSize;
+      pos = nextPos > pos ? nextPos : pos + 1;
+    }
+  } catch(e) { console.error('extractZipEntry:', e.message); }
+  return null;
+}
+
+// Авто-обнаружение листов через XLSX-экспорт.
+// Google сохраняет GID как sheetId в xl/workbook.xml — читаем напрямую из ZIP.
 async function autoDiscoverWoSheets() {
   try {
-    const XLSX = getXlsx();
     const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=xlsx`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const buf = Buffer.from(await r.arrayBuffer());
-    // bookSheets:true — читаем только структуру, не данные (быстро)
-    const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
-    if (!wb.SheetNames || !wb.SheetNames.length) throw new Error('Нет листов в файле');
-    console.log(`WO discover: найдено ${wb.SheetNames.length} листов:`, wb.SheetNames.join(', '));
-    // gid оставляем пустым — синхронизация будет идти по имени листа (sheet=NAME)
-    return wb.SheetNames.map(name => ({ name, gid: '' }));
+
+    const xml = extractZipEntry(buf, 'xl/workbook.xml');
+    if (!xml) throw new Error('workbook.xml не найден');
+
+    const sheets = [];
+    const re = /<sheet\b([^/]*?)(?:\/>|>)/g;
+    let m;
+    while ((m = re.exec(xml)) !== null) {
+      const attrs = m[1];
+      const nameM = attrs.match(/name="([^"]*)"/);
+      const idM   = attrs.match(/sheetId="(\d+)"/);
+      if (nameM && idM) sheets.push({ name: nameM[1].trim(), gid: idM[1] });
+    }
+    if (!sheets.length) throw new Error('Листы не найдены в workbook.xml');
+    console.log(`WO discover: ${sheets.length} листов:`, sheets.map(s=>`${s.name}(${s.gid})`).join(', '));
+    return sheets;
   } catch(e) {
     console.error('autoDiscoverWoSheets:', e.message);
     return null;
   }
+}
+
+// Мержит обнаруженные листы с существующим списком:
+// - добавляет новые листы
+// - обновляет GID у листов с пустым gid (результат предыдущей версии)
+function mergeDiscoveredSheets(existing, discovered) {
+  let added = 0, updated = 0;
+  const merged = existing.map(e => {
+    const disc = discovered.find(d => d.name === e.name);
+    if (disc && (!e.gid || e.gid === '') && disc.gid) {
+      updated++;
+      return { ...e, gid: disc.gid };
+    }
+    return e;
+  });
+  for (const d of discovered) {
+    if (!merged.find(e => e.name === d.name)) {
+      merged.push(d);
+      added++;
+    }
+  }
+  return { merged, added, updated };
 }
 
 async function discoverWoSheets() {
@@ -559,11 +616,10 @@ app.get('/api/writeoffs/discover', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     const discovered = await autoDiscoverWoSheets();
-    if (!discovered) return res.json({ ok: false, found: 0, added: 0, error: 'Не удалось получить список листов. Убедитесь, что таблица открыта для просмотра.' });
-    const existing = readWoSheets();
-    const newSheets = discovered.filter(d => !existing.find(e => e.name === d.name));
-    if (newSheets.length) saveWoSheets([...existing, ...newSheets]);
-    res.json({ ok: true, found: discovered.length, added: newSheets.length, sheets: readWoSheets() });
+    if (!discovered) return res.json({ ok: false, found: 0, added: 0, error: 'Не удалось получить список листов. Проверьте, что таблица открыта для просмотра.' });
+    const { merged, added, updated } = mergeDiscoveredSheets(readWoSheets(), discovered);
+    if (added || updated) saveWoSheets(merged);
+    res.json({ ok: true, found: discovered.length, added, updated, sheets: readWoSheets() });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -631,13 +687,12 @@ app.post('/api/writeoffs/sync', async (req, res) => {
     let discoveredNew = 0;
     const discovered = await autoDiscoverWoSheets();
     if (discovered && discovered.length) {
-      const existing = readWoSheets();
-      // Совпадение по имени — GID у авто-найденных листов пустой
-      const toAdd = discovered.filter(d => !existing.find(e => e.name === d.name));
-      if (toAdd.length) {
-        saveWoSheets([...existing, ...toAdd]);
-        discoveredNew = toAdd.length;
-        console.log(`WO sync: авто-добавлено ${toAdd.length} новых листов:`, toAdd.map(s => s.name).join(', '));
+      const { merged, added, updated } = mergeDiscoveredSheets(readWoSheets(), discovered);
+      if (added || updated) {
+        saveWoSheets(merged);
+        discoveredNew = added;
+        if (added)   console.log(`WO sync: добавлено ${added} новых листов`);
+        if (updated) console.log(`WO sync: обновлено GID у ${updated} листов`);
       }
     }
 
