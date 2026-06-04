@@ -1027,12 +1027,16 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--bd)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div class="st" style="margin-bottom:0">Листы списаний (Google Sheets)</div>
-          <button onclick="addWoSheet()" style="background:var(--card);border:1px solid var(--acc);border-radius:6px;padding:3px 10px;color:var(--acc);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">+ Добавить лист</button>
+          <div style="display:flex;gap:6px">
+            <button id="wo-discover-btn" onclick="discoverWoSheets()" style="background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 10px;color:var(--txt2);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">🔍 Найти листы</button>
+            <button onclick="addWoSheet()" style="background:var(--card);border:1px solid var(--acc);border-radius:6px;padding:3px 10px;color:var(--acc);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">+ Добавить</button>
+          </div>
         </div>
+        <div id="wo-discover-status" style="font-size:11px;color:var(--txt3);margin-bottom:6px;display:none"></div>
         <div id="wo-sheets-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
         <div style="display:flex;gap:8px;align-items:center">
           <button onclick="syncWoFromTab()" style="background:var(--acc);border:none;border-radius:6px;padding:5px 14px;color:#0a0a0a;font-size:11px;font-weight:600;font-family:Manrope,sans-serif;cursor:pointer">🔄 Синхронизировать списания</button>
-          <span style="font-size:10px;color:var(--txt3)">Название периода (4-10), GID из URL</span>
+          <span style="font-size:10px;color:var(--txt3)">Все найденные листы = все периоды</span>
         </div>
       </div>
 
@@ -2374,6 +2378,36 @@ function removeSebesSheet(i){
 // ── Листы списаний ────────────────────────────────────────────────────────────
 let _woSheets = [];
 
+async function discoverWoSheets(){
+  const btn = document.getElementById('wo-discover-btn');
+  const status = document.getElementById('wo-discover-status');
+  if(btn) { btn.disabled = true; btn.textContent = '⏳ Поиск...'; }
+  if(status) { status.style.display = ''; status.style.color = 'var(--txt3)'; status.textContent = 'Обращаемся к таблице...'; }
+  try {
+    const r = await fetch('/api/writeoffs/discover', {headers:{'X-Admin-Password':adminPw}});
+    const j = await r.json();
+    if(!r.ok || !j.ok){
+      if(status){ status.style.color='var(--warn)'; status.textContent = '⚠ ' + (j.error||'Не удалось обнаружить листы'); }
+      return;
+    }
+    _woSheets = j.sheets || [];
+    renderWoSheetsList();
+    if(status){
+      if(j.added > 0){
+        status.style.color = 'var(--grn)';
+        status.textContent = `✓ Найдено ${j.found} листов, добавлено новых: ${j.added}`;
+      } else {
+        status.style.color = 'var(--txt3)';
+        status.textContent = `✓ Найдено ${j.found} листов, новых нет`;
+      }
+    }
+  } catch(e){
+    if(status){ status.style.color='var(--red)'; status.textContent = '✗ Ошибка: '+e.message; }
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = '🔍 Найти листы'; }
+  }
+}
+
 async function loadWoSheetsList(){
   try {
     const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
@@ -2464,9 +2498,12 @@ async function syncWoFromTab(){
     const j = await r.json();
     if(!j.ok) throw new Error(j.error||'Ошибка');
     if(dotEl) dotEl.style.background = 'var(--grn)';
+    // Обновляем список листов если были авто-добавлены новые
+    if(j.discovered_new > 0) { await loadWoSheetsList(); }
     // Проверяем не загрузившиеся листы
     const failed = (j.sheets||[]).filter(s=>s.error);
-    let statusMsg = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU') + ' · ' + j.total_rows + ' строк';
+    let statusMsg = 'Sheets · ' + new Date().toLocaleTimeString('ru-RU') + ' · ' + j.total_rows + ' строк · ' + (j.sheets||[]).length + ' листов';
+    if(j.discovered_new > 0) statusMsg += ` · +${j.discovered_new} новых листов`;
     if(failed.length){
       statusMsg += ' · ⚠ не загружены: ' + failed.map(s=>s.name+' ('+s.error+')').join(', ');
       if(textEl) textEl.style.color = 'var(--warn)';
