@@ -525,6 +525,55 @@ function parseWriteoffsSheet(csv) {
   return rows;
 }
 
+// Авто-обнаружение всех листов из Google Spreadsheet (без API-ключа, через HTML-парсинг)
+async function autoDiscoverWoSheets() {
+  const HDRS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': 'text/html,application/xhtml+xml',
+  };
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/edit`,
+    `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/htmlview`,
+  ];
+  for (const url of urls) {
+    try {
+      const r = await fetch(url, { headers: HDRS });
+      if (!r.ok) continue;
+      const html = await r.text();
+      // Если редиректнуло на логин — нет смысла парсить
+      if (html.includes('accounts.google.com') || html.length < 2000) continue;
+
+      const sheets = [];
+      const seen = new Set();
+
+      // Паттерн 1 (новый Google Sheets): "sheetId":NUM,"title":"NAME"
+      const re1 = /"sheetId":(\d+),"title":"([^"\\]+)"/g;
+      let m;
+      while ((m = re1.exec(html)) !== null) {
+        if (!seen.has(m[1])) { seen.add(m[1]); sheets.push({ name: m[2], gid: m[1] }); }
+      }
+      if (sheets.length) { console.log(`WO discover: ${sheets.length} листов (pattern 1)`); return sheets; }
+
+      // Паттерн 2: обратный порядок полей
+      const re2 = /"title":"([^"\\]+)"[^{}]{0,80}"sheetId":(\d+)/g;
+      while ((m = re2.exec(html)) !== null) {
+        if (!seen.has(m[2])) { seen.add(m[2]); sheets.push({ name: m[1], gid: m[2] }); }
+      }
+      if (sheets.length) { console.log(`WO discover: ${sheets.length} листов (pattern 2)`); return sheets; }
+
+      // Паттерн 3: старый формат данных Sheets
+      const re3 = /\["([^"]+)",null,null,null,null,null,null,(\d+)\]/g;
+      while ((m = re3.exec(html)) !== null) {
+        if (!seen.has(m[2])) { seen.add(m[2]); sheets.push({ name: m[1], gid: m[2] }); }
+      }
+      if (sheets.length) { console.log(`WO discover: ${sheets.length} листов (pattern 3)`); return sheets; }
+
+    } catch(e) { console.log('WO discover err:', url, e.message); }
+  }
+  console.log('WO discover: листы не обнаружены (таблица закрыта или изменилась структура HTML)');
+  return null;
+}
+
 async function discoverWoSheets() {
   const now = Date.now();
   if (_woSheetsCache && (now - _woSheetsCacheTs) < 5*60*1000) return _woSheetsCache;
@@ -532,6 +581,19 @@ async function discoverWoSheets() {
   _woSheetsCache = sheets; _woSheetsCacheTs = now;
   return sheets;
 }
+
+// GET авто-обнаружение листов из Google Spreadsheet
+app.get('/api/writeoffs/discover', async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const discovered = await autoDiscoverWoSheets();
+    if (!discovered) return res.json({ ok: false, found: 0, added: 0, error: 'Не удалось получить список листов. Убедитесь, что таблица открыта для просмотра.' });
+    const existing = readWoSheets();
+    const newSheets = discovered.filter(d => !existing.find(e => e.gid === d.gid));
+    if (newSheets.length) saveWoSheets([...existing, ...newSheets]);
+    res.json({ ok: true, found: discovered.length, added: newSheets.length, sheets: readWoSheets() });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // GET список листов
 app.get('/api/writeoffs/sheets', (req, res) => {
@@ -592,6 +654,20 @@ app.post('/api/writeoffs/sync', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     _woSheetsCache = null; _woSheetsCacheTs = 0;
+
+    // Авто-обнаружение новых листов перед синхронизацией
+    let discoveredNew = 0;
+    const discovered = await autoDiscoverWoSheets();
+    if (discovered && discovered.length) {
+      const existing = readWoSheets();
+      const toAdd = discovered.filter(d => !existing.find(e => e.gid === d.gid));
+      if (toAdd.length) {
+        saveWoSheets([...existing, ...toAdd]);
+        discoveredNew = toAdd.length;
+        console.log(`WO sync: авто-добавлено ${toAdd.length} новых листов:`, toAdd.map(s => s.name).join(', '));
+      }
+    }
+
     const sheets = readWoSheets();
     if (!sheets.length) return res.status(400).json({ error: 'Нет листов для синхронизации' });
 
@@ -634,7 +710,7 @@ app.post('/api/writeoffs/sync', async (req, res) => {
     rebuildWriteoffsIndex();
     console.log('WO sync dates:', uniqDates.join(', '));
 
-    res.json({ ok: true, total_rows: allRows.length, sheets: perSheet, dates: uniqDates });
+    res.json({ ok: true, total_rows: allRows.length, sheets: perSheet, dates: uniqDates, discovered_new: discoveredNew });
   } catch(e) {
     console.error('Writeoffs sync error:', e.message);
     res.status(500).json({ error: e.message });
