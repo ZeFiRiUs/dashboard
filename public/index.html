@@ -3623,10 +3623,10 @@ async function applyWoDateFilter(){
 }
 
 // Пересчёт статей и точек за выбранный диапазон дат
+// fromVal / toVal уже в формате DD.MM.YYYY — именно то, что ждёт сервер
 async function updateWoSectionsForRange(fromVal, toVal){
-  const toServerDate = iso => { const [y,m,d]=iso.split('-'); return `${d}.${m}.${y}`; };
   try {
-    const r = await fetch(`/api/writeoffs/range?from=${toServerDate(fromVal)}&to=${toServerDate(toVal)}`,
+    const r = await fetch(`/api/writeoffs/range?from=${encodeURIComponent(fromVal)}&to=${encodeURIComponent(toVal)}`,
       {headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) return;
     const data = await r.json();
