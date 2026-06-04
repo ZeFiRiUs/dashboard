@@ -379,16 +379,17 @@ function rebuildWriteoffsIndex() {
       const s = (a||'').toLowerCase();
       if(/недостач|потери|порч|испорчен|брак|просроч/.test(s)) return 'Потери';
       if(/питание|отработка|рецептур/.test(s)) return 'Плановые';
-      if(/хоз|уборк|инвентар/.test(s)) return 'Хоз.расходы';
+      if(/хоз|уборк|инвентар/.test(s)) return 'Хоз. расходы';
       if(/маркетинг|реклам|дегустац|промо/.test(s)) return 'Маркетинг';
       return 'Прочее';
     };
-    const articleAgg = {}, groupAgg = {};
+    const articleAgg = {}, groupAgg = {}, articleGroup = {};
     rows.forEach(r => {
       const art = r.article || 'Не указана';
       articleAgg[art] = (articleAgg[art]||0) + r.cost;
       const g = GROUP(art);
       groupAgg[g] = (groupAgg[g]||0) + r.cost;
+      articleGroup[art] = g;
     });
     // Агрегация по точкам (склад = точка) со списаниями и главной статьёй
     const pointAgg = {};
@@ -403,7 +404,7 @@ function rebuildWriteoffsIndex() {
       meta:{
         dates: dates.map(d=>({d,short:d.substring(0,5),dow:DOW[new Date(d.split('.').reverse().join('-')).getDay()],total:Math.round(dateTotal[d])})),
         warehouses: whs.sort((a,b)=>(whTotal[b]||0)-(whTotal[a]||0)).map(w=>({name:w,total:Math.round(whTotal[w]||0)})),
-        articles_summary: Object.entries(articleAgg).sort((a,b)=>b[1]-a[1]).map(([name,total])=>({name,total:Math.round(total)})),
+        articles_summary: Object.entries(articleAgg).sort((a,b)=>b[1]-a[1]).map(([name,total])=>({name,total:Math.round(total),group:articleGroup[name]||'Прочее'})),
         group_totals: Object.fromEntries(Object.entries(groupAgg).map(([k,v])=>[k,Math.round(v)])),
       },
       by_day: byDay,
@@ -1864,13 +1865,13 @@ function aggregateWriteoffs(rows, label) {
     const s = (a || '').toLowerCase();
     if (/недостач|потери|порч|испорчен|брак|просроч/.test(s)) return 'Потери';
     if (/питание|отработка|рецептур/.test(s))                 return 'Плановые';
-    if (/хоз|уборк|инвентар/.test(s))                        return 'Хоз.расходы';
+    if (/хоз|уборк|инвентар/.test(s))                        return 'Хоз. расходы';
     if (/маркетинг|реклам|дегустац|промо/.test(s))            return 'Маркетинг';
     return 'Прочее';
   };
 
   const byWh = {};
-  const articleAgg = {}, groupAgg = {}, pointAgg = {};
+  const articleAgg = {}, groupAgg = {}, articleGroup = {}, pointAgg = {};
 
   rows.forEach(r => {
     // По складам
@@ -1887,6 +1888,7 @@ function aggregateWriteoffs(rows, label) {
     articleAgg[art] = (articleAgg[art] || 0) + r.cost;
     const g = GROUP(art);
     groupAgg[g] = (groupAgg[g] || 0) + r.cost;
+    articleGroup[art] = g;
 
     // По точкам
     if (!pointAgg[r.wh]) pointAgg[r.wh] = { wo_total: 0, articles: {} };
@@ -1923,7 +1925,7 @@ function aggregateWriteoffs(rows, label) {
     period: label,
     grand_total: Math.round(grand),
     warehouses,
-    articles_summary: Object.entries(articleAgg).sort((a, b) => b[1] - a[1]).map(([name, total]) => ({ name, total: Math.round(total) })),
+    articles_summary: Object.entries(articleAgg).sort((a, b) => b[1] - a[1]).map(([name, total]) => ({ name, total: Math.round(total), group: articleGroup[name] || 'Прочее' })),
     group_totals: Object.fromEntries(Object.entries(groupAgg).map(([k, v]) => [k, Math.round(v)])),
     by_point,
   };
