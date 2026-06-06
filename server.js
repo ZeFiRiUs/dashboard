@@ -499,7 +499,10 @@ function filterWoData(data, point, article) {
 // GET /api/writeoffs/sheets — список листов
 app.get('/api/writeoffs/sheets', async (req, res) => {
   if (!checkView(req, res)) return;
-  try { res.json(await fetchWoSheetList()); }
+  try {
+    if (req.query.nocache) { _woSheetListCache = null; _woSheetListTs = 0; }
+    res.json(await fetchWoSheetList());
+  }
   catch(e) { res.status(502).json({ error: e.message }); }
 });
 
