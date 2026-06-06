@@ -332,7 +332,12 @@ async function fetchWoSheetList() {
   const buf = Buffer.from(await r.arrayBuffer());
   const XLSX = require('xlsx');
   const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
-  const sheets = wb.SheetNames.map(n => ({ name: n, label: n }));
+  const wsProps = (wb.Workbook && wb.Workbook.Sheets) || [];
+  const sheets = wb.SheetNames.map((n, idx) => ({
+    name: n, label: n,
+    gid: wsProps[idx] != null && wsProps[idx].sheetId != null ? wsProps[idx].sheetId : null,
+  }));
+  console.log('[WO] Листы:', sheets.map(s => `${s.name}(gid=${s.gid})`).join(', '));
   _woSheetListCache = sheets; _woSheetListTs = now;
   return sheets;
 }
@@ -464,9 +469,18 @@ async function fetchWoData(sheetName, noCache=false) {
   const now = Date.now();
   if (!noCache && _woSheetCache[sheetName] && (now - _woSheetCache[sheetName].ts) < WO_SHEET_TTL)
     return _woSheetCache[sheetName].data;
-  const encoded = encodeURIComponent(sheetName);
-  const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&sheet=${encoded}`;
-  console.log(`[WO] Загружаю лист "${sheetName}"...`);
+  // Ищем GID из кэша листов — используем числовой gid= вместо sheet=NAME (кириллица не работает)
+  const sheetList = await fetchWoSheetList();
+  const sheetInfo = sheetList.find(s => s.name === sheetName);
+  const gid = sheetInfo && sheetInfo.gid != null ? sheetInfo.gid : null;
+  let url;
+  if (gid !== null) {
+    url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${gid}`;
+    console.log(`[WO] Загружаю лист "${sheetName}" (gid=${gid})...`);
+  } else {
+    url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
+    console.log(`[WO] Загружаю лист "${sheetName}" (по имени, gid не найден)...`);
+  }
   const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
   const csv = await r.text();
