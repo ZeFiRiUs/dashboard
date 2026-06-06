@@ -2466,16 +2466,20 @@ async function saveSebesSheetsToServer(){
 let WO_DATA = null, WO_FILTERED = null;
 let _woActiveSheet = '';
 
-async function loadWoSheetList() {
+async function loadWoSheetList(force) {
   try {
-    const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
+    const url = '/api/writeoffs/sheets' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
     if (!r.ok) return;
     const sheets = await r.json();
     const sel = document.getElementById('wo-sheet-select');
     if (!sel) return;
+    const prevVal = sel.value || _woActiveSheet;
     sel.innerHTML = '<option value="">Период...</option>' +
       sheets.map(s=>`<option value="${s.name}">${s.label}</option>`).join('');
-    if (sheets.length && !_woActiveSheet) {
+    if (prevVal && sheets.find(s => s.name === prevVal)) {
+      sel.value = prevVal;
+    } else if (sheets.length && !_woActiveSheet) {
       sel.value = sheets[0].name;
       _woActiveSheet = sheets[0].name;
       await loadWoSheet(sheets[0].name);
@@ -3228,15 +3232,23 @@ const WO_ART_COLORS=['#3B7FFF','#FB7185','#FFB020','#00D4AA','#A78BFA','#38BDF8'
 
 async function loadWoData() { await loadWoSheetList(); }
 
-async function loadWoSheetList() {
+async function loadWoSheetList(force) {
   try {
-    const r = await fetch('/api/writeoffs/sheets', {headers:{'X-View-Password':sessionPassword}});
+    const url = '/api/writeoffs/sheets' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
     if (!r.ok) return;
     const sheets = await r.json();
     const sel = document.getElementById('wo-sheet-select');
     if (!sel) return;
+    const prevVal = sel.value || _woActiveSheet;
     sel.innerHTML = '<option value="">Период...</option>' + sheets.map(s=>'<option value="'+s.name+'">'+s.label+'</option>').join('');
-    if (sheets.length && !_woActiveSheet) { sel.value=sheets[0].name; await loadWoSheet(sheets[0].name); }
+    // Восстанавливаем выбранный период если он ещё есть, иначе — первый
+    if (prevVal && sheets.find(s => s.name === prevVal)) {
+      sel.value = prevVal;
+    } else if (sheets.length && !_woActiveSheet) {
+      sel.value = sheets[0].name;
+      await loadWoSheet(sheets[0].name);
+    }
   } catch(e) { console.error('loadWoSheetList:', e); }
 }
 
@@ -3269,14 +3281,17 @@ async function onWoSheetChange() {
 }
 
 async function refreshWoData() {
-  if(!_woActiveSheet){await loadWoSheetList();return;}
   const msg=document.getElementById('wo-status-msg');
-  if(msg) msg.textContent='\u041e\u0431\u043d\u043e\u0432\u043b\u044f\u044e...';
+  if(msg) msg.textContent='\u23f3 \u041e\u0431\u043d\u043e\u0432\u043b\u044f\u044e...';
   try {
+    // \u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u043c \u0441\u043f\u0438\u0441\u043e\u043a \u043b\u0438\u0441\u0442\u043e\u0432 \u2014 \u043f\u043e\u0434\u0442\u044f\u0433\u0438\u0432\u0430\u0435\u043c \u043d\u043e\u0432\u044b\u0435 \u043f\u0435\u0440\u0438\u043e\u0434\u044b
+    await loadWoSheetList(true);
+    if(!_woActiveSheet){if(msg)msg.textContent='';return;}
+    // \u0417\u0430\u0442\u0435\u043c \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u043c \u0434\u0430\u043d\u043d\u044b\u0435 \u0442\u0435\u043a\u0443\u0449\u0435\u0433\u043e \u043b\u0438\u0441\u0442\u0430
     const r=await fetch('/api/writeoffs/sheet?name='+encodeURIComponent(_woActiveSheet)+'&nocache=1',{headers:{'X-View-Password':sessionPassword}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     WO_DATA=await r.json(); WO_FILTERED=WO_DATA;
-    if(msg){msg.textContent='\u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e'; setTimeout(()=>msg.textContent='',3000);}
+    if(msg){msg.textContent='\u2713 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e'; setTimeout(()=>msg.textContent='',3000);}
     populateWoFilters(); renderWo();
   } catch(e){if(msg){msg.textContent='\u041e\u0448\u0438\u0431\u043a\u0430: '+e.message; setTimeout(()=>msg.textContent='',5000);}}
 }
