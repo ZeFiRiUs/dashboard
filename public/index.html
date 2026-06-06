@@ -722,58 +722,37 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 <!-- ═══ PRODUCTION TAB ═══ -->
 <div id="page-production" class="page">
 <div class="wrap">
-  <!-- Заголовок -->
   <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
     <div style="display:flex;align-items:center;gap:8px">
       <div class="sdot ok" id="prod-sdot"></div>
       <span>Производство<span id="prod-period-label"></span></span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <!-- Выбор листа (даты) -->
-      <select id="prod-sheet-select" onchange="onProdSheetChange()"
-        style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer;min-width:120px">
-        <option value="">Выберите дату...</option>
-      </select>
+    <div style="display:flex;gap:8px;align-items:center">
       <button id="prod-sync-btn" onclick="syncProductionFromSheets()"
-        style="font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">↻ Обновить</button>
+        style="font-size:11px;padding:5px 12px;border-radius:7px;background:var(--acc);color:#000;border:none;cursor:pointer;font-weight:700">&#8635; Синхронизировать</button>
       <span id="prod-sync-msg" style="font-size:11px;color:var(--grn)"></span>
     </div>
   </div>
-
-  <!-- Загрузка списка -->
-  <div id="prod-loading" style="text-align:center;padding:40px;color:var(--txt3);display:none">
-    <div style="font-size:13px">⏳ Загрузка...</div>
-  </div>
-
-  <!-- Empty state -->
   <div id="prod-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
-    <div style="font-size:48px;margin-bottom:16px;opacity:.3">🏭</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Выберите дату</div>
-    <div style="font-size:13px">Список доступных дней загружается автоматически</div>
+    <div style="font-size:48px;margin-bottom:16px;opacity:.3">&#127981;</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные не загружены</div>
+    <div style="font-size:13px;margin-bottom:24px">&#171;Основной расчёт&#187; из Google Sheets</div>
+    <button onclick="loadProductionLive()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer">Загрузить</button>
   </div>
-
-  <!-- Данные -->
   <div id="prod-data-wrap" style="display:none">
-    <!-- KPI карточки цехов -->
     <div id="prod-dept-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px"></div>
-
-    <!-- Детализация по цеху -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <div style="font-size:13px;font-weight:700;color:var(--txt)">Цех:</div>
       <div id="prod-dept-tabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
     <div id="prod-dept-detail" style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px"></div>
-
-    <!-- ФОТ/ед сравнение -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">💰 ФОТ на единицу продукции — сравнение цехов</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">&#128176; ФОТ на единицу продукции &#8212; сравнение цехов</div>
       <div id="prod-fot-chart"></div>
     </div>
-
-    <!-- Продукция -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div style="font-size:13px;font-weight:700;color:var(--txt)">📦 Выпуск продукции по позициям</div>
+        <div style="font-size:13px;font-weight:700;color:var(--txt)">&#128230; Выпуск продукции по позициям</div>
         <select id="prod-dept-filter" onchange="renderProdProducts()"
           style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;outline:none;cursor:pointer">
           <option value="">Все цехи</option>
@@ -781,15 +760,14 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       </div>
       <div id="prod-products-list"></div>
     </div>
-
-    <!-- Сотрудники -->
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:24px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">👥 Сотрудники по цехам</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">&#128101; Сотрудники по цехам</div>
       <div id="prod-staff-table"></div>
     </div>
   </div>
 </div>
 </div><!-- /page-production -->
+
 
 <!-- ═══ SEBES TAB ═══ -->
 <div id="page-sebes" class="page">
@@ -1373,98 +1351,50 @@ let PROD_DATA = null, PROD_ACTIVE_DEPT = null;
 async function loadProductionFromServer() {
   const sdot = document.getElementById('prod-sdot');
   if (sdot) sdot.className = 'sdot spin';
-  // Загружаем список листов
-  await loadProdSheetList();
-  // Пробуем загрузить сохранённые данные
   try {
-    const r = await fetch('/api/production', { headers: { 'X-View-Password': sessionPassword } });
+    const r = await fetch('/api/production/csv', { headers: { 'X-View-Password': sessionPassword } });
     if (r.ok) {
       const data = await r.json();
-      if (data && data.meta) {
-        applyProductionData(data);
-        // Выставляем выбранный лист в селект
-        const sel = document.getElementById('prod-sheet-select');
-        if (sel && data.meta.sheet) sel.value = data.meta.sheet;
-        return true;
-      }
+      if (data && data.meta) { applyProductionData(data); return true; }
+    }
+    const r2 = await fetch('/api/production', { headers: { 'X-View-Password': sessionPassword } });
+    if (r2.ok) {
+      const data = await r2.json();
+      if (data && data.meta) { applyProductionData(data); return true; }
     }
   } catch(e) {}
   if (sdot) sdot.className = 'sdot warn';
-  renderProduction();
-  return false;
+  renderProduction(); return false;
 }
 
-async function loadProdSheetList() {
-  try {
-    const r = await fetch('/api/production/sheets', { headers: { 'X-View-Password': sessionPassword } });
-    if (!r.ok) return;
-    const sheets = await r.json();
-    const sel = document.getElementById('prod-sheet-select');
-    if (!sel || !sheets.length) return;
-    sel.innerHTML = '<option value="">Выберите дату...</option>' +
-      sheets.map(s => `<option value="${s.name}">${s.label}</option>`).join('');
-  } catch(e) { console.error('loadProdSheetList:', e); }
-}
-
-async function onProdSheetChange() {
-  const sel = document.getElementById('prod-sheet-select');
-  const name = sel ? sel.value : '';
-  if (!name) return;
+async function loadProductionLive() {
   const sdot = document.getElementById('prod-sdot');
-  const msg = document.getElementById('prod-sync-msg');
-  const loading = document.getElementById('prod-loading');
-  const wrap = document.getElementById('prod-data-wrap');
-  const empty = document.getElementById('prod-empty');
   if (sdot) sdot.className = 'sdot spin';
-  if (msg) msg.textContent = '⏳ Загружаю...';
-  if (loading) loading.style.display = 'block';
-  if (wrap) wrap.style.display = 'none';
-  if (empty) empty.style.display = 'none';
   try {
-    const r = await fetch(`/api/production/sheet?name=${encodeURIComponent(name)}`, {
-      headers: { 'X-View-Password': sessionPassword }
-    });
+    const r = await fetch('/api/production/csv?nocache=1', { headers: { 'X-View-Password': sessionPassword } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
-    if (data && data.meta) {
-      applyProductionData(data);
-      if (msg) { msg.textContent = '✅ ' + name; setTimeout(() => msg.textContent = '', 3000); }
-    } else throw new Error('Нет данных');
-  } catch(e) {
-    if (sdot) sdot.className = 'sdot warn';
-    if (msg) { msg.textContent = '❌ ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
-    if (loading) loading.style.display = 'none';
-    if (empty) empty.style.display = 'block';
-  }
+    if (data && data.meta) { applyProductionData(data); return; }
+    throw new Error('Нет данных');
+  } catch(e) { if (sdot) sdot.className = 'sdot warn'; alert('\u274c ' + e.message); }
 }
 
 async function syncProductionFromSheets() {
-  const sel = document.getElementById('prod-sheet-select');
-  const name = sel ? sel.value : '';
   const btn = document.getElementById('prod-sync-btn');
   const msg = document.getElementById('prod-sync-msg');
   if (btn) btn.disabled = true;
-  if (msg) msg.textContent = '⏳ Обновляю список...';
-  // Сбрасываем кэш списка листов и перезагружаем
+  if (msg) msg.textContent = '\u29d0 \u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...';
   try {
-    // Если выбран лист — обновляем его данные
-    if (name) {
-      const r = await fetch(`/api/production/sheet?name=${encodeURIComponent(name)}&nocache=1`, {
-        headers: { 'X-View-Password': sessionPassword }
-      });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      if (data && data.meta) applyProductionData(data);
-    }
-    // Обновляем список листов
-    await loadProdSheetList();
-    if (sel && name) sel.value = name;
-    if (msg) { msg.textContent = '✅ Обновлено'; setTimeout(() => msg.textContent = '', 3000); }
+    const r = await fetch('/api/production/csv?nocache=1', { headers: { 'X-View-Password': sessionPassword } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (!data || !data.meta) throw new Error('\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445');
+    applyProductionData(data);
+    if (msg) { msg.textContent = '\u2705 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e'; setTimeout(() => msg.textContent = '', 4000); }
+    if (adminPw) fetch('/api/production/sync', { method:'POST', headers:{'X-Admin-Password':adminPw} }).catch(()=>{});
   } catch(e) {
-    if (msg) { msg.textContent = '❌ ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+    if (msg) { msg.textContent = '\u274c ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
+  } finally { if (btn) btn.disabled = false; }
 }
 
 function applyProductionData(data) {
@@ -1472,17 +1402,13 @@ function applyProductionData(data) {
   const sdot = document.getElementById('prod-sdot');
   if (sdot) sdot.className = 'sdot ok';
   const lbl = document.getElementById('prod-period-label');
-  if (lbl) lbl.innerHTML = data.meta.date_label ? ' · <b style="color:var(--txt)">' + data.meta.date_label + '</b>' : '';
-  const loading = document.getElementById('prod-loading');
-  if (loading) loading.style.display = 'none';
+  if (lbl) lbl.innerHTML = ' \xb7 <b style="color:var(--txt)">' + (data.meta.created_at || '') + '</b>';
   renderProduction();
 }
 
 function renderProduction() {
   const empty = document.getElementById('prod-empty');
   const wrap  = document.getElementById('prod-data-wrap');
-  const loading = document.getElementById('prod-loading');
-  if (loading) loading.style.display = 'none';
   if (!PROD_DATA || !PROD_DATA.depts) {
     if (empty) empty.style.display = 'block';
     if (wrap)  wrap.style.display  = 'none';
@@ -1492,37 +1418,29 @@ function renderProduction() {
   if (wrap)  wrap.style.display  = 'block';
   const depts = PROD_DATA.depts.filter(d => d.output_units > 0 || d.pay_dept > 0);
   const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
-
-  // KPI карточки
   const kpiEl = document.getElementById('prod-dept-kpis');
-  if (kpiEl) kpiEl.innerHTML = depts.map((d, i) => {
+  if (kpiEl) kpiEl.innerHTML = depts.map(function(d, i) {
     const clr = DEPT_COLORS[i % DEPT_COLORS.length];
-    return `<div onclick="selectProdDept('${d.name.replace(/'/g,"\'")}',this)" data-dept="${d.name}"
-      style="background:var(--card);border:2px solid ${clr}33;border-radius:12px;padding:14px 16px;cursor:pointer;transition:border .15s">
-      <div style="font-size:11px;font-weight:700;color:${clr};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${d.name}</div>
-      <div style="font-size:22px;font-weight:800;color:var(--txt);margin-bottom:2px">${d.output_units > 0 ? d.output_units.toLocaleString('ru-RU') : '—'}</div>
-      <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">единиц</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <div><div style="font-size:10px;color:var(--txt3)">ФОТ цеха</div><div style="font-size:13px;font-weight:700;color:var(--txt)">${d.pay_dept.toLocaleString('ru-RU')} ₽</div></div>
-        ${d.output_units > 0 ? `<div><div style="font-size:10px;color:var(--txt3)">ФОТ/ед</div><div style="font-size:13px;font-weight:700;color:${clr}">${d.fot_per_unit.toFixed(2)} ₽</div></div>` : ''}
-        <div><div style="font-size:10px;color:var(--txt3)">Сотрудников</div><div style="font-size:13px;font-weight:700;color:var(--txt)">${d.staff_count}</div></div>
-      </div>
-    </div>`;
+    return '<div onclick="selectProdDept(\''+d.name.replace(/'/g,"\\'")+'\',this)" data-dept="'+d.name+'"'
+      +' style="background:var(--card);border:2px solid '+clr+'33;border-radius:12px;padding:14px 16px;cursor:pointer;transition:border .15s">'
+      +'<div style="font-size:11px;font-weight:700;color:'+clr+';text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">'+d.name+'</div>'
+      +'<div style="font-size:22px;font-weight:800;color:var(--txt);margin-bottom:2px">'+(d.output_units>0?d.output_units.toLocaleString('ru-RU'):'&#8212;')+'</div>'
+      +'<div style="font-size:11px;color:var(--txt3);margin-bottom:8px">\u0435\u0434\u0438\u043d\u0438\u0446</div>'
+      +'<div style="display:flex;gap:12px;flex-wrap:wrap">'
+      +'<div><div style="font-size:10px;color:var(--txt3)">\u0424\u041e\u0422 \u0446\u0435\u0445\u0430</div><div style="font-size:13px;font-weight:700;color:var(--txt)">'+d.pay_dept.toLocaleString('ru-RU')+' \u20bd</div></div>'
+      +(d.output_units>0?'<div><div style="font-size:10px;color:var(--txt3)">\u0424\u041e\u0422/\u0435\u0434</div><div style="font-size:13px;font-weight:700;color:'+clr+'">'+d.fot_per_unit.toFixed(2)+' \u20bd</div></div>':'')
+      +'<div><div style="font-size:10px;color:var(--txt3)">\u0421\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a\u043e\u0432</div><div style="font-size:13px;font-weight:700;color:var(--txt)">'+d.staff_count+'</div></div>'
+      +'</div></div>';
   }).join('');
-
-  // Табы
   const tabsEl = document.getElementById('prod-dept-tabs');
-  if (tabsEl) tabsEl.innerHTML = depts.map((d, i) => {
+  if (tabsEl) tabsEl.innerHTML = depts.map(function(d, i) {
     const clr = DEPT_COLORS[i % DEPT_COLORS.length];
-    return `<button onclick="selectProdDept('${d.name.replace(/'/g,"\'")}',null)" data-dept-tab="${d.name}"
-      style="padding:5px 14px;border-radius:20px;border:1px solid ${clr};background:var(--card);color:var(--txt2);cursor:pointer;font-size:11px;font-weight:600;transition:all .15s">${d.name}</button>`;
+    return '<button onclick="selectProdDept(\''+d.name.replace(/'/g,"\\'")+'\',null)" data-dept-tab="'+d.name+'"'
+      +' style="padding:5px 14px;border-radius:20px;border:1px solid '+clr+';background:var(--card);color:var(--txt2);cursor:pointer;font-size:11px;font-weight:600;transition:all .15s">'+d.name+'</button>';
   }).join('');
-
-  // Фильтр продукции
   const deptFilter = document.getElementById('prod-dept-filter');
-  if (deptFilter) deptFilter.innerHTML = '<option value="">Все цехи</option>' +
-    depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
-
+  if (deptFilter) deptFilter.innerHTML = '<option value="">\u0412\u0441\u0435 \u0446\u0435\u0445\u0438</option>' +
+    depts.map(function(d){return '<option value="'+d.name+'">'+d.name+'</option>';}).join('');
   renderProdFotChart(depts, DEPT_COLORS);
   if (depts[0]) selectProdDept(depts[0].name, null);
   renderProdProducts();
@@ -1532,10 +1450,10 @@ function renderProduction() {
 function selectProdDept(deptName, cardEl) {
   PROD_ACTIVE_DEPT = deptName;
   const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
-  const depts = PROD_DATA.depts.filter(d => d.output_units > 0 || d.pay_dept > 0);
-  document.querySelectorAll('[data-dept-tab]').forEach(btn => {
-    const idx = depts.findIndex(d => d.name === btn.dataset.deptTab);
-    const clr = DEPT_COLORS[idx % DEPT_COLORS.length] || '#3B7FFF';
+  const depts = PROD_DATA.depts.filter(function(d){return d.output_units>0||d.pay_dept>0;});
+  document.querySelectorAll('[data-dept-tab]').forEach(function(btn) {
+    const idx = depts.findIndex(function(d){return d.name===btn.dataset.deptTab;});
+    const clr = DEPT_COLORS[idx%DEPT_COLORS.length]||'#3B7FFF';
     const active = btn.dataset.deptTab === deptName;
     btn.style.background = active ? clr : 'var(--card)';
     btn.style.color = active ? '#000' : 'var(--txt2)';
@@ -1544,132 +1462,119 @@ function selectProdDept(deptName, cardEl) {
 }
 
 function renderProdDeptDetail(deptName) {
-  const d = PROD_DATA.depts.find(x => x.name === deptName);
+  const d = PROD_DATA.depts.find(function(x){return x.name===deptName;});
   const el = document.getElementById('prod-dept-detail');
   if (!el || !d) return;
-  const active = d.products.filter(p => p.fact > 0);
-  const totalHrs = d.products.reduce((s, p) => s + p.hrs_per_unit * p.fact, 0);
-  const fotPerHr = totalHrs > 0 ? d.pay_dept / totalHrs : 0;
-  el.innerHTML = `
-    <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">🏭 ${d.name}</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px">
-      <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
-        <div style="font-size:10px;color:var(--txt3)">Выпуск</div>
-        <div style="font-size:18px;font-weight:800;color:var(--txt)">${d.output_units.toLocaleString('ru-RU')}<span style="font-size:12px;color:var(--txt3);margin-left:3px">ед</span></div>
-      </div>
-      <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
-        <div style="font-size:10px;color:var(--txt3)">ФОТ цеха</div>
-        <div style="font-size:18px;font-weight:800;color:var(--txt)">${d.pay_dept.toLocaleString('ru-RU')}<span style="font-size:12px;color:var(--txt3);margin-left:3px">₽</span></div>
-      </div>
-      <div style="background:var(--surf);border-radius:8px;padding:10px 14px">
-        <div style="font-size:10px;color:var(--txt3)">ФОТ / единица</div>
-        <div style="font-size:18px;font-weight:800;color:var(--acc)">${d.fot_per_unit.toFixed(2)}<span style="font-size:12px;color:var(--txt3);margin-left:3px">₽</span></div>
-      </div>
-      ${fotPerHr > 0 ? `<div style="background:var(--surf);border-radius:8px;padding:10px 14px">
-        <div style="font-size:10px;color:var(--txt3)">ФОТ / час</div>
-        <div style="font-size:18px;font-weight:800;color:var(--warn)">${fotPerHr.toFixed(1)}<span style="font-size:12px;color:var(--txt3);margin-left:3px">₽</span></div>
-      </div>` : ''}
-    </div>
-    ${active.length ? `
-    <div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:10px">Позиции (факт > 0):</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">
-      ${active.slice(0,20).map(p => {
-        const pct = d.output_units > 0 ? p.fact / d.output_units * 100 : 0;
-        return `<div style="background:var(--surf);border-radius:8px;padding:10px 12px">
-          <div style="font-size:11px;font-weight:600;color:var(--txt);margin-bottom:4px">${p.name}</div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="font-size:12px;color:var(--txt3)">${p.fact.toLocaleString('ru-RU')} ${p.unit}</span>
-            <span style="font-size:11px;color:var(--acc);font-weight:700">${p.fot_per_unit > 0 ? p.fot_per_unit.toFixed(2)+' ₽/ед' : ''}</span>
-          </div>
-          <div style="height:3px;background:var(--bd);border-radius:2px">
-            <div style="height:100%;width:${Math.min(100,pct)}%;background:var(--acc);border-radius:2px"></div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>` : '<div style="color:var(--txt3);font-size:13px">Нет активных позиций</div>'}
-  `;
+  const active = d.products.filter(function(p){return p.fact>0;});
+  const totalHrs = d.products.reduce(function(s,p){return s+p.hrs_per_unit*p.fact;},0);
+  const fotPerHr = totalHrs>0 ? d.pay_dept/totalHrs : 0;
+  let html = '<div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">\u0426\u0435\u0445: '+d.name+'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px">'
+    +'<div style="background:var(--surf);border-radius:8px;padding:10px 14px"><div style="font-size:10px;color:var(--txt3)">\u0412\u044b\u043f\u0443\u0441\u043a</div><div style="font-size:18px;font-weight:800;color:var(--txt)">'+d.output_units.toLocaleString('ru-RU')+'<span style="font-size:12px;color:var(--txt3);margin-left:3px">\u0435\u0434</span></div></div>'
+    +'<div style="background:var(--surf);border-radius:8px;padding:10px 14px"><div style="font-size:10px;color:var(--txt3)">\u0424\u041e\u0422 \u0446\u0435\u0445\u0430</div><div style="font-size:18px;font-weight:800;color:var(--txt)">'+d.pay_dept.toLocaleString('ru-RU')+'<span style="font-size:12px;color:var(--txt3);margin-left:3px">\u20bd</span></div></div>'
+    +'<div style="background:var(--surf);border-radius:8px;padding:10px 14px"><div style="font-size:10px;color:var(--txt3)">\u0424\u041e\u0422 / \u0435\u0434\u0438\u043d\u0438\u0446\u0430</div><div style="font-size:18px;font-weight:800;color:var(--acc)">'+d.fot_per_unit.toFixed(2)+'<span style="font-size:12px;color:var(--txt3);margin-left:3px">\u20bd</span></div></div>'
+    +(fotPerHr>0?'<div style="background:var(--surf);border-radius:8px;padding:10px 14px"><div style="font-size:10px;color:var(--txt3)">\u0424\u041e\u0422 / \u0447\u0430\u0441</div><div style="font-size:18px;font-weight:800;color:var(--warn)">'+fotPerHr.toFixed(1)+'<span style="font-size:12px;color:var(--txt3);margin-left:3px">\u20bd</span></div></div>':'')
+    +'</div>';
+  if (active.length) {
+    html += '<div style="font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:10px">\u041f\u043e\u0437\u0438\u0446\u0438\u0438:</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">'
+      + active.slice(0,20).map(function(p){
+          const pct=d.output_units>0?p.fact/d.output_units*100:0;
+          return '<div style="background:var(--surf);border-radius:8px;padding:10px 12px">'
+            +'<div style="font-size:11px;font-weight:600;color:var(--txt);margin-bottom:4px">'+p.name+'</div>'
+            +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+            +'<span style="font-size:12px;color:var(--txt3)">'+p.fact.toLocaleString('ru-RU')+' '+p.unit+'</span>'
+            +(p.fot_per_unit>0?'<span style="font-size:11px;color:var(--acc);font-weight:700">'+p.fot_per_unit.toFixed(2)+' \u20bd/\u0435\u0434</span>':'')
+            +'</div><div style="height:3px;background:var(--bd);border-radius:2px">'
+            +'<div style="height:100%;width:'+Math.min(100,pct)+'%;background:var(--acc);border-radius:2px"></div></div></div>';
+        }).join('') + '</div>';
+  } else {
+    html += '<div style="color:var(--txt3);font-size:13px">\u041d\u0435\u0442 \u0430\u043a\u0442\u0438\u0432\u043d\u044b\u0445 \u043f\u043e\u0437\u0438\u0446\u0438\u0439</div>';
+  }
+  el.innerHTML = html;
 }
 
 function renderProdFotChart(depts, colors) {
   const el = document.getElementById('prod-fot-chart');
   if (!el) return;
-  const withFot = depts.filter(d => d.fot_per_unit > 0);
-  if (!withFot.length) { el.innerHTML = '<div style="color:var(--txt3);font-size:13px">Нет данных</div>'; return; }
-  const maxFot = Math.max(...withFot.map(d => d.fot_per_unit));
-  el.innerHTML = withFot.map((d, i) => {
-    const pct = maxFot > 0 ? d.fot_per_unit / maxFot * 100 : 0;
-    const clr = colors[depts.indexOf(d) % colors.length];
-    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <div style="width:150px;font-size:12px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">${d.name}</div>
-      <div style="flex:1;height:22px;background:var(--surf);border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${clr};border-radius:4px;display:flex;align-items:center;padding-left:8px">
-          <span style="font-size:11px;font-weight:700;color:#000;white-space:nowrap">${pct > 25 ? d.fot_per_unit.toFixed(2)+' ₽' : ''}</span>
-        </div>
-      </div>
-      <div style="font-size:12px;font-weight:700;color:${clr};width:70px;text-align:right">${d.fot_per_unit.toFixed(2)} ₽</div>
-      <div style="font-size:11px;color:var(--txt3);width:80px;text-align:right">${d.output_units.toLocaleString('ru-RU')} ед</div>
-    </div>`;
+  const withFot = depts.filter(function(d){return d.fot_per_unit>0;});
+  if (!withFot.length) { el.innerHTML='<div style="color:var(--txt3);font-size:13px">\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445</div>'; return; }
+  const maxFot = Math.max.apply(null, withFot.map(function(d){return d.fot_per_unit;}));
+  el.innerHTML = withFot.map(function(d,i){
+    const pct = maxFot>0?d.fot_per_unit/maxFot*100:0;
+    const clr = colors[depts.indexOf(d)%colors.length];
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+      +'<div style="width:150px;font-size:12px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">'+d.name+'</div>'
+      +'<div style="flex:1;height:22px;background:var(--surf);border-radius:4px;overflow:hidden">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+clr+';border-radius:4px;display:flex;align-items:center;padding-left:8px">'
+      +'<span style="font-size:11px;font-weight:700;color:#000;white-space:nowrap">'+(pct>25?d.fot_per_unit.toFixed(2)+' \u20bd':'')+'</span></div></div>'
+      +'<div style="font-size:12px;font-weight:700;color:'+clr+';width:70px;text-align:right">'+d.fot_per_unit.toFixed(2)+' \u20bd</div>'
+      +'<div style="font-size:11px;color:var(--txt3);width:80px;text-align:right">'+d.output_units.toLocaleString('ru-RU')+' \u0435\u0434</div></div>';
   }).join('');
 }
 
 function renderProdProducts() {
   const el = document.getElementById('prod-products-list');
   if (!el || !PROD_DATA) return;
-  const filterDept = document.getElementById('prod-dept-filter')?.value || '';
+  const filterDept = document.getElementById('prod-dept-filter')?.value||'';
   const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
   let allProds = [];
-  PROD_DATA.depts.forEach((d, di) => {
-    if (filterDept && d.name !== filterDept) return;
-    d.products.filter(p => p.fact > 0).forEach(p =>
-      allProds.push({ ...p, dept: d.name, clr: DEPT_COLORS[di % DEPT_COLORS.length] })
-    );
+  PROD_DATA.depts.forEach(function(d,di){
+    if (filterDept && d.name!==filterDept) return;
+    d.products.filter(function(p){return p.fact>0;}).forEach(function(p){
+      allProds.push(Object.assign({},p,{dept:d.name,clr:DEPT_COLORS[di%DEPT_COLORS.length]}));
+    });
   });
-  allProds.sort((a, b) => b.fact - a.fact);
-  if (!allProds.length) { el.innerHTML = '<div style="color:var(--txt3);padding:16px">Нет данных</div>'; return; }
-  const maxFact = allProds[0].fact;
-  el.innerHTML = `<div style="overflow-x:auto"><table class="stops-tbl"><thead><tr>
-    <th>Продукт</th><th>Цех</th><th style="text-align:right">Факт</th><th>Ед.</th><th style="text-align:right">ч/ед</th><th style="text-align:right">ФОТ/ед ₽</th><th style="min-width:100px">Доля</th>
-  </tr></thead><tbody>
-  ${allProds.map(p => `<tr>
-    <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name}">${p.name}</td>
-    <td><span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${p.clr}22;color:${p.clr};font-weight:700">${p.dept}</span></td>
-    <td style="text-align:right;font-weight:700">${p.fact.toLocaleString('ru-RU')}</td>
-    <td style="color:var(--txt3)">${p.unit}</td>
-    <td style="text-align:right;color:var(--txt3)">${p.hrs_per_unit > 0 ? p.hrs_per_unit : '—'}</td>
-    <td style="text-align:right;color:var(--acc);font-weight:700">${p.fot_per_unit > 0 ? p.fot_per_unit.toFixed(2) : '—'}</td>
-    <td><div style="height:6px;background:var(--surf);border-radius:3px;overflow:hidden">
-      <div style="height:100%;width:${maxFact>0?Math.round(p.fact/maxFact*100):0}%;background:${p.clr};border-radius:3px"></div>
-    </div></td>
-  </tr>`).join('')}
-  </tbody></table></div>`;
+  allProds.sort(function(a,b){return b.fact-a.fact;});
+  if (!allProds.length) { el.innerHTML='<div style="color:var(--txt3);padding:16px">\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445</div>'; return; }
+  const maxFact=allProds[0].fact;
+  el.innerHTML='<div style="overflow-x:auto"><table class="stops-tbl"><thead><tr>'
+    +'<th>\u041f\u0440\u043e\u0434\u0443\u043a\u0442</th><th>\u0426\u0435\u0445</th>'
+    +'<th style="text-align:right">\u0424\u0430\u043a\u0442</th><th>\u0415\u0434.</th>'
+    +'<th style="text-align:right">\u0447/\u0435\u0434</th>'
+    +'<th style="text-align:right">\u0424\u041e\u0422/\u0435\u0434 \u20bd</th>'
+    +'<th style="min-width:100px">\u0414\u043e\u043b\u044f</th>'
+    +'</tr></thead><tbody>'
+    +allProds.map(function(p){
+      return '<tr>'
+        +'<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+p.name+'">'+p.name+'</td>'
+        +'<td><span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+p.clr+'22;color:'+p.clr+';font-weight:700">'+p.dept+'</span></td>'
+        +'<td style="text-align:right;font-weight:700">'+p.fact.toLocaleString('ru-RU')+'</td>'
+        +'<td style="color:var(--txt3)">'+p.unit+'</td>'
+        +'<td style="text-align:right;color:var(--txt3)">'+(p.hrs_per_unit>0?p.hrs_per_unit:'&#8212;')+'</td>'
+        +'<td style="text-align:right;color:var(--acc);font-weight:700">'+(p.fot_per_unit>0?p.fot_per_unit.toFixed(2):'&#8212;')+'</td>'
+        +'<td><div style="height:6px;background:var(--surf);border-radius:3px;overflow:hidden">'
+        +'<div style="height:100%;width:'+(maxFact>0?Math.round(p.fact/maxFact*100):0)+'%;background:'+p.clr+';border-radius:3px"></div></div></td>'
+        +'</tr>';
+    }).join('')+'</tbody></table></div>';
 }
 
 function renderProdStaff() {
   const el = document.getElementById('prod-staff-table');
   if (!el || !PROD_DATA) return;
   const DEPT_COLORS = ['#3B7FFF','#00D4AA','#22C55E','#FFB020','#FB7185','#A78BFA','#38BDF8'];
-  const depts = PROD_DATA.depts.filter(d => d.staff && d.staff.length > 0);
-  el.innerHTML = `<div style="overflow-x:auto"><table class="stops-tbl"><thead><tr>
-    <th>Цех</th><th>Сотрудник</th><th style="text-align:right">Часы</th><th style="text-align:right">ЗП день</th><th style="text-align:right">Ставка</th>
-  </tr></thead><tbody>
-  ${depts.map((d, i) => {
-    const clr = DEPT_COLORS[i % DEPT_COLORS.length];
-    return d.staff.map((s, si) => `<tr>
-      ${si===0 ? `<td rowspan="${d.staff.length}" style="font-weight:700;color:${clr};vertical-align:top;padding-top:10px">${d.name}</td>` : ''}
-      <td>${s.fio}</td>
-      <td style="text-align:right">${s.hours}</td>
-      <td style="text-align:right;font-weight:600">${s.pay.toLocaleString('ru-RU')} ₽</td>
-      <td style="text-align:right;color:var(--txt3)">${s.rate}</td>
-    </tr>`).join('');
-  }).join('')}
-  </tbody></table></div>`;
+  const depts = PROD_DATA.depts.filter(function(d){return d.staff&&d.staff.length>0;});
+  el.innerHTML='<div style="overflow-x:auto"><table class="stops-tbl"><thead><tr>'
+    +'<th>\u0426\u0435\u0445</th><th>\u0421\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a</th>'
+    +'<th style="text-align:right">\u0427\u0430\u0441\u044b</th>'
+    +'<th style="text-align:right">\u0417\u041f \u0434\u0435\u043d\u044c</th>'
+    +'<th style="text-align:right">\u0421\u0442\u0430\u0432\u043a\u0430</th>'
+    +'</tr></thead><tbody>'
+    +depts.map(function(d,i){
+      const clr=DEPT_COLORS[i%DEPT_COLORS.length];
+      return d.staff.map(function(s,si){
+        return '<tr>'
+          +(si===0?'<td rowspan="'+d.staff.length+'" style="font-weight:700;color:'+clr+';vertical-align:top;padding-top:10px">'+d.name+'</td>':'')
+          +'<td>'+s.fio+'</td>'
+          +'<td style="text-align:right">'+s.hours+'</td>'
+          +'<td style="text-align:right;font-weight:600">'+s.pay.toLocaleString('ru-RU')+' \u20bd</td>'
+          +'<td style="text-align:right;color:var(--txt3)">'+s.rate+'</td>'
+          +'</tr>';
+      }).join('');
+    }).join('')+'</tbody></table></div>';
 }
 
-function resetProdFilter() {
-  const f = document.getElementById('prod-dept-filter');
-  if (f) f.value = '';
-  renderProdProducts();
-}
+function resetProdFilter(){const f=document.getElementById('prod-dept-filter');if(f)f.value='';renderProdProducts();}
 
 
 // ══ SEBES (Себестоимость) ══════════════════════════════════════════════════
@@ -1680,10 +1585,17 @@ async function loadSebesFromServer(){
   const sdot=document.getElementById('sebes-sdot');
   if(sdot)sdot.className='sdot spin';
   try{
+    // Сначала пробуем сохранённые данные
     const r=await fetch('/api/sebes',{headers:{'X-View-Password':sessionPassword}});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const data=await r.json();
     if(data&&data.meta){applySebesData(data);return true;}
+    // Fallback — живые данные из Google Sheets
+    const r2=await fetch('/api/sebes/csv',{headers:{'X-View-Password':sessionPassword}});
+    if(r2.ok){
+      const data2=await r2.json();
+      if(data2&&data2.meta){applySebesData(data2);return true;}
+    }
     if(sdot)sdot.className='sdot warn';renderSebes();return false;
   }catch(e){const s2=document.getElementById('sebes-sdot');if(s2)s2.className='sdot warn';renderSebes();return false;}
 }
