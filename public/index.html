@@ -286,10 +286,11 @@ html.light #active-point-filter{background:#FFFFFF;border-color:#C8CEDF;color:#0
 /* Отступ снизу чтобы контент не прятался за навигацией */
 @media(max-width:640px){
   .mob-nav{display:flex}
-  #desktop-nav{display:none}
+  .sidebar{display:none}
+  #content-area{margin-left:0 !important}
   .wrap{padding-bottom:72px}
-  /* Прячем кнопки управления кроме темы */
-  .hbtns .btn:not(.btn-warn){display:none}
+  /* Прячем кнопки управления кроме темы и выхода */
+  .hbtns .btn:not(.btn-warn):not(#logout-btn){display:none}
   .hbtns .theme-btn{display:flex}
   /* Компактный header */
   header{padding:0 16px;height:52px}
@@ -339,6 +340,32 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   #del-charts-row,#del-tops-row{grid-template-columns:1fr !important}
   .stops-tbl th:nth-child(3),.stops-tbl td:nth-child(3),.stops-tbl th:nth-child(6),.stops-tbl td:nth-child(6){display:none}
 }
+
+/* ── SIDEBAR ──────────────────────────────────────────────────────────────── */
+.sidebar{position:fixed;top:60px;left:0;bottom:0;width:240px;background:var(--surf);border-right:1px solid var(--bd);z-index:89;display:flex;flex-direction:column;transition:width .2s ease;overflow:hidden}
+.sidebar.collapsed{width:56px}
+html.light .sidebar{background:#FFFFFF;border-right-color:#C8CEDF}
+.sidebar-head{display:flex;align-items:center;justify-content:flex-end;padding:10px;border-bottom:1px solid var(--bd);flex-shrink:0;min-height:46px}
+.sidebar.collapsed .sidebar-head{justify-content:center}
+.sidebar-toggle-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd);background:transparent;cursor:pointer;color:var(--txt2);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;font-family:'Manrope',sans-serif;padding:0}
+.sidebar-toggle-btn:hover{background:var(--card);border-color:var(--acc);color:var(--acc)}
+.sidebar-nav-inner{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px}
+.sidebar-btn{display:flex;align-items:center;gap:12px;padding:10px 12px;border:none;background:transparent;color:var(--txt2);font-size:13px;font-weight:600;font-family:'Manrope',sans-serif;cursor:pointer;transition:all .15s;width:100%;text-align:left;white-space:nowrap;border-radius:8px;margin-bottom:2px}
+.sidebar-btn:hover{background:var(--card);color:var(--txt)}
+.sidebar-btn.active{background:var(--card);color:var(--acc)}
+.sidebar-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center;line-height:1}
+.sidebar-label{transition:opacity .15s .05s,max-width .2s;max-width:180px;overflow:hidden}
+.sidebar.collapsed .sidebar-label{opacity:0;max-width:0;transition:opacity .1s,max-width .2s;pointer-events:none}
+#content-area{margin-left:240px;transition:margin-left .2s ease;min-width:0}
+body.sb-col #content-area{margin-left:56px}
+
+/* ── TOGGLE SWITCH ────────────────────────────────────────────────────────── */
+.toggle-sw{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.toggle-sw input{opacity:0;width:0;height:0;position:absolute}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--bd);border-radius:10px;transition:.2s}
+.toggle-slider::before{content:'';position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--txt3);border-radius:50%;transition:.2s}
+.toggle-sw input:checked+.toggle-slider{background:var(--acc)}
+.toggle-sw input:checked+.toggle-slider::before{transform:translateX(16px);background:#000}
 </style>
 </head>
 <body>
@@ -363,19 +390,41 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   <div class="hbtns">
     <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Сменить тему">🌙</button>
     <button class="btn btn-warn" onclick="openAdmin()">🔒 <span>Управление</span></button>
+    <button class="btn" id="logout-btn" onclick="doLogout()" style="display:none" title="Выйти">↩ <span>Выйти</span></button>
   </div>
 </header>
 
-<!-- Десктоп навигация -->
-<nav class="tab-nav" id="desktop-nav">
-  <button class="tab-nav-btn active" onclick="switchTab('overview',this)">🏠 Сводка</button>
-  <button class="tab-nav-btn" onclick="switchTab('wo',this)">📊 Аналитика списаний</button>
-  <button class="tab-nav-btn" onclick="switchTab('stops',this)">🚫 Стоп листы</button>
-  <button class="tab-nav-btn" onclick="switchTab('deliveries',this)">🚚 Довозы</button>
-  <button class="tab-nav-btn" onclick="switchTab('production',this)">🏭 Производство</button>
-  <button class="tab-nav-btn" onclick="switchTab('sebes',this)">💰 Себестоимость</button>
-  <button class="tab-nav-btn" onclick="switchTab('supply',this)">📦 Упаковка</button>
-  <button class="tab-nav-btn" onclick="switchTab('compare',this)">⇄ Сравнение</button>
+<!-- Боковая навигация (десктоп) -->
+<nav id="sidebar" class="sidebar">
+  <div class="sidebar-head">
+    <button class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Свернуть меню">‹</button>
+  </div>
+  <div class="sidebar-nav-inner">
+    <button class="sidebar-btn active" data-tab="overview" onclick="switchTab('overview',this)">
+      <span class="sidebar-icon">🏠</span><span class="sidebar-label">Сводка</span>
+    </button>
+    <button class="sidebar-btn" data-tab="wo" onclick="switchTab('wo',this)">
+      <span class="sidebar-icon">📊</span><span class="sidebar-label">Аналитика списаний</span>
+    </button>
+    <button class="sidebar-btn" data-tab="stops" onclick="switchTab('stops',this)">
+      <span class="sidebar-icon">🚫</span><span class="sidebar-label">Стоп листы</span>
+    </button>
+    <button class="sidebar-btn" data-tab="deliveries" onclick="switchTab('deliveries',this)">
+      <span class="sidebar-icon">🚚</span><span class="sidebar-label">Довозы</span>
+    </button>
+    <button class="sidebar-btn" data-tab="production" onclick="switchTab('production',this)">
+      <span class="sidebar-icon">🏭</span><span class="sidebar-label">Производство</span>
+    </button>
+    <button class="sidebar-btn" data-tab="sebes" onclick="switchTab('sebes',this)">
+      <span class="sidebar-icon">💰</span><span class="sidebar-label">Себестоимость</span>
+    </button>
+    <button class="sidebar-btn" data-tab="supply" onclick="switchTab('supply',this)">
+      <span class="sidebar-icon">📦</span><span class="sidebar-label">Упаковка</span>
+    </button>
+    <button class="sidebar-btn" data-tab="compare" onclick="switchTab('compare',this)">
+      <span class="sidebar-icon">⇄</span><span class="sidebar-label">Сравнение</span>
+    </button>
+  </div>
 </nav>
 
 <!-- Мобильная нижняя панель -->
@@ -421,9 +470,16 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
       <span style="font-size:20px">⇄</span>
       <span>Сравнение</span>
     </button>
+    <div style="border-top:1px solid var(--bd);margin:6px 0"></div>
+    <button class="mob-menu-item" id="mob-logout-btn" onclick="doLogout()" style="display:none">
+      <span style="font-size:20px">↩</span>
+      <span>Выйти</span>
+    </button>
   </div>
 </div>
 <div class="mob-menu-overlay" id="mob-menu-overlay" onclick="toggleMobMenu()"></div>
+
+<div id="content-area">
 
 <!-- ═══ OVERVIEW TAB ═══ -->
 <div id="page-overview" class="page active">
@@ -938,6 +994,7 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
   </div>
 </div>
 
+</div><!-- /content-area -->
 
 <!-- Sebes history modal -->
 <div class="ov" id="sebes-modal" onclick="if(event.target===this)cl('sebes-modal')">
@@ -1035,6 +1092,13 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
         <button class="btn" onclick="expAll()" style="flex:1;justify-content:center">⬇ Экспорт</button>
         <button class="btn" style="color:var(--red);flex:1;justify-content:center" onclick="clearAll()">🗑 Очистить</button>
       </div>
+
+      <!-- Видимость вкладок для просмотра -->
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--bd)">
+        <div class="st" style="margin-bottom:10px">Вкладки для аккаунта просмотра</div>
+        <div id="tab-visibility-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:8px">Скрытые вкладки не отображаются при входе с паролем просмотра</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1073,6 +1137,8 @@ const CAT={'Напитки/Бар':'#3B7FFF','Мясо/Птица':'#00D4AA','О
 let STOPS_PERIODS=[];
 let periods=[], cur=0, flt='all', adminPw='', stopsIdx=STOPS_PERIODS.length-1, stopsFilter='all', sessionPassword=sessionStorage.getItem('dash_pw')||'';
 let WO_INDEX = null;
+let currentRole = '';
+let hiddenTabsForView = new Set(JSON.parse(localStorage.getItem('hiddenTabsForView')||'[]'));
 
 
 // ══ DELIVERIES ══════════════════════════════════════════════════════════════
@@ -1970,9 +2036,14 @@ initTheme();
 // TAB
 function switchTab(tab,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+tab).classList.add('active');
-  if(btn) btn.classList.add('active');
+  if(btn&&btn.classList){
+    btn.classList.add('active');
+  } else {
+    const sb=document.querySelector('.sidebar-btn[data-tab="'+tab+'"]');
+    if(sb)sb.classList.add('active');
+  }
   // Синхронизируем мобильную панель
   document.querySelectorAll('.mob-nav-btn[data-tab]').forEach(function(b){
     b.classList.toggle('active', b.getAttribute('data-tab')===tab);
@@ -3138,7 +3209,7 @@ function _renderOverviewAlerts(){
 
 // Переключить вкладку по id (из сводки)
 function switchTabById(tab){
-  const btn=document.querySelector('.tab-nav-btn[onclick*="'+tab+'"]');
+  const btn=document.querySelector('.sidebar-btn[data-tab="'+tab+'"]');
   if(btn)btn.click();
 }
 
@@ -4260,7 +4331,7 @@ function _renderOverviewAlerts(){
 
 // Переключить вкладку по id (из сводки)
 function switchTabById(tab){
-  const btn=document.querySelector('.tab-nav-btn[onclick*="'+tab+'"]');
+  const btn=document.querySelector('.sidebar-btn[data-tab="'+tab+'"]');
   if(btn)btn.click();
 }
 
@@ -4572,7 +4643,7 @@ async function auth(){
   const pw=document.getElementById('pwi').value;
   const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Password':pw},body:'{}'});
   const j=await r.json();
-  if(j.ok){adminPw=pw;document.getElementById('apw').style.display='none';document.getElementById('apc').style.display='block';document.getElementById('pwerr').style.display='none';renderAdminList();renderAdminSections();_updateSheetsBarVisibility(j.role==='admin');}
+  if(j.ok){adminPw=pw;document.getElementById('apw').style.display='none';document.getElementById('apc').style.display='block';document.getElementById('pwerr').style.display='none';renderAdminList();renderAdminSections();renderTabVisibilityList();_updateSheetsBarVisibility(j.role==='admin');}
   else{document.getElementById('pwerr').style.display='block';}
 }
 
@@ -4668,22 +4739,6 @@ async function deleteAdminData(key){
 }
 
 
-function openAdmin(){
-  if(adminPw){
-    document.getElementById('apw').style.display='none';
-    document.getElementById('apc').style.display='block';
-    renderAdminList();
-    renderAdminSections();
-    loadSebesSheetsList();
-    loadWoSheetsList();
-  } else {
-    document.getElementById('apw').style.display='block';
-    document.getElementById('apc').style.display='none';
-    document.getElementById('pwi').value='';
-    document.getElementById('pwerr').style.display='none';
-  }
-  op('am');
-}
 async function upload(e){
   const file=e.target.files[0];if(!file)return;
   const fd=new FormData();fd.append('file',file);
@@ -5227,6 +5282,69 @@ async function runDiag(){
   }
 }
 
+// ── SIDEBAR ──────────────────────────────────────────────────────────────────
+function toggleSidebar(){
+  const col=document.body.classList.toggle('sb-col');
+  const btn=document.getElementById('sidebar-toggle');
+  if(btn)btn.textContent=col?'›':'‹';
+  localStorage.setItem('sidebarCollapsed',col?'1':'0');
+}
+
+// ── LOGOUT ───────────────────────────────────────────────────────────────────
+function doLogout(){
+  sessionStorage.removeItem('dash_pw');
+  location.reload();
+}
+
+// ── TAB VISIBILITY ────────────────────────────────────────────────────────────
+const TABS_META=[
+  {key:'overview',icon:'🏠',label:'Сводка'},
+  {key:'wo',icon:'📊',label:'Аналитика списаний'},
+  {key:'stops',icon:'🚫',label:'Стоп листы'},
+  {key:'deliveries',icon:'🚚',label:'Довозы'},
+  {key:'production',icon:'🏭',label:'Производство'},
+  {key:'sebes',icon:'💰',label:'Себестоимость'},
+  {key:'supply',icon:'📦',label:'Упаковка'},
+  {key:'compare',icon:'⇄',label:'Сравнение'},
+];
+
+function applyTabVisibility(isAdmin){
+  document.querySelectorAll('.sidebar-btn[data-tab],.mob-nav-btn[data-tab],.mob-menu-item[data-tab]').forEach(function(b){
+    const tab=b.getAttribute('data-tab');
+    b.style.display=(!isAdmin&&hiddenTabsForView.has(tab))?'none':'';
+  });
+  if(!isAdmin){
+    const activePage=document.querySelector('.page.active');
+    if(activePage){
+      const activeTab=activePage.id.replace('page-','');
+      if(hiddenTabsForView.has(activeTab)){
+        const first=TABS_META.find(function(t){return !hiddenTabsForView.has(t.key);});
+        if(first)switchTab(first.key,null);
+      }
+    }
+  }
+}
+
+function renderTabVisibilityList(){
+  const el=document.getElementById('tab-visibility-list');
+  if(!el)return;
+  el.innerHTML=TABS_META.map(function(t){
+    const checked=!hiddenTabsForView.has(t.key);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--surf);border:1px solid var(--bd);border-radius:8px">'
+      +'<span style="font-size:13px;color:var(--txt);display:flex;align-items:center;gap:8px"><span>'+t.icon+'</span><span>'+t.label+'</span></span>'
+      +'<label class="toggle-sw"><input type="checkbox"'+(checked?' checked':'')
+      +' onchange="toggleTabVisibility(\''+t.key+'\',this.checked)"><span class="toggle-slider"></span></label>'
+      +'</div>';
+  }).join('');
+}
+
+function toggleTabVisibility(key,visible){
+  if(visible)hiddenTabsForView.delete(key);
+  else hiddenTabsForView.add(key);
+  localStorage.setItem('hiddenTabsForView',JSON.stringify([...hiddenTabsForView]));
+  renderTabVisibilityList();
+}
+
 async function doLogin(){
   const pw=document.getElementById('lpw').value.trim();if(!pw)return;
   const btn=document.getElementById('lbtn'),err=document.getElementById('lerr');
@@ -5242,9 +5360,14 @@ async function doLogin(){
     try{j=await r.json();}catch(e){}
     if(j.ok){
       sessionPassword=pw;sessionStorage.setItem('dash_pw',pw);
+      currentRole=j.role;
+      if(j.role==='admin')adminPw=pw;
       document.getElementById('ls').style.display='none';
+      const lbtn=document.getElementById('logout-btn');if(lbtn)lbtn.style.display='';
+      const mlbtn=document.getElementById('mob-logout-btn');if(mlbtn)mlbtn.style.display='';
       loadData();startAutoReload();
       _updateSheetsBarVisibility(j.role==='admin');
+      applyTabVisibility(j.role==='admin');
     } else {
       err.textContent='❌ Неверный пароль ('+r.status+')';
       btn.disabled=false;btn.textContent='Войти →';
@@ -5318,13 +5441,25 @@ function _updateSheetsBarVisibility(isAdmin){
 }
 _updateSheetsBarVisibility(false); // скрыта по умолчанию
 
+// Восстанавливаем состояние sidebar
+if(localStorage.getItem('sidebarCollapsed')==='1'){
+  document.body.classList.add('sb-col');
+  const sbToggle=document.getElementById('sidebar-toggle');
+  if(sbToggle)sbToggle.textContent='›';
+}
+
 if(sessionPassword){
   fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':sessionPassword,'X-Admin-Password':sessionPassword},body:JSON.stringify({password:sessionPassword})})
     .then(r=>r.json()).then(j=>{
       if(j.ok){
+        currentRole=j.role;
+        if(j.role==='admin')adminPw=sessionPassword;
         document.getElementById('ls').style.display='none';
+        const lbtn=document.getElementById('logout-btn');if(lbtn)lbtn.style.display='';
+        const mlbtn=document.getElementById('mob-logout-btn');if(mlbtn)mlbtn.style.display='';
         loadData();startAutoReload();
         _updateSheetsBarVisibility(j.role==='admin');
+        applyTabVisibility(j.role==='admin');
       } else{sessionStorage.removeItem('dash_pw');sessionPassword='';}
     }).catch(()=>{document.getElementById('ls').style.display='none';loadData();});
 }
