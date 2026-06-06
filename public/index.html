@@ -3952,18 +3952,6 @@ function renderEmpty(){
   const pt=document.getElementById('ptabs-wrap'); if(pt)pt.style.display='none';
 }
 
-function renderKPIs(p){
-  const prev=periods[cur+1];
-  const dt=prev?Math.round((p.grand_total-prev.grand_total)/prev.grand_total*100):null;
-  const crit=p.warehouses.filter(w=>w.total>100000).length;
-  const avg=Math.round(p.grand_total/p.warehouses.length);
-  const dh=dt!==null?`<div class="kd ${dt>0?'up':'dn'}">${dt>0?'↑':'↓'}${Math.abs(dt)}% vs прошлый</div>`:`<div class="kd fl">${periods.length>1?'—':'Загрузите ещё период'}</div>`;
-  document.getElementById('krow').innerHTML=`
-    <div class="kpi"><div class="kl">Общие списания</div><div class="kv">${fmtR(p.grand_total)}</div><div class="ks">${p.period}</div>${dh}</div>
-    <div class="kpi g"><div class="kl">Складов</div><div class="kv">${p.warehouses.length}</div><div class="ks">в периоде</div></div>
-    <div class="kpi r"><div class="kl">Критичных</div><div class="kv" style="color:var(--red)">${crit}</div><div class="ks">&gt;100k руб</div></div>
-    <div class="kpi w"><div class="kl">Ср. на склад</div><div class="kv">${fmt(avg)} ₽</div><div class="ks">за период</div></div>`;
-}
 function renderWoArticlesSection(){
   const sec = document.getElementById('wo-articles-section');
   // Скрываем блок если данных нет или они пустые
