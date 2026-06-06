@@ -1282,9 +1282,10 @@ function applyDelFilter(){
     const isWE=d.dow==='Сб'||d.dow==='Вс';
     const barH=Math.max(6,Math.round(d.n/maxN*55));
     const clr=d.n===maxN?'var(--red)':isWE?'var(--warn)':'var(--acc)';
+    const shortDate=d.d?d.d.slice(0,5):d.iso?d.iso.slice(5).split('-').reverse().join('.'):d.d;
     return `<div class="dow-col" title="${d.d}: ${d.n}" style="min-width:34px"><div class="dow-val">${d.n}</div>
       <div class="dow-bar" style="height:${barH}px;background:${clr}"></div>
-      <div class="dow-lbl">${d.d}</div><div class="dow-dow">${d.dow}</div></div>`;
+      <div class="dow-lbl">${shortDate}</div><div class="dow-dow">${d.dow}</div></div>`;
   }).join('');
   const guiltyAgg={};
   rows.forEach(r=>{
@@ -3062,7 +3063,7 @@ function _renderOverviewCharts(){
       return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.total.toLocaleString('ru-RU')+' ₽">'
         +'<div class="dow-val" style="font-size:8px">'+Math.round(d.total/1000)+'k</div>'
         +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
-        +'<div class="dow-lbl">'+d.d+'</div>'
+        +'<div class="dow-lbl">'+(d.d?d.d.slice(0,5):d.d)+'</div>'
         +'<div class="dow-dow">'+d.dow+'</div></div>';
     }).join('');
   } else if(woEl){
@@ -3083,7 +3084,7 @@ function _renderOverviewCharts(){
       return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.n+' стопов">'
         +'<div class="dow-val" style="font-size:9px">'+d.n+'</div>'
         +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
-        +'<div class="dow-lbl">'+d.d+'</div>'
+        +'<div class="dow-lbl">'+(d.d?d.d.slice(0,5):d.d)+'</div>'
         +'<div class="dow-dow">'+d.dow+'</div></div>';
     }).join('');
   } else if(stEl){
@@ -4184,7 +4185,7 @@ function _renderOverviewCharts(){
       return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.total.toLocaleString('ru-RU')+' ₽">'
         +'<div class="dow-val" style="font-size:8px">'+Math.round(d.total/1000)+'k</div>'
         +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
-        +'<div class="dow-lbl">'+d.d+'</div>'
+        +'<div class="dow-lbl">'+(d.d?d.d.slice(0,5):d.d)+'</div>'
         +'<div class="dow-dow">'+d.dow+'</div></div>';
     }).join('');
   } else if(woEl){
@@ -4205,7 +4206,7 @@ function _renderOverviewCharts(){
       return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.n+' стопов">'
         +'<div class="dow-val" style="font-size:9px">'+d.n+'</div>'
         +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
-        +'<div class="dow-lbl">'+d.d+'</div>'
+        +'<div class="dow-lbl">'+(d.d?d.d.slice(0,5):d.d)+'</div>'
         +'<div class="dow-dow">'+d.dow+'</div></div>';
     }).join('');
   } else if(stEl){
@@ -4996,7 +4997,7 @@ function renderStopsData(s){
     return `<div class="dow-col" title="${d.date||d.d}: ${cnt}">
       <div class="dow-val">${cnt}</div>
       <div class="dow-bar" style="height:${barH}px;background:${clr}"></div>
-      <div class="dow-lbl">${d.date||d.d}</div><div class="dow-dow">${d.dow}</div></div>`;
+      <div class="dow-lbl">${(d.date||d.d||'').slice(0,5)}</div><div class="dow-dow">${d.dow}</div></div>`;
   }).join('');
   // Топ продуктов
   const tops=s.top_products||s.top||[];
