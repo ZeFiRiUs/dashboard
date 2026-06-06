@@ -466,15 +466,28 @@ async function fetchWoData(sheetName, noCache=false) {
     return _woSheetCache[sheetName].data;
   const encoded = encodeURIComponent(sheetName);
   const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&sheet=${encoded}`;
+  console.log(`[WO] Загружаю лист "${sheetName}"...`);
   const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
-  const csv  = await r.text();
-  const data = parseWoSheet(csv, sheetName) || {
+  const csv = await r.text();
+  const lines = csv.split('\n');
+  console.log(`[WO] Лист "${sheetName}": статус ${r.status}, строк ${lines.length}, первая="${lines[0]?.substring(0,80)}"`);
+  if (csv.trimStart().startsWith('<')) {
+    console.log(`[WO] ОШИБКА: Google вернул HTML для листа "${sheetName}" — возможно неверное имя или нет доступа`);
+    throw new Error(`Google вернул HTML вместо CSV для листа "${sheetName}"`);
+  }
+  const parsed = parseWoSheet(csv, sheetName);
+  console.log(`[WO] Лист "${sheetName}": распарсено ${parsed ? parsed.meta.records : 0} записей, ${parsed ? parsed.by_point.length : 0} точек`);
+  if (parsed) {
+    _woSheetCache[sheetName] = { data: parsed, ts: now };
+    return parsed;
+  }
+  // Парсер не нашёл записей — возвращаем пустую структуру, но НЕ кэшируем
+  // (чтобы следующий запрос снова попробовал Google Sheets)
+  return {
     meta: { sheet: sheetName, records: 0, total_cost: 0, points: [], articles: [] },
     by_point: [], by_article: [], by_date: [],
   };
-  _woSheetCache[sheetName] = { data, ts: now };
-  return data;
 }
 
 // Фильтрация по точке / статье
@@ -505,6 +518,35 @@ app.get('/api/writeoffs/sheets', async (req, res) => {
     res.json(await fetchWoSheetList());
   }
   catch(e) { res.status(502).json({ error: e.message }); }
+});
+
+// GET /api/writeoffs/debug?name=Май — диагностика парсера
+app.get('/api/writeoffs/debug', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const { name } = req.query;
+  if (!name) return res.status(400).json({ error: 'Параметр name обязателен' });
+  try {
+    const encoded = encodeURIComponent(name);
+    const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&sheet=${encoded}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const csv = await r.text();
+    const isHtml = csv.trimStart().startsWith('<');
+    const lines = csv.split('\n');
+    const parsed = isHtml ? null : parseWoSheet(csv, name);
+    res.json({
+      http_status: r.status,
+      is_html: isHtml,
+      csv_bytes: csv.length,
+      row_count: lines.length,
+      row_0: lines[0]?.substring(0, 120),
+      row_1: lines[1]?.substring(0, 120),
+      row_2: lines[2]?.substring(0, 120),
+      row_3: lines[3]?.substring(0, 120),
+      parsed_records: parsed?.meta?.records ?? null,
+      parsed_points: parsed?.by_point?.length ?? null,
+      parsed_articles: parsed?.meta?.articles?.length ?? null,
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/writeoffs/sheet?name=Май[&point=...&article=...]
