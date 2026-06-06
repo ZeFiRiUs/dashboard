@@ -3263,12 +3263,12 @@ async function loadWoSheet(sheetName) {
     if(!r.ok) throw new Error('HTTP '+r.status);
     WO_DATA=await r.json(); WO_FILTERED=WO_DATA; _woActiveSheet=sheetName;
     if(sdot) sdot.className='sdot ok';
-    if(msg){msg.textContent=sheetName; setTimeout(()=>msg.textContent='',3000);}
+    if(msg){msg.textContent='\u2705 '+sheetName; setTimeout(()=>msg.textContent='',3000);}
     ss('ok',sheetName);
     populateWoFilters(); renderWo();
   } catch(e) {
     if(sdot) sdot.className='sdot warn';
-    if(msg){msg.textContent='\u041e\u0448\u0438\u0431\u043a\u0430: '+e.message; setTimeout(()=>msg.textContent='',5000);}
+    if(msg) msg.textContent='\u274c \u041e\u0448\u0438\u0431\u043a\u0430: '+e.message;
     ss('warn',e.message);
     if(emptyEl) emptyEl.style.display='block';
   }
@@ -3293,7 +3293,7 @@ async function refreshWoData() {
     WO_DATA=await r.json(); WO_FILTERED=WO_DATA;
     if(msg){msg.textContent='\u2713 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e'; setTimeout(()=>msg.textContent='',3000);}
     populateWoFilters(); renderWo();
-  } catch(e){if(msg){msg.textContent='\u041e\u0448\u0438\u0431\u043a\u0430: '+e.message; setTimeout(()=>msg.textContent='',5000);}}
+  } catch(e){if(msg) msg.textContent='\u274c \u041e\u0448\u0438\u0431\u043a\u0430: '+e.message;}
 }
 
 function populateWoFilters() {
