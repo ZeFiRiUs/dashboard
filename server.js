@@ -363,8 +363,7 @@ function parseWoSheet(csv, sheetName) {
   const records = [];
   let curWh = null;
 
-  // Пропускаем 2 строки заголовков
-  for (let i = 2; i < rows.length; i++) {
+  for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const col0 = (r[0]||'').trim();
     if (!col0) continue;
@@ -470,8 +469,10 @@ async function fetchWoData(sheetName, noCache=false) {
   const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
   const csv  = await r.text();
-  const data = parseWoSheet(csv, sheetName);
-  if (!data) throw new Error(`Не удалось распарсить лист "${sheetName}"`);
+  const data = parseWoSheet(csv, sheetName) || {
+    meta: { sheet: sheetName, records: 0, total_cost: 0, points: [], articles: [] },
+    by_point: [], by_article: [], by_date: [],
+  };
   _woSheetCache[sheetName] = { data, ts: now };
   return data;
 }
