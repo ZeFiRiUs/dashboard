@@ -2056,8 +2056,8 @@ function switchTab(tab,btn){
   });
   if(tab==='overview'){ renderOverview(); }
   if(tab==='wo'){
-    if(!WO_DATA){ loadWoData(); }
-    else renderWo();
+    loadWoSheetList(); // всегда обновляем список — подхватывает новые листы (кэш 5 мин)
+    if(WO_DATA) renderWo();
   }
   if(tab==='stops'){
     if(!STOPS_DATA){
