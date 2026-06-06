@@ -3258,10 +3258,13 @@ async function loadWoSheet(sheetName) {
   if(msg)  msg.textContent='Загружаю...';
   const emptyEl=document.getElementById('wo-empty');
   if(emptyEl) emptyEl.style.display='none';
+  console.log('[WO] loadWoSheet:', sheetName);
   try {
     const r=await fetch('/api/writeoffs/sheet?name='+encodeURIComponent(sheetName),{headers:{'X-View-Password':sessionPassword}});
+    console.log('[WO] HTTP', r.status, sheetName);
     if(!r.ok) throw new Error('HTTP '+r.status);
     WO_DATA=await r.json(); WO_FILTERED=WO_DATA; _woActiveSheet=sheetName;
+    console.log('[WO] records='+WO_DATA?.meta?.records+' points='+WO_DATA?.by_point?.length);
     if(sdot) sdot.className='sdot ok';
     if(msg){msg.textContent='\u2705 '+sheetName; setTimeout(()=>msg.textContent='',3000);}
     ss('ok',sheetName);
