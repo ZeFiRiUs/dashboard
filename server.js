@@ -320,7 +320,7 @@ const WRITEOFFS_SHEET_ID = '1Xn7t2kazUNEjG4ZRkc00Im4DIWLlBtZSlIPXglciLUQ';
 const _woSheetCache = {};
 const WO_SHEET_TTL  = 10 * 60 * 1000;
 let _woSheetListCache = null, _woSheetListTs = 0;
-const WO_LIST_TTL   = 20 * 60 * 1000;
+const WO_LIST_TTL   =  5 * 60 * 1000;
 
 // Список листов таблицы
 async function fetchWoSheetList() {
