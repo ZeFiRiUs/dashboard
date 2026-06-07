@@ -5030,7 +5030,7 @@ function renderCards(){
     return mf&&ms;
   });
   const mx=p.warehouses[0]?.total||1;
-  document.getElementById('cc').textContent=`Показано ${whs.length} из ${p.warehouses.length} складов`;
+  const ccEl=document.getElementById('cc');if(ccEl)ccEl.textContent=`Показано ${whs.length} из ${p.warehouses.length} складов`;
   document.getElementById('grid').innerHTML=whs.map(w=>{
     const lv=lvl(w.total),bw=Math.round(w.total/mx*100);
     const bc=lv==='danger'?'var(--red)':lv==='warn'?'var(--warn)':'var(--acc)';
