@@ -5023,7 +5023,7 @@ function resetWoFilters(){
 
 function renderCards(){
   const p=d(); if(!p) return;
-  const q=document.getElementById('si').value.toLowerCase();
+  const q=(document.getElementById('si')?.value||'').toLowerCase();
   const whs=p.warehouses.filter(w=>{
     const mf=flt==='all'||lvl(w.total)===flt;
     const ms=!q||w.name.toLowerCase().includes(q)||(w.top3||[]).some(t=>t.name.toLowerCase().includes(q));
