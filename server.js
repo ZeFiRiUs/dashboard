@@ -322,6 +322,43 @@ const WO_SHEET_TTL  = 10 * 60 * 1000;
 let _woSheetListCache = null, _woSheetListTs = 0;
 const WO_LIST_TTL   =  5 * 60 * 1000;
 
+// Извлекает sheetId из xl/workbook.xml напрямую из ZIP-буфера XLSX,
+// т.к. SheetJS с bookSheets:true не заполняет wb.Workbook.Sheets[].sheetId
+function _extractGidsFromXlsx(buf) {
+  try {
+    const zlib = require('zlib');
+    let pos = 0;
+    while (pos + 30 < buf.length) {
+      if (buf[pos] !== 0x50 || buf[pos+1] !== 0x4B || buf[pos+2] !== 0x03 || buf[pos+3] !== 0x04) break;
+      const method    = buf.readUInt16LE(pos + 8);
+      const cSize     = buf.readUInt32LE(pos + 18);
+      const fnLen     = buf.readUInt16LE(pos + 26);
+      const extraLen  = buf.readUInt16LE(pos + 28);
+      const fname     = buf.slice(pos + 30, pos + 30 + fnLen).toString('utf8');
+      const dataStart = pos + 30 + fnLen + extraLen;
+      if (cSize === 0 && fname !== 'xl/workbook.xml') break; // data descriptor — нельзя пройти дальше
+      if (fname === 'xl/workbook.xml') {
+        const raw = buf.slice(dataStart, dataStart + cSize);
+        const xml = (method === 8) ? zlib.inflateRawSync(raw).toString('utf8') : raw.toString('utf8');
+        const gidMap = {};
+        const re = /<sheet\s([^>]+)>/g;
+        let m;
+        while ((m = re.exec(xml)) !== null) {
+          const nm = m[1].match(/name="([^"]*)"/);
+          const id = m[1].match(/sheetId="([^"]*)"/);
+          if (nm && id) gidMap[nm[1]] = parseInt(id[1], 10);
+        }
+        console.log('[WO] GID из workbook.xml:', JSON.stringify(gidMap));
+        return gidMap;
+      }
+      pos = dataStart + cSize;
+    }
+  } catch(e) {
+    console.warn('[WO] GID ZIP-extraction failed:', e.message);
+  }
+  return {};
+}
+
 // Список листов таблицы
 async function fetchWoSheetList() {
   const now = Date.now();
@@ -330,12 +367,13 @@ async function fetchWoSheetList() {
   const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!r.ok) throw new Error('WO XLSX HTTP ' + r.status);
   const buf = Buffer.from(await r.arrayBuffer());
+  if (buf[0] !== 0x50 || buf[1] !== 0x4B) throw new Error('WO: ожидался ZIP/XLSX, получен другой формат (нет доступа к таблице?)');
   const XLSX = require('xlsx');
-  const wb = XLSX.read(buf, { type: 'buffer' });
-  const wsProps = (wb.Workbook && wb.Workbook.Sheets) || [];
-  const sheets = wb.SheetNames.map((n, idx) => ({
+  const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
+  const gidMap = _extractGidsFromXlsx(buf);
+  const sheets = wb.SheetNames.map(n => ({
     name: n, label: n,
-    gid: wsProps[idx] != null && wsProps[idx].sheetId != null ? wsProps[idx].sheetId : null,
+    gid: gidMap[n] != null ? gidMap[n] : null,
   }));
   console.log('[WO] Листы:', sheets.map(s => `${s.name}(gid=${s.gid})`).join(', '));
   _woSheetListCache = sheets; _woSheetListTs = now;
