@@ -331,7 +331,7 @@ async function fetchWoSheetList() {
   if (!r.ok) throw new Error('WO XLSX HTTP ' + r.status);
   const buf = Buffer.from(await r.arrayBuffer());
   const XLSX = require('xlsx');
-  const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
+  const wb = XLSX.read(buf, { type: 'buffer' });
   const wsProps = (wb.Workbook && wb.Workbook.Sheets) || [];
   const sheets = wb.SheetNames.map((n, idx) => ({
     name: n, label: n,
