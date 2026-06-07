@@ -487,6 +487,71 @@ body.sb-col .sidebar-btn.active::before{display:none}
 #bg-video{width:100%;height:100%;object-fit:cover}
 #bg-overlay{position:fixed;inset:0;z-index:-1;pointer-events:none;background:rgba(6,16,31,.82);transition:background .4s}
 html.light #bg-overlay{background:rgba(239,243,250,.88)}
+
+/* ══ DESIGN POLISH ═════════════════════════════════════════════════════════ */
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(59,127,255,.26);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(59,127,255,.48)}
+html.light ::-webkit-scrollbar-thumb{background:rgba(37,99,235,.2)}
+html.light ::-webkit-scrollbar-thumb:hover{background:rgba(37,99,235,.38)}
+
+/* Brand gradient text */
+.brand{background:linear-gradient(120deg,#C8DFFF 0%,#7BB3FF 50%,#3B7FFF 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+html.light .brand{background:linear-gradient(120deg,#0F1C30 0%,#2563EB 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Header / tab-nav depth shadow */
+header{box-shadow:0 1px 0 var(--bd),0 4px 28px rgba(0,0,0,.38)}
+html.light header{box-shadow:0 1px 0 var(--bd),0 2px 12px rgba(0,0,0,.06)}
+.tab-nav{box-shadow:0 1px 0 var(--bd),0 2px 18px rgba(0,0,0,.22)}
+
+/* Status bar frosted */
+.status{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+
+/* Page section heading — gradient text */
+.page-h{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px;background:linear-gradient(120deg,var(--txt) 0%,var(--acc) 230%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+html.light .page-h{background:linear-gradient(120deg,#0F1C30 0%,var(--acc) 190%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* Sub-section heading with left accent bar */
+.sec-h{font-size:14px;font-weight:700;color:var(--txt);display:flex;align-items:center;gap:8px}
+.sec-h::before{content:'';display:block;width:3px;height:14px;background:var(--acc);border-radius:2px;flex-shrink:0;opacity:.7}
+
+/* Tabular numerals for all value displays */
+.kv,.scc,.ct,.mkv,.cic,.ciq,.tcost,.hv,.hp{font-variant-numeric:tabular-nums}
+
+/* Generic gradient-border content box */
+.box{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.34) 0%,rgba(59,127,255,.04) 55%,rgba(6,182,212,.2) 100%) border-box;border:1px solid transparent;border-radius:14px;padding:18px}
+
+/* Stop cards — per-severity coloured glow */
+.sc.sh{border:1px solid rgba(240,64,96,.28);border-left:3px solid var(--red);box-shadow:0 0 0 1px rgba(240,64,96,.08),0 4px 20px rgba(240,64,96,.1),var(--sh-sm)}
+.sc.sm{border:1px solid rgba(245,158,11,.28);border-left:3px solid var(--warn);box-shadow:0 0 0 1px rgba(245,158,11,.08),0 4px 20px rgba(245,158,11,.1),var(--sh-sm)}
+.sc.sh:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(240,64,96,.36),0 8px 28px rgba(240,64,96,.18),var(--sh-md) !important}
+.sc.sm:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(245,158,11,.36),0 8px 28px rgba(245,158,11,.18),var(--sh-md) !important}
+
+/* Login screen — partial transparency for video */
+.login-screen{background-color:rgba(6,16,31,.8) !important}
+html.light .login-screen{background-color:rgba(239,243,250,.84) !important}
+/* Login box glass */
+.login-box{backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+
+/* Sidebar active — stronger highlight */
+.sidebar-btn.active{background:linear-gradient(90deg,rgba(59,127,255,.22) 0%,rgba(59,127,255,.04) 100%)}
+
+/* Compare rows gradient border */
+.cmprow{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.26) 0%,rgba(59,127,255,.03) 55%,rgba(6,182,212,.14) 100%) border-box;border:1px solid transparent}
+
+/* Modal overlay & glass */
+.ov{background:rgba(2,6,23,.72)}
+html.light .ov{background:rgba(15,28,48,.42)}
+.modal{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+
+/* Table alternate row shading */
+.stops-tbl tbody tr:nth-child(even) td{background:rgba(59,127,255,.028)}
+
+/* Focus ring */
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid rgba(59,127,255,.5);outline-offset:2px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.11/dist/hls.min.js"></script>
 </head>
@@ -611,7 +676,7 @@ html.light #bg-overlay{background:rgba(239,243,250,.88)}
 
   <!-- Заголовок -->
   <div style="margin-bottom:24px">
-    <div style="font-size:22px;font-weight:800;color:var(--txt);margin-bottom:4px">Сводка по всем разделам</div>
+    <div class="page-h">Сводка по всем разделам</div>
     <div style="font-size:13px;color:var(--txt3)" id="overview-updated">Данные загружаются...</div>
   </div>
 
@@ -702,11 +767,11 @@ html.light #bg-overlay{background:rgba(239,243,250,.88)}
   </div>
   <div id="wo-charts-section" style="display:none;margin-bottom:20px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+      <div class="box">
         <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:14px">Статьи списаний</div>
         <div id="wo-articles-bars"></div>
       </div>
-      <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px">
+      <div class="box">
         <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:14px">Топ точек</div>
         <div id="wo-points-chart"></div>
       </div>
@@ -775,17 +840,17 @@ html.light #bg-overlay{background:rgba(239,243,250,.88)}
     </div>
   <div id="stops-kpis" class="kpis"></div>
   <div class="stops-charts-row" style="display:flex;gap:16px;margin-bottom:24px;align-items:stretch">
-    <div style="flex:1;min-width:0;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;overflow:hidden">
+    <div class="box" style="flex:1;min-width:0;overflow:hidden">
       <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt)">Стопы по датам</div>
       <div style="overflow-x:auto"><div class="dow-row" id="dow-row" style="min-width:max-content"></div></div>
     </div>
-    <div style="flex:0 0 280px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+    <div class="box" style="flex:0 0 280px">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">Топ-10 продуктов в стопе</div>
       <div id="top-products-list" style="display:flex;flex-direction:column;gap:6px"></div>
     </div>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-    <div style="font-size:14px;font-weight:700;color:var(--txt)">По точкам</div>
+    <div class="sec-h">По точкам</div>
     <div style="display:flex;gap:8px">
       <button class="fbtn act" id="sf-all" onclick="setSF('all',this)">Все</button>
       <button class="fbtn" id="sf-high" onclick="setSF('high',this)">🔴 Много</button>
@@ -794,7 +859,7 @@ html.light #bg-overlay{background:rgba(239,243,250,.88)}
   </div>
   <div class="stops-grid" id="stops-grid"></div>
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-    <div style="font-size:14px;font-weight:700;color:var(--txt)">
+    <div style="font-size:14px;font-weight:700;color:var(--txt);display:flex;align-items:center">
       <span class="abadge"></span>Активные стопы
       <span id="active-count" style="font-size:12px;color:var(--txt3);font-weight:400;margin-left:6px"></span>
     </div>
