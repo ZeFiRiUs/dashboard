@@ -3546,7 +3546,8 @@ async function loadWoSheet(sheetName) {
     setActivePill(sheetName);
     console.log('[WO] records='+WO_DATA?.meta?.records+' points='+WO_DATA?.by_point?.length);
     if(sdot) sdot.className='sdot ok';
-    if(msg){msg.textContent='\u2705 '+sheetName; setTimeout(()=>msg.textContent='',3000);}
+    const _recCnt=WO_DATA?.meta?.records??0;
+    if(msg){if(_recCnt>0){msg.textContent='\u2705 '+sheetName;setTimeout(()=>msg.textContent='',3000);}else{msg.textContent='\u26a0\ufe0f 0 \u0437\u0430\u043f\u0438\u0441\u0435\u0439 \u0432 \u043b\u0438\u0441\u0442\u0435 \u00ab'+sheetName+'\u00bb';setTimeout(()=>msg.textContent='',10000);}}
     ss('ok',sheetName);
     populateWoFilters(); renderWo();
   } catch(e) {
@@ -3611,7 +3612,7 @@ function resetWoFilters(){resetWoFiltersUI();if(WO_DATA){WO_FILTERED=WO_DATA;ren
 
 function renderWo(){
   const emEl=document.getElementById('wo-empty'),csEl=document.getElementById('wo-charts-section'),pgEl=document.getElementById('wo-points-grid'),krEl=document.getElementById('wo-kpi-row');
-  if(!WO_FILTERED){if(emEl)emEl.style.display='block';if(csEl)csEl.style.display='none';if(pgEl)pgEl.innerHTML='';if(krEl)krEl.innerHTML='';return;}
+  if(!WO_FILTERED||WO_FILTERED.meta?.records===0){if(emEl)emEl.style.display='block';if(csEl)csEl.style.display='none';if(pgEl)pgEl.innerHTML='';if(krEl)krEl.innerHTML='';return;}
   if(emEl)emEl.style.display='none';if(csEl)csEl.style.display='block';
   renderWoKpi();renderWoArticlesBars();renderWoTopPointsChart();renderWoPoints();
 }
