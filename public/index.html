@@ -664,10 +664,17 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 <div id="page-overview" class="page active">
 <div class="wrap">
 
+  <!-- Статус + обновить -->
+  <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="sdot ok" id="overview-sdot"></div>
+      <span id="overview-updated">Загрузка данных...</span>
+    </div>
+    <button class="btn btn-acc" onclick="_renderOverviewSections()">&#8635; Обновить</button>
+  </div>
   <!-- Заголовок -->
   <div style="margin-bottom:24px">
     <div class="page-h">Сводка по всем разделам</div>
-    <div style="font-size:13px;color:var(--txt3)" id="overview-updated">Данные загружаются...</div>
   </div>
 
   <!-- Мини KPI блоки — по разделам -->
@@ -798,11 +805,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span id="stops-upload-msg" style="font-size:11px;color:var(--grn)"></span>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
-        <span id="stops-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
-        <span id="stops-sheets-text">Sheets</span>
-        <button onclick="loadStopsFromSheets(true)" style="background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
-      </div>
+      <span id="stops-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
+      <span id="stops-sheets-text" style="font-size:11px;color:var(--txt3)">Sheets</span>
+      <button class="btn btn-acc" onclick="loadStopsFromSheets(true)">&#8635; Обновить</button>
     </div>
   </div>
 
@@ -878,11 +883,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span id="del-upload-msg" style="font-size:11px;color:var(--grn)"></span>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
-        <span id="del-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
-        <span id="del-sheets-text">Sheets</span>
-        <button onclick="loadDeliveriesFromSheets(true)" style="background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:3px 9px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Синхр.</button>
-      </div>
+      <span id="del-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
+      <span id="del-sheets-text" style="font-size:11px;color:var(--txt3)">Sheets</span>
+      <button class="btn btn-acc" onclick="loadDeliveriesFromSheets(true)">&#8635; Обновить</button>
     </div>
   </div>
   <div id="del-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
@@ -949,7 +952,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
       <span>Производство<span id="prod-period-label"></span></span>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button id="prod-sync-btn" class="btn btn-acc" onclick="syncProductionFromSheets()">&#8635; Синхронизировать</button>
+      <button id="prod-sync-btn" class="btn btn-acc" onclick="syncProductionFromSheets()">&#8635; Обновить</button>
       <span id="prod-sync-msg" style="font-size:11px;color:var(--grn)"></span>
     </div>
   </div>
@@ -999,11 +1002,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span id="sebes-upload-msg" style="font-size:11px;color:var(--grn)"></span>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3)">
-        <span id="sebes-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
-        <span id="sebes-sheets-text">Sheets</span>
-        <button class="btn" onclick="syncSebesFromTab()">↺ Синхр.</button>
-      </div>
+      <span id="sebes-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
+      <span id="sebes-sheets-text" style="font-size:11px;color:var(--txt3)">Sheets</span>
+      <button class="btn btn-acc" onclick="syncSebesFromTab()">&#8635; Обновить</button>
     </div>
   </div>
   <div id="sebes-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
@@ -1071,7 +1072,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     <div id="supply-sync-bar" style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:10px 14px;background:var(--card);border:1px solid var(--bd);border-radius:10px;font-size:12px;color:var(--txt3)">
       <span id="supply-sync-dot" style="width:8px;height:8px;border-radius:50%;background:var(--txt3);flex-shrink:0"></span>
       <span id="supply-sync-text">Не синхронизировано</span>
-      <button onclick="loadSupplyData(true)" style="margin-left:auto;background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:4px 10px;color:var(--txt);font-size:11px;font-family:Manrope,sans-serif;cursor:pointer">↺ Обновить</button>
+      <button class="btn btn-acc" onclick="loadSupplyData(true)" style="margin-left:auto">&#8635; Обновить</button>
     </div>
     <!-- KPI -->
     <div id="supply-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
@@ -1116,9 +1117,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 <!-- ═══ COMPARE (СРАВНЕНИЕ ПЕРИОДОВ) TAB ═══ -->
 <div id="page-compare" class="page">
   <div class="wrap">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px">
-      <div class="sdot ok"></div>
-      <span>Сравнение периодов</span>
+    <div class="status" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="sdot ok"></div>
+        <span>Сравнение периодов</span>
+      </div>
+      <button class="btn btn-acc" onclick="runCompare()">&#8635; Обновить</button>
     </div>
 
     <!-- Выбор раздела и периодов -->
@@ -1835,6 +1839,22 @@ async function loadSebesFromServer(){
     }
     if(sdot)sdot.className='sdot warn';renderSebes();return false;
   }catch(e){const s2=document.getElementById('sebes-sdot');if(s2)s2.className='sdot warn';renderSebes();return false;}
+}
+
+async function syncSebesFromTab(){
+  const btn=document.querySelector('button[onclick="syncSebesFromTab()"]');
+  const msg=document.getElementById('sebes-upload-msg');
+  const sdot=document.getElementById('sebes-sdot');
+  if(btn){btn.disabled=true;btn.innerHTML='⟳ Загрузка...';}
+  if(sdot)sdot.className='sdot spin';
+  try{
+    const r=await fetch('/api/sebes/csv?nocache=1',{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(data&&data.meta){applySebesData(data);if(msg){msg.textContent='✓ Обновлено';setTimeout(function(){msg.textContent='';},3000);}}
+    else if(sdot)sdot.className='sdot warn';
+  }catch(e){if(sdot)sdot.className='sdot warn';if(msg)msg.textContent='Ошибка';}
+  if(btn){btn.disabled=false;btn.innerHTML='&#8635; Обновить';}
 }
 
 function applySebesData(data){
