@@ -322,22 +322,39 @@ const WO_SHEET_TTL  = 10 * 60 * 1000;
 let _woSheetListCache = null, _woSheetListTs = 0;
 const WO_LIST_TTL   =  5 * 60 * 1000;
 
-// Извлекает sheetId из xl/workbook.xml напрямую из ZIP-буфера XLSX,
-// т.к. SheetJS с bookSheets:true не заполняет wb.Workbook.Sheets[].sheetId
+// Извлекает sheetId из xl/workbook.xml напрямую из ZIP-буфера XLSX.
+// Использует Central Directory (конец ZIP) — там размеры всегда точные,
+// в отличие от Local File Header где cSize=0 при data descriptor.
 function _extractGidsFromXlsx(buf) {
   try {
     const zlib = require('zlib');
-    let pos = 0;
-    while (pos + 30 < buf.length) {
-      if (buf[pos] !== 0x50 || buf[pos+1] !== 0x4B || buf[pos+2] !== 0x03 || buf[pos+3] !== 0x04) break;
-      const method    = buf.readUInt16LE(pos + 8);
-      const cSize     = buf.readUInt32LE(pos + 18);
-      const fnLen     = buf.readUInt16LE(pos + 26);
-      const extraLen  = buf.readUInt16LE(pos + 28);
-      const fname     = buf.slice(pos + 30, pos + 30 + fnLen).toString('utf8');
-      const dataStart = pos + 30 + fnLen + extraLen;
-      if (cSize === 0 && fname !== 'xl/workbook.xml') break; // data descriptor — нельзя пройти дальше
+    // 1. Найти EOCD (End of Central Directory): сигнатура PK\x05\x06
+    let eocdPos = -1;
+    const searchStart = Math.max(0, buf.length - 65558);
+    for (let i = buf.length - 22; i >= searchStart; i--) {
+      if (buf[i]===0x50 && buf[i+1]===0x4B && buf[i+2]===0x05 && buf[i+3]===0x06) {
+        eocdPos = i; break;
+      }
+    }
+    if (eocdPos < 0) { console.warn('[WO] EOCD не найден в XLSX'); return {}; }
+    const cdOffset = buf.readUInt32LE(eocdPos + 16);
+    const cdCount  = buf.readUInt16LE(eocdPos + 10);
+    // 2. Пройти Central Directory и найти xl/workbook.xml
+    let pos = cdOffset;
+    for (let j = 0; j < cdCount; j++) {
+      if (buf[pos]!==0x50||buf[pos+1]!==0x4B||buf[pos+2]!==0x01||buf[pos+3]!==0x02) break;
+      const method         = buf.readUInt16LE(pos + 10);
+      const cSize          = buf.readUInt32LE(pos + 20);
+      const localHdrOffset = buf.readUInt32LE(pos + 42);
+      const fnLen          = buf.readUInt16LE(pos + 28);
+      const extraLen       = buf.readUInt16LE(pos + 30);
+      const commentLen     = buf.readUInt16LE(pos + 32);
+      const fname          = buf.slice(pos + 46, pos + 46 + fnLen).toString('utf8');
       if (fname === 'xl/workbook.xml') {
+        // Читаем Local File Header чтобы получить точное смещение данных
+        const localFnLen    = buf.readUInt16LE(localHdrOffset + 26);
+        const localExtraLen = buf.readUInt16LE(localHdrOffset + 28);
+        const dataStart     = localHdrOffset + 30 + localFnLen + localExtraLen;
         const raw = buf.slice(dataStart, dataStart + cSize);
         const xml = (method === 8) ? zlib.inflateRawSync(raw).toString('utf8') : raw.toString('utf8');
         const gidMap = {};
@@ -351,8 +368,9 @@ function _extractGidsFromXlsx(buf) {
         console.log('[WO] GID из workbook.xml:', JSON.stringify(gidMap));
         return gidMap;
       }
-      pos = dataStart + cSize;
+      pos += 46 + fnLen + extraLen + commentLen;
     }
+    console.warn('[WO] xl/workbook.xml не найден в Central Directory');
   } catch(e) {
     console.warn('[WO] GID ZIP-extraction failed:', e.message);
   }
