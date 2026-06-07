@@ -20,7 +20,7 @@ html.light{
   --sh-sm:0 1px 3px rgba(0,0,0,.06);--sh-md:0 4px 16px rgba(0,0,0,.08);--sh-lg:0 8px 32px rgba(0,0,0,.1)
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--txt);font-family:'Manrope',sans-serif;min-height:100vh;transition:background .25s,color .25s}
+body{background:transparent;color:var(--txt);font-family:'Manrope',sans-serif;min-height:100vh;transition:color .25s}
 
 /* LOGIN */
 .login-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(ellipse at 30% 40%,rgba(59,127,255,.07) 0%,transparent 60%),radial-gradient(ellipse at 75% 70%,rgba(34,197,94,.04) 0%,transparent 50%)}
@@ -483,9 +483,16 @@ body.sb-col .sidebar-btn.active::before{display:none}
 .toggle-slider::before{content:'';position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--txt3);border-radius:50%;transition:.2s}
 .toggle-sw input:checked+.toggle-slider{background:var(--acc)}
 .toggle-sw input:checked+.toggle-slider::before{transform:translateX(16px);background:#fff}
+#bg-video-wrap{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
+#bg-video{width:100%;height:100%;object-fit:cover}
+#bg-overlay{position:fixed;inset:0;z-index:-1;pointer-events:none;background:rgba(6,16,31,.82);transition:background .4s}
+html.light #bg-overlay{background:rgba(239,243,250,.88)}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.11/dist/hls.min.js"></script>
 </head>
 <body>
+<div id="bg-video-wrap"><video id="bg-video" muted playsinline loop autoplay></video></div>
+<div id="bg-overlay"></div>
 
 <div id="ls" class="login-screen">
   <div class="login-box">
@@ -5673,6 +5680,22 @@ if(sessionPassword){
       } else{sessionStorage.removeItem('dash_pw');sessionPassword='';}
     }).catch(()=>{document.getElementById('ls').style.display='none';loadData();});
 }
+// ── VIDEO BACKGROUND ─────────────────────────────────────────────────────────
+(function(){
+  var video=document.getElementById('bg-video');
+  if(!video)return;
+  var src='https://stream.mux.com/NcU3HlHeF7CUL86azTTzpy3Tlb00d6iF3BmCdFslMJYM.m3u8';
+  function tryPlay(){video.muted=true;video.play().catch(function(){});}
+  if(typeof Hls!=='undefined'&&Hls.isSupported()){
+    var hls=new Hls({autoStartLoad:true,startLevel:-1,maxBufferLength:10,maxMaxBufferLength:20,enableWorker:false});
+    hls.loadSource(src);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED,tryPlay);
+  }else if(video.canPlayType('application/vnd.apple.mpegurl')){
+    video.src=src;
+    video.addEventListener('loadedmetadata',tryPlay);
+  }
+})();
 </script>
 </body>
 </html>
