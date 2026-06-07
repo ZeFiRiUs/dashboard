@@ -381,21 +381,40 @@ function _extractGidsFromXlsx(buf) {
 async function fetchWoSheetList() {
   const now = Date.now();
   if (_woSheetListCache && (now - _woSheetListTs) < WO_LIST_TTL) return _woSheetListCache;
-  const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=xlsx`;
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  if (!r.ok) throw new Error('WO XLSX HTTP ' + r.status);
-  const buf = Buffer.from(await r.arrayBuffer());
-  if (buf[0] !== 0x50 || buf[1] !== 0x4B) throw new Error('WO: ожидался ZIP/XLSX, получен другой формат (нет доступа к таблице?)');
-  const XLSX = require('xlsx');
-  const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
-  const gidMap = _extractGidsFromXlsx(buf);
-  const sheets = wb.SheetNames.map(n => ({
-    name: n, label: n,
-    gid: gidMap[n] != null ? gidMap[n] : null,
-  }));
-  console.log('[WO] Листы:', sheets.map(s => `${s.name}(gid=${s.gid})`).join(', '));
-  _woSheetListCache = sheets; _woSheetListTs = now;
-  return sheets;
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=xlsx`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) {
+      console.error('[WO] XLSX HTTP ' + r.status + ' — используем кэш или пустой список');
+      return _woSheetListCache || [];
+    }
+    const buf = Buffer.from(await r.arrayBuffer());
+    const magic = buf.slice(0, 4).toString('hex');
+    console.log('[WO] XLSX magic bytes:', magic, 'size:', buf.length);
+    if (buf[0] !== 0x50 || buf[1] !== 0x4B) {
+      console.error('[WO] XLSX не является ZIP (magic=' + magic + ', первые байты: ' + buf.slice(0,80).toString('utf8').replace(/\n/g,' ') + ')');
+      return _woSheetListCache || [];
+    }
+    const XLSX = require('xlsx');
+    let wb;
+    try {
+      wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
+    } catch(e) {
+      console.error('[WO] XLSX.read failed:', e.message);
+      return _woSheetListCache || [];
+    }
+    const gidMap = _extractGidsFromXlsx(buf);
+    const sheets = wb.SheetNames.map(n => ({
+      name: n, label: n,
+      gid: gidMap[n] != null ? gidMap[n] : null,
+    }));
+    console.log('[WO] Листы:', sheets.map(s => `${s.name}(gid=${s.gid})`).join(', '));
+    _woSheetListCache = sheets; _woSheetListTs = now;
+    return sheets;
+  } catch(e) {
+    console.error('[WO] fetchWoSheetList error:', e.message);
+    return _woSheetListCache || [];
+  }
 }
 
 // Парсер нового формата выгрузки
