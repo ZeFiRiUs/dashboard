@@ -372,6 +372,97 @@ html.light .sidebar{background:#FFFFFF;border-right-color:var(--bd)}
 .sidebar.collapsed .sidebar-label{opacity:0;max-width:0;transition:opacity .1s,max-width .2s;pointer-events:none}
 #content-area{margin-left:240px;transition:margin-left .2s ease;min-width:0}
 body.sb-col #content-area{margin-left:56px}
+body.sb-col .sidebar{width:56px}
+body.sb-col .sidebar-head{justify-content:center}
+body.sb-col .sidebar-label{opacity:0;max-width:0;transition:opacity .1s,max-width .2s;pointer-events:none}
+body.sb-col .sidebar-btn.active::before{display:none}
+
+/* ── ANIMATIONS ───────────────────────────────────────────────────────────── */
+
+/* Page enter */
+@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.page.active{animation:pageIn .22s cubic-bezier(.25,.46,.45,.94) both}
+
+/* Card stagger entrance */
+@keyframes cardIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.kpi{animation:cardIn .3s cubic-bezier(.25,.46,.45,.94) both}
+.kpi:nth-child(1){animation-delay:.04s}.kpi:nth-child(2){animation-delay:.08s}
+.kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.16s}
+.kpi:nth-child(5){animation-delay:.20s}.kpi:nth-child(6){animation-delay:.24s}
+
+/* Bar chart grow from bottom */
+@keyframes barRise{from{transform:scaleY(0);opacity:0}to{transform:scaleY(1);opacity:1}}
+.dow-bar{transform-origin:bottom;animation:barRise .5s cubic-bezier(.34,1.3,.64,1) both}
+.dow-col:nth-child(1) .dow-bar{animation-delay:.02s}
+.dow-col:nth-child(2) .dow-bar{animation-delay:.04s}
+.dow-col:nth-child(3) .dow-bar{animation-delay:.06s}
+.dow-col:nth-child(4) .dow-bar{animation-delay:.08s}
+.dow-col:nth-child(5) .dow-bar{animation-delay:.10s}
+.dow-col:nth-child(6) .dow-bar{animation-delay:.12s}
+.dow-col:nth-child(7) .dow-bar{animation-delay:.14s}
+
+/* Shimmer loading skeleton */
+@keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+.skel{border-radius:6px;background:linear-gradient(90deg,var(--card) 25%,var(--card2) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.6s ease infinite}
+
+/* Sidebar icon glow on active */
+.sidebar-btn.active .sidebar-icon{filter:drop-shadow(0 0 5px rgba(59,127,255,.55))}
+
+/* Sidebar btn hover micro-move */
+.sidebar-btn:hover .sidebar-icon{transform:translateX(2px);transition:transform .15s}
+
+/* KPI top stripe animated opacity */
+@keyframes stripeBreath{0%,100%{opacity:.65}50%{opacity:1}}
+.kpi::before{animation:stripeBreath 3s ease infinite}
+
+/* Card grid items pop in */
+@keyframes gridIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.card{animation:gridIn .25s ease both}
+
+/* Status dot continuous pulse glow */
+@keyframes dotGlow{
+  0%,100%{box-shadow:0 0 4px currentColor}
+  50%{box-shadow:0 0 10px currentColor,0 0 20px currentColor}
+}
+.sdot.ok{animation:dotGlow 2.5s ease infinite;color:var(--grn)}
+.sdot.err{animation:dotGlow 1.2s ease infinite;color:var(--red)}
+.sdot.warn{animation:dotGlow 2s ease infinite;color:var(--warn)}
+
+/* Header logo dot neon pulse */
+@keyframes neonPulse{
+  0%,100%{box-shadow:0 0 6px var(--grn)}
+  50%{box-shadow:0 0 14px var(--grn),0 0 28px rgba(34,197,94,.3)}
+}
+.dot{animation:neonPulse 2.5s ease infinite}
+
+/* Button ripple press */
+.btn:active,.fbtn:active,.ptab:active{transform:scale(.96);transition:transform .08s}
+.login-btn:active{transform:translateY(1px) scale(.99)}
+
+/* Modal pop */
+@keyframes modalPop{
+  from{opacity:0;transform:translateY(20px) scale(.97)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.modal{animation:modalPop .22s cubic-bezier(.34,1.2,.64,1) both}
+
+/* Mob menu slide */
+@keyframes menuSlide{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mob-menu.open{animation:menuSlide .22s ease both}
+
+/* Fade in utility */
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.tr{animation:fadeUp .2s ease both}
+.tr:nth-child(1){animation-delay:.03s}.tr:nth-child(2){animation-delay:.06s}
+.tr:nth-child(3){animation-delay:.09s}.tr:nth-child(4){animation-delay:.12s}
+.tr:nth-child(5){animation-delay:.15s}
+
+/* Accent badge pulse for .abadge */
+@keyframes badgePing{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.6}}
+.abadge{animation:badgePing 1.2s ease infinite}
+
+/* Smooth sidebar transition already covered by width .2s — add label fade */
+.sidebar-label{will-change:opacity,max-width}
 
 /* ── TOGGLE SWITCH ────────────────────────────────────────────────────────── */
 .toggle-sw{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
@@ -511,13 +602,13 @@ body.sb-col #content-area{margin-left:56px}
   <!-- Два графика рядом -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px" id="overview-charts-row">
     <!-- Списания по дням -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0;overflow:hidden">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">📊 Динамика списаний</div>
       <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-wo-sub">—</div>
       <div class="dow-row" id="overview-wo-chart" style="height:70px;overflow-x:auto"></div>
     </div>
     <!-- Стопы по дням -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0;overflow:hidden">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">🚫 Динамика стопов</div>
       <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-stops-sub">—</div>
       <div class="dow-row" id="overview-stops-chart" style="height:70px;overflow-x:auto"></div>
@@ -527,21 +618,21 @@ body.sb-col #content-area{margin-left:56px}
   <!-- Топы рядом -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="overview-tops-row">
     <!-- Топ виновных по довозам -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">⚠️ Виновные в довозах</div>
       <div id="overview-guilty" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите данные довозов</div>
       </div>
     </div>
     <!-- Топ стопов по продуктам -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🚫 Топ стопов</div>
       <div id="overview-top-stops" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите данные стопов</div>
       </div>
     </div>
     <!-- Топ наценки -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px">
+    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">💰 Топ наценки</div>
       <div id="overview-top-margin" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите себестоимость</div>
