@@ -378,8 +378,8 @@ function parseWoSheet(csv, sheetName) {
     const col3 = (r[3]||'').trim();
     const col5 = (r[5]||'').trim();
 
-    // Заголовок склада: col1-col3 пустые
-    if (col0 && !col1 && !col2 && !col3) {
+    // Заголовок склада: col0 задан, col1 (ед.изм.) пуст — данные всегда имеют единицу
+    if (col0 && !col1) {
       curWh = col0; continue;
     }
 
@@ -541,7 +541,12 @@ app.get('/api/writeoffs/debug', async (req, res) => {
   if (!name) return res.status(400).json({ error: 'Параметр name обязателен' });
   try {
     const encoded = encodeURIComponent(name);
-    const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&sheet=${encoded}`;
+    const sheetList = await fetchWoSheetList();
+    const sheetInfo = sheetList.find(s => s.name === name);
+    const gid = sheetInfo != null && sheetInfo.gid != null ? sheetInfo.gid : null;
+    const url = gid !== null
+      ? `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${gid}`
+      : `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&sheet=${encoded}`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     const csv = await r.text();
     const isHtml = csv.trimStart().startsWith('<');
@@ -550,6 +555,8 @@ app.get('/api/writeoffs/debug', async (req, res) => {
     res.json({
       http_status: r.status,
       is_html: isHtml,
+      gid,
+      url_method: gid !== null ? 'gid' : 'name',
       csv_bytes: csv.length,
       row_count: lines.length,
       row_0: lines[0]?.substring(0, 120),
