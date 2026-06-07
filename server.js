@@ -378,12 +378,30 @@ function _extractGidsFromXlsx(buf) {
 }
 
 // Список листов таблицы
+let _woSheetListInFlight = null;
 async function fetchWoSheetList() {
   const now = Date.now();
   if (_woSheetListCache && (now - _woSheetListTs) < WO_LIST_TTL) return _woSheetListCache;
+  // Дедупликация: если уже идёт загрузка — ждём того же промиса
+  if (_woSheetListInFlight) return _woSheetListInFlight;
+  _woSheetListInFlight = _doFetchWoSheetList().finally(() => { _woSheetListInFlight = null; });
+  return _woSheetListInFlight;
+}
+async function _doFetchWoSheetList() {
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000); // 10 сек таймаут
     const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=xlsx`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    let r;
+    try {
+      r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
+      clearTimeout(timer);
+    } catch(e) {
+      clearTimeout(timer);
+      const reason = e.name === 'AbortError' ? 'timeout (>10s)' : e.message;
+      console.error('[WO] XLSX download failed:', reason);
+      return _woSheetListCache || [];
+    }
     if (!r.ok) {
       console.error('[WO] XLSX HTTP ' + r.status + ' — используем кэш или пустой список');
       return _woSheetListCache || [];
@@ -409,7 +427,7 @@ async function fetchWoSheetList() {
       gid: gidMap[n] != null ? gidMap[n] : null,
     }));
     console.log('[WO] Листы:', sheets.map(s => `${s.name}(gid=${s.gid})`).join(', '));
-    _woSheetListCache = sheets; _woSheetListTs = now;
+    _woSheetListCache = sheets; _woSheetListTs = Date.now();
     return sheets;
   } catch(e) {
     console.error('[WO] fetchWoSheetList error:', e.message);
