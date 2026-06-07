@@ -72,12 +72,18 @@ html.light .tab-nav{background:#FFFFFF;border-bottom-color:#C8CEDF}
 
 /* KPIS */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
-.kpi{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;position:relative;overflow:hidden;transition:background .25s,transform .2s,box-shadow .2s;box-shadow:var(--sh-sm)}
-.kpi:hover{transform:translateY(-2px);box-shadow:var(--sh-md)}
+.kpi{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.65) 0%,rgba(59,127,255,.1) 55%,rgba(6,182,212,.4) 100%) border-box;border:1.5px solid transparent;border-radius:20px;padding:18px;position:relative;overflow:hidden;transition:background .25s,transform .2s,box-shadow .2s;box-shadow:0 0 22px rgba(59,127,255,.1),0 0 2px rgba(59,127,255,.22),var(--sh-sm)}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 0 32px rgba(59,127,255,.18),0 0 4px rgba(59,127,255,.32),var(--sh-md)}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--acc),transparent);filter:blur(.5px)}
 .kpi.g::before{background:linear-gradient(90deg,transparent,var(--grn),transparent)}
 .kpi.w::before{background:linear-gradient(90deg,transparent,var(--warn),transparent)}
 .kpi.r::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.kpi.g{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(34,197,94,.65) 0%,rgba(34,197,94,.1) 55%,rgba(6,182,212,.4) 100%) border-box;box-shadow:0 0 22px rgba(34,197,94,.1),0 0 2px rgba(34,197,94,.22),var(--sh-sm)}
+.kpi.g:hover{box-shadow:0 0 32px rgba(34,197,94,.18),0 0 4px rgba(34,197,94,.32),var(--sh-md)}
+.kpi.w{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(245,158,11,.65) 0%,rgba(245,158,11,.1) 55%,rgba(251,146,60,.4) 100%) border-box;box-shadow:0 0 22px rgba(245,158,11,.1),0 0 2px rgba(245,158,11,.22),var(--sh-sm)}
+.kpi.w:hover{box-shadow:0 0 32px rgba(245,158,11,.18),0 0 4px rgba(245,158,11,.32),var(--sh-md)}
+.kpi.r{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(240,64,96,.65) 0%,rgba(240,64,96,.1) 55%,rgba(255,157,60,.4) 100%) border-box;box-shadow:0 0 22px rgba(240,64,96,.1),0 0 2px rgba(240,64,96,.22),var(--sh-sm)}
+.kpi.r:hover{box-shadow:0 0 32px rgba(240,64,96,.18),0 0 4px rgba(240,64,96,.32),var(--sh-md)}
 .kl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600}
 .kv{font-size:24px;font-weight:800;line-height:1;margin-bottom:4px;letter-spacing:-.02em}
 .ks{font-size:11px;color:var(--txt3);line-height:1.4}
@@ -102,9 +108,10 @@ html.light .tab-nav{background:#FFFFFF;border-bottom-color:#C8CEDF}
 
 /* CARDS */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:32px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;cursor:pointer;transition:all .2s;box-shadow:var(--sh-sm)}
-.card:hover{border-color:rgba(59,127,255,.35);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.2),0 0 0 1px rgba(59,127,255,.1)}
-.card.ld{border-left:3px solid var(--red)}.card.lw{border-left:3px solid var(--warn)}
+.card{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.45) 0%,rgba(59,127,255,.06) 55%,rgba(6,182,212,.28) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;cursor:pointer;transition:all .2s;box-shadow:0 0 18px rgba(59,127,255,.07),var(--sh-sm)}
+.card:hover{transform:translateY(-2px);box-shadow:0 0 28px rgba(59,127,255,.16),0 0 3px rgba(59,127,255,.28),0 8px 24px rgba(0,0,0,.2)}
+.card.ld{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(240,64,96,.65) 0%,rgba(240,64,96,.08) 55%,rgba(255,157,60,.35) 100%) border-box;box-shadow:0 0 18px rgba(240,64,96,.08),var(--sh-sm)}
+.card.lw{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(245,158,11,.65) 0%,rgba(245,158,11,.08) 55%,rgba(251,146,60,.35) 100%) border-box;box-shadow:0 0 18px rgba(245,158,11,.08),var(--sh-sm)}
 .ch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
 .cn{font-size:13px;font-weight:700;color:var(--txt)}
 .ct{font-size:16px;font-weight:800;font-family:'JetBrains Mono',monospace}
@@ -209,11 +216,16 @@ html.light .tab-nav{background:#FFFFFF;border-bottom-color:#C8CEDF}
 
 /* LIGHT OVERRIDES */
 html.light .status{background:#FFFFFF;border-color:var(--bd)}
-html.light .kpi{background:#FFFFFF;border-color:var(--bd)}
+html.light .kpi{background:linear-gradient(#FFFFFF,#FFFFFF) padding-box,linear-gradient(137deg,rgba(59,127,255,.55) 0%,rgba(59,127,255,.1) 55%,rgba(6,182,212,.35) 100%) border-box}
+html.light .kpi.g{background:linear-gradient(#FFFFFF,#FFFFFF) padding-box,linear-gradient(137deg,rgba(34,197,94,.55) 0%,rgba(34,197,94,.1) 55%,rgba(6,182,212,.35) 100%) border-box}
+html.light .kpi.w{background:linear-gradient(#FFFFFF,#FFFFFF) padding-box,linear-gradient(137deg,rgba(245,158,11,.55) 0%,rgba(245,158,11,.1) 55%,rgba(251,146,60,.35) 100%) border-box}
+html.light .kpi.r{background:linear-gradient(#FFFFFF,#FFFFFF) padding-box,linear-gradient(137deg,rgba(240,64,96,.55) 0%,rgba(240,64,96,.1) 55%,rgba(255,157,60,.35) 100%) border-box}
 html.light .kl{color:var(--txt3)}
 html.light .kv{color:var(--txt)}
 html.light .ks{color:var(--txt3)}
-html.light .card{background:#FFFFFF;border-color:var(--bd)}
+html.light .card{background:linear-gradient(#FFFFFF,#FFFFFF) padding-box,linear-gradient(137deg,rgba(59,127,255,.4) 0%,rgba(59,127,255,.06) 55%,rgba(6,182,212,.25) 100%) border-box}
+html.light .card.ld{background:linear-gradient(#FFFFFF,#FFFFFF) padding-box,linear-gradient(137deg,rgba(240,64,96,.55) 0%,rgba(240,64,96,.06) 55%,rgba(255,157,60,.3) 100%) border-box}
+html.light .card.lw{background:linear-gradient(#FFFFFF,#FFFFFF) padding-box,linear-gradient(137deg,rgba(245,158,11,.55) 0%,rgba(245,158,11,.06) 55%,rgba(251,146,60,.3) 100%) border-box}
 html.light .cn{color:var(--txt)}
 html.light .cm{color:var(--txt2)}
 html.light .cin{color:var(--txt2)}
@@ -602,13 +614,13 @@ body.sb-col .sidebar-btn.active::before{display:none}
   <!-- Два графика рядом -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px" id="overview-charts-row">
     <!-- Списания по дням -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0;overflow:hidden">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.4) 0%,rgba(59,127,255,.06) 55%,rgba(6,182,212,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0;overflow:hidden">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">📊 Динамика списаний</div>
       <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-wo-sub">—</div>
       <div class="dow-row" id="overview-wo-chart" style="height:70px;overflow-x:auto"></div>
     </div>
     <!-- Стопы по дням -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0;overflow:hidden">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.4) 0%,rgba(59,127,255,.06) 55%,rgba(6,182,212,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0;overflow:hidden">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">🚫 Динамика стопов</div>
       <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-stops-sub">—</div>
       <div class="dow-row" id="overview-stops-chart" style="height:70px;overflow-x:auto"></div>
@@ -618,21 +630,21 @@ body.sb-col .sidebar-btn.active::before{display:none}
   <!-- Топы рядом -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="overview-tops-row">
     <!-- Топ виновных по довозам -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.4) 0%,rgba(59,127,255,.06) 55%,rgba(6,182,212,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">⚠️ Виновные в довозах</div>
       <div id="overview-guilty" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите данные довозов</div>
       </div>
     </div>
     <!-- Топ стопов по продуктам -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.4) 0%,rgba(59,127,255,.06) 55%,rgba(6,182,212,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🚫 Топ стопов</div>
       <div id="overview-top-stops" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите данные стопов</div>
       </div>
     </div>
     <!-- Топ наценки -->
-    <div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;min-width:0">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(59,127,255,.4) 0%,rgba(59,127,255,.06) 55%,rgba(6,182,212,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">💰 Топ наценки</div>
       <div id="overview-top-margin" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите себестоимость</div>
