@@ -914,6 +914,130 @@ function parseProductionCsv(csv) {
   };
 }
 
+// parseProdGviz: парсит gviz-объект напрямую (без конвертации в CSV).
+// Исправляет проблему: gviz не возвращает название цеха в col8 строк-заголовков
+// детального раздела — используем порядковую привязку секций к цехам.
+function parseProdGviz(gviz, sheetName) {
+  const parseNum = s => {
+    if (s === null || s === undefined || s === '') return 0;
+    const n = parseFloat(String(s)
+      .replace(/ /g,'').replace(/ /g,'').replace(/\s/g,'')
+      .replace(',','.').replace(/[^\d.-]/g,''));
+    return isNaN(n) ? 0 : n;
+  };
+  const cellVal = cell => {
+    if (!cell || cell.v === null || cell.v === undefined) return '';
+    return String(cell.f != null ? cell.f : cell.v).trim();
+  };
+
+  const rows = (gviz.table && gviz.table.rows) || [];
+  const SKIP_COL0 = new Set(['Отделение','ФИО','']);
+
+  // ── 1. Сводный раздел: цехи + сотрудники ──────────────────────────────────
+  const depts = [];
+  let curDept = null;
+
+  for (let i = 0; i < rows.length; i++) {
+    const c = rows[i].c || [];
+    const col0 = cellVal(c[0]), col1 = cellVal(c[1]);
+    const col4 = cellVal(c[4]);
+
+    // Строка-заголовок детального раздела: col1="ФИО", col4="Должность"
+    // → сводный раздел закончился
+    if (col1 === 'ФИО' && col4 === 'Должность') break;
+
+    if (col0 && !SKIP_COL0.has(col0)) {
+      curDept = {
+        name:         col0,
+        pay_dept:     parseNum(cellVal(c[7])),
+        output_units: parseNum(cellVal(c[8])),
+        fot_per_unit: parseNum(cellVal(c[9])),
+        staff:        [],
+      };
+      depts.push(curDept);
+    }
+    if (curDept && col1 && col1 !== '-' && !SKIP_COL0.has(col1)) {
+      const hours = parseNum(cellVal(c[5])), pay = parseNum(cellVal(c[6]));
+      if (hours > 0 || pay > 0)
+        curDept.staff.push({ fio:col1, hours, pay, rate:parseNum(cellVal(c[4])) });
+    }
+  }
+
+  if (!depts.length) return null;
+
+  // ── 2. Детальный раздел: продукты по цехам ────────────────────────────────
+  // Находим индексы всех строк-заголовков (col1="ФИО", col4="Должность")
+  const fioHeaderIdx = [];
+  for (let i = 0; i < rows.length; i++) {
+    const c = rows[i].c || [];
+    if (cellVal(c[1]) === 'ФИО' && cellVal(c[4]) === 'Должность')
+      fioHeaderIdx.push(i);
+  }
+
+  // Порядковая привязка: fioHeaderIdx[k] → depts[k]
+  const productsByDept = {};
+  depts.forEach(d => { productsByDept[d.name] = []; });
+
+  fioHeaderIdx.forEach((startIdx, k) => {
+    if (k >= depts.length) return;
+    const deptName = depts[k].name;
+    const endIdx = (k + 1 < fioHeaderIdx.length) ? fioHeaderIdx[k + 1] : rows.length;
+
+    for (let i = startIdx + 1; i < endIdx; i++) {
+      const c = rows[i].c || [];
+      const prodName = cellVal(c[9]), unit = cellVal(c[10]);
+      const factRaw  = cellVal(c[11]);
+      const hrsRaw   = cellVal(c[13]);
+      if (!prodName || prodName === 'Наименование' ||
+          prodName.toLowerCase() === 'итог' || !unit) continue;
+      productsByDept[deptName].push({
+        name:        prodName,
+        unit,
+        fact:        parseNum(factRaw),
+        hrs_per_unit:parseNum(hrsRaw),
+      });
+    }
+  });
+
+  // ── 3. Собираем финальную структуру ───────────────────────────────────────
+  const deptsResult = depts.map(d => {
+    const products = productsByDept[d.name] || [];
+    const totalHrs = products.reduce((s,p) => s + p.hrs_per_unit * p.fact, 0);
+    const fotPerUnit = d.output_units > 0
+      ? Math.round(d.pay_dept / d.output_units * 100) / 100 : 0;
+    const productsWithFot = products.map(p => {
+      const fot_per_unit = (p.hrs_per_unit > 0 && totalHrs > 0 && d.pay_dept > 0)
+        ? Math.round(d.pay_dept / totalHrs * p.hrs_per_unit * 100) / 100 : 0;
+      return { ...p, fot_per_unit };
+    });
+    return {
+      name:            d.name,
+      pay_dept:        Math.round(d.pay_dept),
+      output_units:    Math.round(d.output_units * 100) / 100,
+      fot_per_unit:    fotPerUnit,
+      staff_count:     d.staff.length,
+      total_hours:     Math.round(d.staff.reduce((s,e) => s + e.hours, 0) * 10) / 10,
+      staff:           d.staff,
+      products:        productsWithFot,
+      active_products: productsWithFot.filter(p => p.fact > 0).length,
+    };
+  });
+
+  const totalFot   = deptsResult.reduce((s,d) => s + d.pay_dept, 0);
+  const totalUnits = deptsResult.reduce((s,d) => s + d.output_units, 0);
+  return {
+    meta: {
+      sheet:          sheetName || 'Производство',
+      created_at:     new Date().toISOString().slice(0, 10),
+      total_fot:      totalFot,
+      total_units:    Math.round(totalUnits * 100) / 100,
+      fot_per_unit_avg: totalUnits > 0 ? Math.round(totalFot / totalUnits * 100) / 100 : 0,
+      depts_count:    deptsResult.filter(d => d.pay_dept > 0 || d.output_units > 0).length,
+    },
+    depts: deptsResult,
+  };
+}
+
 // ── Производство: мульти-лист (новый лист = новый период) ────────────────────
 
 async function fetchProdSheetList() {
@@ -985,23 +1109,8 @@ async function fetchProdSheetData(sheetName, noCache = false) {
     const errMsg = (gviz.errors && gviz.errors[0] && gviz.errors[0].message) || String(gviz.status);
     throw new Error(`gviz error: ${errMsg} (лист: "${sheetName}")`);
   }
-  const gvizCols = (gviz.table && gviz.table.cols) || [];
-  const gvizRows = (gviz.table && gviz.table.rows) || [];
-  const csvEsc = v => (/[,"\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
-  const csvLines = gvizRows.map(row => {
-    const c = row.c || [];
-    return gvizCols.map((_, i) => {
-      const cell = c[i];
-      if (!cell || cell.v === null || cell.v === undefined) return '';
-      const v = cell.f != null ? cell.f : String(cell.v);
-      return csvEsc(v);
-    }).join(',');
-  });
-  const header = gvizCols.map(c => csvEsc(c.label || '')).join(',');
-  const csv = [header, ...csvLines].join('\n');
 
-  const parsed = parseProductionCsv(csv);
-  if (parsed && parsed.meta) parsed.meta.sheet = sheetName;
+  const parsed = parseProdGviz(gviz, sheetName);
   console.log(`[PROD] Лист "${sheetName}": ${parsed ? parsed.depts.length : 0} цехов, ФОТ ${parsed ? parsed.meta.total_fot : 0}`);
   if (parsed && parsed.depts && parsed.depts.length > 0) {
     _prodSheetCache[sheetName] = { data: parsed, ts: now };
