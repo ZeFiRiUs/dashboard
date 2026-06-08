@@ -1303,11 +1303,55 @@ function saveSebesSheets(sheets) {
   _sebesSheetsCacheTs = 0;
 }
 
+let _sebesSheetListInFlight = null;
+
 async function discoverSebesSheets() {
   const now = Date.now();
   if (_sebesSheetsCache && (now - _sebesSheetsCacheTs) < SEBES_SHEETS_TTL) return _sebesSheetsCache;
+  if (_sebesSheetListInFlight) return _sebesSheetListInFlight;
+  _sebesSheetListInFlight = _doDiscoverSebesSheets().finally(() => { _sebesSheetListInFlight = null; });
+  return _sebesSheetListInFlight;
+}
+
+async function _doDiscoverSebesSheets() {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    const xlsxUrl = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=xlsx`;
+    let r;
+    try {
+      r = await fetch(xlsxUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
+      clearTimeout(timer);
+    } catch(e) {
+      clearTimeout(timer);
+      console.warn('[SEBES] XLSX download failed:', e.name === 'AbortError' ? 'timeout' : e.message);
+      return _fallbackSebesSheets();
+    }
+    if (!r.ok) { console.warn('[SEBES] XLSX HTTP', r.status); return _fallbackSebesSheets(); }
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf[0] !== 0x50 || buf[1] !== 0x4B) { console.warn('[SEBES] XLSX не ZIP'); return _fallbackSebesSheets(); }
+    const XLSX = require('xlsx');
+    let wb;
+    try { wb = XLSX.read(buf, { type: 'buffer', bookSheets: true }); }
+    catch(e) { console.warn('[SEBES] XLSX.read failed:', e.message); return _fallbackSebesSheets(); }
+    const sheets = wb.SheetNames
+      .filter(n => parseSheetDate(n) !== null)
+      .sort((a, b) => parseSheetDate(a) - parseSheetDate(b))
+      .map(n => ({ name: n, gid: null }));
+    console.log('[SEBES] Листы из XLSX:', sheets.map(s => s.name).join(', '));
+    _sebesSheetsCache = sheets; _sebesSheetsCacheTs = Date.now();
+    return sheets;
+  } catch(e) {
+    console.error('[SEBES] discoverSebesSheets error:', e.message);
+    return _fallbackSebesSheets();
+  }
+}
+
+function _fallbackSebesSheets() {
   const sheets = readSebesSheets();
-  _sebesSheetsCache = sheets; _sebesSheetsCacheTs = now;
+  if (sheets.length) {
+    _sebesSheetsCache = sheets; _sebesSheetsCacheTs = Date.now();
+  }
   return sheets;
 }
 
@@ -1403,7 +1447,7 @@ app.get('/api/sebes/csv', async (req, res) => {
     // Скачиваем все листы
     const sheetData = [];
     for (const sheet of sheets) {
-      const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+      const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
       const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
       if (!r.ok) { console.warn(`Sheet ${sheet.name} HTTP ${r.status}`); continue; }
       const csv = await r.text();
@@ -1505,7 +1549,7 @@ app.post('/api/sebes/sync', async (req, res) => {
 
     const sheetData = [];
     for (const sheet of sheets) {
-      const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+      const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
       const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
       if (!r.ok) { console.warn(`Sheet ${sheet.name} HTTP ${r.status}`); continue; }
       const csv = await r.text();
@@ -1601,10 +1645,7 @@ app.get('/api/sebes/sheet', async (req, res) => {
     return res.json(_sebesSheetCache[name].data);
   }
   try {
-    const allSheets = await discoverSebesSheets();
-    const sheet = allSheets.find(s => s.name === name);
-    if (!sheet) return res.status(404).json({ error: `Sheet "${name}" not found` });
-    const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+    const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(name)}`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const csv = await r.text();
