@@ -591,7 +591,18 @@ async function fetchWoData(sheetName, noCache=false) {
   const header = gvizCols.map(c => csvEsc(c.label || '')).join(',');
   const csv = [header, ...csvLines].join('\n');
   console.log(`[WO] gviz "${sheetName}": строк ${gvizRows.length}, первая="${csvLines[0]?.substring(0,80)}"`);
-  const parsed = parseWoSheet(csv, sheetName);
+
+  // gviz объединяет 2 строки заголовка в label колонки A:
+  //   строка 1 = тип колонки ("Структурная единица Номенклатура")
+  //   строка 2 = имя первого склада ("Авто склад")
+  // → items до первого B=null заголовка принадлежат этому складу, но parseWoSheet их пропускал
+  const colALabel = (gvizCols[0] && gvizCols[0].label) || '';
+  const initialWhMatch = colALabel.match(/Номенклатура\s+(.+)/);
+  const initialWh = initialWhMatch ? initialWhMatch[1].trim() : null;
+  if (initialWh) console.log(`[WO] Первый склад из gviz label: "${initialWh}"`);
+  const csvFinal = initialWh ? (csvEsc(initialWh) + '\n' + csv) : csv;
+
+  const parsed = parseWoSheet(csvFinal, sheetName);
   console.log(`[WO] Лист "${sheetName}": распарсено ${parsed ? parsed.meta.records : 0} записей, ${parsed ? parsed.by_point.length : 0} точек`);
   if (parsed) {
     _woSheetCache[sheetName] = { data: parsed, ts: now };
