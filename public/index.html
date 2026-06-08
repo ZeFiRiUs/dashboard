@@ -594,10 +594,10 @@ html.light .ov{background:rgba(15,28,48,.42)}
 /* Focus ring */
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid rgba(255,223,0,.5);outline-offset:2px}
 
-.wo-pill{background:transparent;border:1px solid var(--bd);border-radius:20px;padding:5px 14px;color:var(--txt2);font-size:12px;font-weight:600;font-family:Manrope,sans-serif;cursor:pointer;transition:border-color .15s,color .15s,background .15s;white-space:nowrap;line-height:1.4}
-.wo-pill:hover{border-color:var(--acc);color:var(--txt)}
-.wo-pill-active{background:var(--acc);border-color:var(--acc);color:#000;font-weight:700;box-shadow:0 2px 10px rgba(255,223,0,.3)}
-html.light .wo-pill{border-color:var(--bd);color:var(--txt2)}
+.wo-pill,.prod-pill{background:transparent;border:1px solid var(--bd);border-radius:20px;padding:5px 14px;color:var(--txt2);font-size:12px;font-weight:600;font-family:Manrope,sans-serif;cursor:pointer;transition:border-color .15s,color .15s,background .15s;white-space:nowrap;line-height:1.4}
+.wo-pill:hover,.prod-pill:hover{border-color:var(--acc);color:var(--txt)}
+.wo-pill-active,.prod-pill-active{background:var(--acc);border-color:var(--acc);color:#000;font-weight:700;box-shadow:0 2px 10px rgba(255,223,0,.3)}
+html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt2)}
 </style>
 </head>
 <body>
@@ -1019,16 +1019,16 @@ html.light .wo-pill{border-color:var(--bd);color:var(--txt2)}
       <div class="sdot ok" id="prod-sdot"></div>
       <span>Производство<span id="prod-period-label"></span></span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button id="prod-sync-btn" class="btn btn-acc" onclick="syncProductionFromSheets()">&#8635; Обновить</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;overflow-x:auto">
+      <div id="prod-period-pills" style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap"></div>
+      <button id="prod-sync-btn" class="btn btn-acc" onclick="syncProductionFromSheets()" style="flex-shrink:0;white-space:nowrap">&#8635; Обновить</button>
       <span id="prod-sync-msg" style="font-size:11px;color:var(--grn)"></span>
     </div>
   </div>
   <div id="prod-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
     <div style="font-size:48px;margin-bottom:16px;opacity:.3">&#127981;</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные не загружены</div>
-    <div style="font-size:13px;margin-bottom:24px">&#171;Основной расчёт&#187; из Google Sheets</div>
-    <button class="btn btn-acc" onclick="loadProductionLive()">Загрузить</button>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Выберите период</div>
+    <div style="font-size:13px">Данные загружаются из Google Sheets</div>
   </div>
   <div id="prod-data-wrap" style="display:none">
     <div id="prod-dept-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:20px"></div>
@@ -1650,6 +1650,51 @@ function openDelModal(idx){
 
 // ══ PRODUCTION ═════════════════════════════════════════════════════════════
 let PROD_DATA = null, PROD_ACTIVE_DEPT = null;
+let PROD_SHEETS_LIST = null, _prodActiveSheet = null;
+
+async function loadProdSheetList(force) {
+  try {
+    const url = '/api/production/sheets' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, { headers: { 'X-View-Password': sessionPassword } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const sheets = await r.json();
+    PROD_SHEETS_LIST = sheets;
+    renderProdPeriodPills(sheets);
+    if (sheets.length && !_prodActiveSheet) {
+      await loadProdSheet(sheets[sheets.length - 1].name);
+    }
+  } catch(e) { console.error('loadProdSheetList:', e); }
+}
+
+function renderProdPeriodPills(sheets) {
+  const container = document.getElementById('prod-period-pills');
+  if (!container) return;
+  container.innerHTML = (sheets || []).map(s =>
+    '<button class="prod-pill' + (s.name === _prodActiveSheet ? ' prod-pill-active' : '') + '"'
+    + ' data-name="' + s.name + '"'
+    + ' onclick="loadProdSheet(\'' + s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">'
+    + s.label + '</button>'
+  ).join('');
+}
+
+async function loadProdSheet(sheetName) {
+  _prodActiveSheet = sheetName;
+  renderProdPeriodPills(PROD_SHEETS_LIST || []);
+  const sdot = document.getElementById('prod-sdot');
+  if (sdot) sdot.className = 'sdot spin';
+  try {
+    const r = await fetch('/api/production/sheet?name=' + encodeURIComponent(sheetName),
+      { headers: { 'X-View-Password': sessionPassword } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (data && data.meta) { applyProductionData(data); return; }
+    throw new Error('Нет данных');
+  } catch(e) {
+    if (sdot) sdot.className = 'sdot warn';
+    console.error('loadProdSheet:', e);
+    renderProduction();
+  }
+}
 
 async function loadProductionFromServer() {
   const sdot = document.getElementById('prod-sdot');
@@ -1688,13 +1733,9 @@ async function syncProductionFromSheets() {
   if (btn) btn.disabled = true;
   if (msg) msg.textContent = '\u29d0 \u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...';
   try {
-    const r = await fetch('/api/production/csv?nocache=1', { headers: { 'X-View-Password': sessionPassword } });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    if (!data || !data.meta) throw new Error('\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445');
-    applyProductionData(data);
+    await loadProdSheetList(true);
+    if (_prodActiveSheet) await loadProdSheet(_prodActiveSheet);
     if (msg) { msg.textContent = '\u2705 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e'; setTimeout(() => msg.textContent = '', 4000); }
-    if (adminPw) fetch('/api/production/sync', { method:'POST', headers:{'X-Admin-Password':adminPw} }).catch(()=>{});
   } catch(e) {
     if (msg) { msg.textContent = '\u274c ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
   } finally { if (btn) btn.disabled = false; }
@@ -1705,7 +1746,10 @@ function applyProductionData(data) {
   const sdot = document.getElementById('prod-sdot');
   if (sdot) sdot.className = 'sdot ok';
   const lbl = document.getElementById('prod-period-label');
-  if (lbl) lbl.innerHTML = ' \xb7 <b style="color:var(--txt)">' + (data.meta.created_at || '') + '</b>';
+  if (lbl) {
+    const period = (data.meta && (data.meta.sheet || data.meta.created_at)) || '';
+    lbl.innerHTML = period ? ' \xb7 <b style="color:var(--txt)">' + period + '</b>' : '';
+  }
   renderProduction();
 }
 
@@ -2342,8 +2386,8 @@ function switchTab(tab,btn){
     else renderDeliveries();
   }
   if(tab==='production'){
-    if(!PROD_DATA){ loadProductionFromServer().then(ok=>{ if(!ok) renderProduction(); }); }
-    else renderProduction();
+    loadProdSheetList();
+    if(PROD_DATA) renderProduction();
   }
   if(tab==='sebes'){
     if(!SEBES_DATA) loadSebesFromServer().then(ok=>{ if(!ok) renderSebes(); });
