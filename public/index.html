@@ -891,13 +891,14 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
   </div>
 
   <!-- Empty state -->
-  <div id="stops-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
-    <div style="font-size:48px;margin-bottom:16px;opacity:.3">🚫</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные стоп-листов не загружены</div>
-    <div style="font-size:13px;margin-bottom:24px">Загрузите JSON-файл со стоп-листами чтобы увидеть аналитику</div>
-    <button class="btn btn-acc" onclick="document.getElementById('stops-json-up').click()" style="margin:0 auto;padding:10px 24px;font-size:13px">
-      ⬆ Загрузить JSON-файл
-    </button>
+  <div id="stops-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center">
+    <div style="width:72px;height:72px;border-radius:20px;background:rgba(242,141,41,.1);border:1px solid rgba(242,141,41,.2);display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:24px">🚫</div>
+    <div style="font-size:18px;font-weight:700;color:var(--txt);margin-bottom:8px">Данные стоп-листов не загружены</div>
+    <div style="font-size:13px;color:var(--txt3);margin-bottom:28px;max-width:340px;line-height:1.6">Синхронизируйте данные из Google Sheets или загрузите JSON-файл со стоп-листами</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <button class="btn btn-acc" onclick="loadStopsFromSheets(true)" style="padding:10px 22px;font-size:13px">&#8635; Синхронизировать</button>
+      <button class="btn" onclick="document.getElementById('stops-json-up').click()" style="padding:10px 22px;font-size:13px">⬆ Загрузить JSON</button>
+    </div>
   </div>
 
   <!-- Periods tabs (hidden until data loaded) -->
@@ -910,7 +911,6 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <select id="stops-date-to" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
       <select id="stops-point-filter" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все точки</option></select>
       <button class="fbtn" onclick="resetStopsFilter()">✕ Сбросить</button>
-    </div>
     </div>
   <div id="stops-kpis" class="kpis"></div>
   <div class="stops-charts-row" style="display:flex;gap:16px;margin-bottom:24px;align-items:stretch">
@@ -967,10 +967,11 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <button class="btn btn-acc" onclick="loadDeliveriesFromSheets(true)">&#8635; Обновить</button>
     </div>
   </div>
-  <div id="del-empty" style="text-align:center;padding:60px 20px;color:var(--txt3)">
-    <div style="font-size:48px;margin-bottom:16px;opacity:.3">🚚</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--txt2)">Данные довозов не загружены</div>
-    <div style="font-size:13px;margin-bottom:24px">Загрузите JSON через «Управление»</div>
+  <div id="del-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center">
+    <div style="width:72px;height:72px;border-radius:20px;background:rgba(152,194,30,.1);border:1px solid rgba(152,194,30,.2);display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:24px">🚚</div>
+    <div style="font-size:18px;font-weight:700;color:var(--txt);margin-bottom:8px">Данные довозов не загружены</div>
+    <div style="font-size:13px;color:var(--txt3);margin-bottom:28px;max-width:340px;line-height:1.6">Синхронизируйте данные из Google Sheets или загрузите JSON-файл через раздел «Управление»</div>
+    <button class="btn btn-acc" onclick="loadDeliveriesFromSheets(true)" style="padding:10px 22px;font-size:13px">&#8635; Синхронизировать</button>
   </div>
   <div id="del-data-wrap" style="display:none">
     <div id="del-kpis" class="kpis" style="margin-bottom:20px"></div>
