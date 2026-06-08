@@ -723,7 +723,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <div class="sdot ok" id="overview-sdot"></div>
       <span id="overview-updated">Загрузка данных...</span>
     </div>
-    <button class="btn btn-acc" onclick="_renderOverviewSections()">&#8635; Обновить</button>
+    <button class="btn btn-acc" onclick="WO_SUMMARY=null;renderOverview()">&#8635; Обновить</button>
   </div>
   <!-- Заголовок -->
   <div style="margin-bottom:24px">
@@ -735,11 +735,11 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
 
   <!-- Два графика рядом -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px" id="overview-charts-row">
-    <!-- Списания по дням -->
+    <!-- Списания — топ точек -->
     <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.4) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0;overflow:hidden">
-      <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">📊 Динамика списаний</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">📊 Топ списаний по точкам</div>
       <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-wo-sub">—</div>
-      <div class="dow-row" id="overview-wo-chart" style="height:70px;overflow-x:auto"></div>
+      <div id="overview-wo-chart"></div>
     </div>
     <!-- Стопы по дням -->
     <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.4) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0;overflow:hidden">
@@ -750,7 +750,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
   </div>
 
   <!-- Топы рядом -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="overview-tops-row">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px" id="overview-tops-row">
     <!-- Топ виновных по довозам -->
     <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.4) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">⚠️ Виновные в довозах</div>
@@ -763,13 +763,6 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🚫 Топ стопов</div>
       <div id="overview-top-stops" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите данные стопов</div>
-      </div>
-    </div>
-    <!-- Топ наценки -->
-    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.4) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
-      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">💰 Топ наценки</div>
-      <div id="overview-top-margin" style="display:flex;flex-direction:column;gap:6px">
-        <div style="color:var(--txt3);font-size:12px">Загрузите себестоимость</div>
       </div>
     </div>
   </div>
@@ -3683,23 +3676,26 @@ function _renderOverviewSections(){
 function _renderOverviewCharts(){
   const monoSt='font-family:JetBrains Mono,monospace';
 
-  // Списания по дням — из WO_RAW_DATA или writeoffs_index
-  const woDates = (window.WO_RAW_DATA&&WO_RAW_DATA.meta) ? WO_RAW_DATA.meta.all_dates : null;
+  // Списания — топ точек из WO_SUMMARY.by_point
   const woEl = document.getElementById('overview-wo-chart');
   const woSub = document.getElementById('overview-wo-sub');
-  if(woEl && woDates && woDates.length){
-    const maxT = Math.max(...woDates.map(d=>d.total));
-    if(woSub) woSub.textContent = woDates[0].d+' — '+woDates[woDates.length-1].d+' · '+woDates.length+' дней';
-    woEl.innerHTML = woDates.map(function(d){
-      const h = Math.max(6,Math.round(d.total/maxT*55));
-      const isWE=d.dow==='Сб'||d.dow==='Вс';
-      const clr = d.total===maxT?'var(--red)':isWE?'var(--warn)':'var(--acc)';
-      return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.total.toLocaleString('ru-RU')+' ₽">'
-        +'<div class="dow-val" style="font-size:8px">'+Math.round(d.total/1000)+'k</div>'
-        +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
-        +'<div class="dow-lbl">'+(d.d?d.d.slice(0,5):d.d)+'</div>'
-        +'<div class="dow-dow">'+d.dow+'</div></div>';
-    }).join('');
+  const woPoints = (window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length) ? WO_SUMMARY.by_point : null;
+  if(woEl && woPoints){
+    const top = woPoints.slice(0,8);
+    const maxT = top[0].total;
+    if(woSub) woSub.textContent = 'Топ точек · '+woPoints.length+' всего';
+    woEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:5px;width:100%">'
+      +top.map(function(p,i){
+        const w = Math.max(6, Math.round(p.total/maxT*100));
+        const clr = i===0?'var(--red)':i<3?'var(--warn)':'var(--acc)';
+        const nm = p.name.length>22 ? p.name.substring(0,21)+'…' : p.name;
+        return '<div style="display:flex;align-items:center;gap:8px">'
+          +'<span style="font-size:10px;color:var(--txt3);width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+p.name+'">'+nm+'</span>'
+          +'<div style="flex:1;background:var(--bd);border-radius:2px;height:4px"><div style="height:4px;border-radius:2px;background:'+clr+';width:'+w+'%"></div></div>'
+          +'<span style="font-size:10px;font-weight:700;color:'+clr+';'+monoSt+';width:50px;text-align:right;flex-shrink:0">'+Math.round(p.total/1000)+'k</span>'
+          +'</div>';
+      }).join('')
+      +'</div>';
   } else if(woEl){
     woEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
   }
@@ -3770,32 +3766,17 @@ function _renderOverviewTops(){
     }).join('');
   }
 
-  // Топ наценки
-  const tmEl=document.getElementById('overview-top-margin');
-  if(tmEl && SEBES_DATA && SEBES_DATA.top_margin){
-    const top=SEBES_DATA.top_margin.slice(0,7);
-    const maxM=top.length?top[0].markup:1;
-    tmEl.innerHTML=top.map(function(it,i){
-      const nm=it.name.length>28?it.name.substring(0,27)+'…':it.name;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
-        +'<span style="font-size:11px;flex:1;color:var(--txt)" title="'+it.name+'">'+nm+'</span>'
-        +'<div style="width:40px;background:var(--bd);border-radius:2px;height:3px;flex-shrink:0"><div style="height:3px;border-radius:2px;background:var(--grn);width:'+Math.round(it.markup/maxM*100)+'%"></div></div>'
-        +'<span style="font-size:12px;font-weight:800;color:var(--grn);'+monoSt+';width:45px;text-align:right">'+it.markup+'%</span>'
-        +'</div>';
-    }).join('');
-  }
 }
 
 function _renderOverviewAlerts(){
   const alerts=[];
 
-  // Склады с критичными списаниями
-  if(periods&&periods.length){
-    const p=periods[0];
-    const crit=p.warehouses.filter(w=>w.total>100000);
+  // Точки с критичными списаниями
+  if(window.WO_SUMMARY && WO_SUMMARY.by_point && WO_SUMMARY.by_point.length){
+    const crit=WO_SUMMARY.by_point.filter(function(p){return p.total>100000;});
     if(crit.length) alerts.push({
       type:'danger',icon:'📊',
-      text:'Критичные списания: '+crit.map(w=>w.name+' ('+Math.round(w.total/1000)+'k ₽)').join(', ')
+      text:'Критичные списания: '+crit.slice(0,5).map(function(p){return p.name+' ('+Math.round(p.total/1000)+'k ₽)';}).join(', ')
     });
   }
 
@@ -5023,23 +5004,26 @@ function _renderOverviewSections(){
 function _renderOverviewCharts(){
   const monoSt='font-family:JetBrains Mono,monospace';
 
-  // Списания по дням — из WO_RAW_DATA или writeoffs_index
-  const woDates = (window.WO_RAW_DATA&&WO_RAW_DATA.meta) ? WO_RAW_DATA.meta.all_dates : null;
+  // Списания — топ точек из WO_SUMMARY.by_point
   const woEl = document.getElementById('overview-wo-chart');
   const woSub = document.getElementById('overview-wo-sub');
-  if(woEl && woDates && woDates.length){
-    const maxT = Math.max(...woDates.map(d=>d.total));
-    if(woSub) woSub.textContent = woDates[0].d+' — '+woDates[woDates.length-1].d+' · '+woDates.length+' дней';
-    woEl.innerHTML = woDates.map(function(d){
-      const h = Math.max(6,Math.round(d.total/maxT*55));
-      const isWE=d.dow==='Сб'||d.dow==='Вс';
-      const clr = d.total===maxT?'var(--red)':isWE?'var(--warn)':'var(--acc)';
-      return '<div class="dow-col" style="min-width:30px" title="'+d.d+': '+d.total.toLocaleString('ru-RU')+' ₽">'
-        +'<div class="dow-val" style="font-size:8px">'+Math.round(d.total/1000)+'k</div>'
-        +'<div class="dow-bar" style="height:'+h+'px;background:'+clr+'"></div>'
-        +'<div class="dow-lbl">'+(d.d?d.d.slice(0,5):d.d)+'</div>'
-        +'<div class="dow-dow">'+d.dow+'</div></div>';
-    }).join('');
+  const woPoints = (window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length) ? WO_SUMMARY.by_point : null;
+  if(woEl && woPoints){
+    const top = woPoints.slice(0,8);
+    const maxT = top[0].total;
+    if(woSub) woSub.textContent = 'Топ точек · '+woPoints.length+' всего';
+    woEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:5px;width:100%">'
+      +top.map(function(p,i){
+        const w = Math.max(6, Math.round(p.total/maxT*100));
+        const clr = i===0?'var(--red)':i<3?'var(--warn)':'var(--acc)';
+        const nm = p.name.length>22 ? p.name.substring(0,21)+'…' : p.name;
+        return '<div style="display:flex;align-items:center;gap:8px">'
+          +'<span style="font-size:10px;color:var(--txt3);width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+p.name+'">'+nm+'</span>'
+          +'<div style="flex:1;background:var(--bd);border-radius:2px;height:4px"><div style="height:4px;border-radius:2px;background:'+clr+';width:'+w+'%"></div></div>'
+          +'<span style="font-size:10px;font-weight:700;color:'+clr+';'+monoSt+';width:50px;text-align:right;flex-shrink:0">'+Math.round(p.total/1000)+'k</span>'
+          +'</div>';
+      }).join('')
+      +'</div>';
   } else if(woEl){
     woEl.innerHTML='<div style="color:var(--txt3);font-size:12px;padding:8px">Нет данных</div>';
   }
@@ -5110,32 +5094,17 @@ function _renderOverviewTops(){
     }).join('');
   }
 
-  // Топ наценки
-  const tmEl=document.getElementById('overview-top-margin');
-  if(tmEl && SEBES_DATA && SEBES_DATA.top_margin){
-    const top=SEBES_DATA.top_margin.slice(0,7);
-    const maxM=top.length?top[0].markup:1;
-    tmEl.innerHTML=top.map(function(it,i){
-      const nm=it.name.length>28?it.name.substring(0,27)+'…':it.name;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
-        +'<span style="font-size:11px;flex:1;color:var(--txt)" title="'+it.name+'">'+nm+'</span>'
-        +'<div style="width:40px;background:var(--bd);border-radius:2px;height:3px;flex-shrink:0"><div style="height:3px;border-radius:2px;background:var(--grn);width:'+Math.round(it.markup/maxM*100)+'%"></div></div>'
-        +'<span style="font-size:12px;font-weight:800;color:var(--grn);'+monoSt+';width:45px;text-align:right">'+it.markup+'%</span>'
-        +'</div>';
-    }).join('');
-  }
 }
 
 function _renderOverviewAlerts(){
   const alerts=[];
 
-  // Склады с критичными списаниями
-  if(periods&&periods.length){
-    const p=periods[0];
-    const crit=p.warehouses.filter(w=>w.total>100000);
+  // Точки с критичными списаниями
+  if(window.WO_SUMMARY && WO_SUMMARY.by_point && WO_SUMMARY.by_point.length){
+    const crit=WO_SUMMARY.by_point.filter(function(p){return p.total>100000;});
     if(crit.length) alerts.push({
       type:'danger',icon:'📊',
-      text:'Критичные списания: '+crit.map(w=>w.name+' ('+Math.round(w.total/1000)+'k ₽)').join(', ')
+      text:'Критичные списания: '+crit.slice(0,5).map(function(p){return p.name+' ('+Math.round(p.total/1000)+'k ₽)';}).join(', ')
     });
   }
 
