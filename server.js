@@ -1421,6 +1421,45 @@ function parseSebesSheet(csv, periodLabel) {
   return map;
 }
 
+function parseSebesGviz(gviz, periodLabel) {
+  const rows = (gviz.table && gviz.table.rows) || [];
+  const SKIP = new Set(['итого', '', 'nan', 'наименование', 'номенклатура']);
+  const map = {};
+  for (const row of rows) {
+    const c = row.c || [];
+    const rawCell = c[0];
+    if (!rawCell || rawCell.v === null || rawCell.v === undefined) continue;
+    const raw = String(rawCell.f != null ? rawCell.f : rawCell.v).trim();
+    if (!raw || SKIP.has(raw.toLowerCase())) continue;
+    const catCell = c[1];
+    const cat = catCell && catCell.v ? String(catCell.f != null ? catCell.f : catCell.v).trim() || 'Прочее' : 'Прочее';
+    const costCell = c[2];
+    let cost = null;
+    if (costCell && costCell.v !== null && costCell.v !== undefined) {
+      const v = typeof costCell.v === 'number' ? costCell.v : parseFloat(String(costCell.f ?? costCell.v).replace(',','.').replace(/\s/g,''));
+      if (!isNaN(v)) cost = Math.round(v * 100) / 100;
+    }
+    const nameUnitM = raw.match(/^(.+?),\s*(порц|шт|л|кг|мл|г)\.?\s*$/i);
+    const name = nameUnitM ? nameUnitM[1].trim() : raw;
+    const unit = nameUnitM ? nameUnitM[2] : 'порц';
+    if (name) map[name] = { cost, cat, unit, period: periodLabel };
+  }
+  console.log(`[SEBES] gviz лист ${periodLabel}: ${Object.keys(map).length} позиций`);
+  return map;
+}
+
+async function fetchSebesGviz(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!r.ok) throw new Error(`gviz HTTP ${r.status} для листа "${sheetName}"`);
+  const txt = await r.text();
+  const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+  if (s < 0 || e < 0) throw new Error(`gviz: не JSON для листа "${sheetName}"`);
+  const gviz = JSON.parse(txt.slice(s, e + 1));
+  if (gviz.status !== 'ok') throw new Error(`gviz error: ${(gviz.errors && gviz.errors[0] && gviz.errors[0].message) || gviz.status}`);
+  return gviz;
+}
+
 let _sebesCsvCache = null;
 let _sebesCsvCacheTs = 0;
 const SEBES_CSV_CACHE_TTL = 5 * 60 * 1000;
@@ -1444,15 +1483,14 @@ app.get('/api/sebes/csv', async (req, res) => {
     if (!sheets.length) throw new Error('Нет листов с датой в названии (ожидается формат ДД.ММ)');
     console.log(`Sebes: загружаем ${sheets.length} листов:`, sheets.map(s => s.name).join(', '));
 
-    // Скачиваем все листы
+    // Скачиваем все листы через gviz
     const sheetData = [];
     for (const sheet of sheets) {
-      const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
-      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-      if (!r.ok) { console.warn(`Sheet ${sheet.name} HTTP ${r.status}`); continue; }
-      const csv = await r.text();
-      const map = parseSebesSheet(csv, sheet.name);
-      if (Object.keys(map).length) sheetData.push({ label: sheet.name, map });
+      try {
+        const gviz = await fetchSebesGviz(sheet.name);
+        const map = parseSebesGviz(gviz, sheet.name);
+        if (Object.keys(map).length) sheetData.push({ label: sheet.name, map });
+      } catch(e) { console.warn(`[SEBES] Лист "${sheet.name}" ошибка:`, e.message); }
     }
 
     if (!sheetData.length) throw new Error('Не удалось загрузить ни одного листа');
@@ -1549,12 +1587,11 @@ app.post('/api/sebes/sync', async (req, res) => {
 
     const sheetData = [];
     for (const sheet of sheets) {
-      const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
-      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-      if (!r.ok) { console.warn(`Sheet ${sheet.name} HTTP ${r.status}`); continue; }
-      const csv = await r.text();
-      const map = parseSebesSheet(csv, sheet.name);
-      if (Object.keys(map).length) sheetData.push({ label: sheet.name, map });
+      try {
+        const gviz = await fetchSebesGviz(sheet.name);
+        const map = parseSebesGviz(gviz, sheet.name);
+        if (Object.keys(map).length) sheetData.push({ label: sheet.name, map });
+      } catch(e) { console.warn(`[SEBES sync] Лист "${sheet.name}" ошибка:`, e.message); }
     }
 
     if (!sheetData.length) return res.status(502).json({ error: 'Не удалось загрузить данные листов' });
@@ -1645,11 +1682,8 @@ app.get('/api/sebes/sheet', async (req, res) => {
     return res.json(_sebesSheetCache[name].data);
   }
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(name)}`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const csv = await r.text();
-    const map = parseSebesSheet(csv, name);
+    const gviz = await fetchSebesGviz(name);
+    const map = parseSebesGviz(gviz, name);
     const items = Object.entries(map).map(([n, v]) => ({
       name: n, cat: v.cat || 'Прочее', unit: v.unit || 'порц', cost: v.cost
     }));
