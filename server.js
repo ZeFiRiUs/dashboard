@@ -619,39 +619,50 @@ async function fetchWoData(sheetName, noCache=false) {
 // Фильтрация по точке / статье
 function filterWoData(data, point, article) {
   if (!point && !article) return data;
-  const filtered = {
-    ...data,
-    by_point: data.by_point.filter(p => !point || p.name === point),
-    meta: { ...data.meta },
-  };
-  // Пересчитываем by_article из artBreakdown отфильтрованных точек
-  if (point) {
-    const artMap = {};
-    const filteredTotal = filtered.by_point.reduce((s, p) => s + p.total, 0);
-    filtered.by_point.forEach(p => {
-      (p.artBreakdown || []).forEach(a => {
-        artMap[a.art] = (artMap[a.art] || 0) + a.cost;
-      });
-    });
-    let artList = Object.entries(artMap)
-      .sort((a, b) => b[1] - a[1])
-      .map(([art, cost]) => ({
-        art,
-        cost: Math.round(cost * 100) / 100,
-        pct: filteredTotal > 0 ? Math.round(cost / filteredTotal * 1000) / 10 : 0,
-      }));
-    if (article) artList = artList.filter(a => a.art === article);
-    filtered.by_article = artList;
+
+  // Шаг 1: фильтруем точки по имени
+  let pts = point ? data.by_point.filter(p => p.name === point) : [...data.by_point];
+
+  // Шаг 2: если выбрана статья — пересчитываем total каждой точки как стоимость только этой статьи
+  if (article) {
+    pts = pts.map(p => {
+      const artEntry = (p.artBreakdown || []).find(a => a.art === article);
+      const artCost = artEntry ? artEntry.cost : 0;
+      if (artCost === 0) return null;
+      return { ...p, total: artCost };
+    }).filter(Boolean).sort((a, b) => b.total - a.total);
+  }
+
+  // Шаг 3: пересчитываем by_article
+  let byArticle;
+  if (point && !article) {
+    // Статьи конкретной точки из её artBreakdown
+    const origPoint = data.by_point.find(p => p.name === point);
+    const pointTotal = pts.reduce((s, p) => s + p.total, 0);
+    byArticle = (origPoint ? origPoint.artBreakdown || [] : []).map(a => ({
+      art: a.art,
+      cost: a.cost,
+      pct: pointTotal > 0 ? Math.round(a.cost / pointTotal * 1000) / 10 : 0,
+    }));
+  } else if (article) {
+    // Одна статья — суммируем по отфильтрованным точкам
+    const artTotal = pts.reduce((s, p) => s + p.total, 0);
+    byArticle = artTotal > 0 ? [{ art: article, cost: Math.round(artTotal * 100) / 100, pct: 100 }] : [];
   } else {
-    filtered.by_article = data.by_article.filter(a => !article || a.art === article);
+    byArticle = data.by_article;
   }
-  if (point || article) {
-    const pts = filtered.by_point;
-    const total = pts.reduce((s, p) => s + p.total, 0);
-    filtered.meta.filtered_cost = Math.round(total * 100) / 100;
-    filtered.meta.filtered_records = pts.reduce((s, p) => s + p.top10Items.length, 0);
-  }
-  return filtered;
+
+  const total = pts.reduce((s, p) => s + p.total, 0);
+  return {
+    ...data,
+    by_point: pts,
+    by_article: byArticle,
+    meta: {
+      ...data.meta,
+      filtered_cost: Math.round(total * 100) / 100,
+      filtered_records: pts.reduce((s, p) => s + (p.top10Items || []).length, 0),
+    },
+  };
 }
 
 // Строит агрегированный индекс по всем листам (запускается асинхронно при старте)
