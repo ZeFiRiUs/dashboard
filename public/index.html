@@ -2998,9 +2998,13 @@ let WO_SUMMARY = null;
 async function _loadWoSummary(){
   try {
     const r = await fetch('/api/writeoffs/summary',{headers:{'X-View-Password':sessionPassword}});
-    if(!r.ok) return;
-    WO_SUMMARY = await r.json();
+    if(r.ok){
+      const d = await r.json();
+      if(d && d.meta && d.meta.total > 0){ WO_SUMMARY = d; return; }
+    }
   } catch(e){ /* не критично */ }
+  // Fallback: WO_INDEX загружается раньше через initWoDateFilter и содержит те же данные
+  if(window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.total > 0) WO_SUMMARY = WO_INDEX;
 }
 
 async function loadWoSheetList(force) {
@@ -3527,8 +3531,11 @@ function _renderOverviewSections(){
   const sections=[];
 
   // ── Списания — актуальные данные из Google Sheets ─────────────────────────
-  if(window.WO_SUMMARY && WO_SUMMARY.meta && WO_SUMMARY.meta.total > 0){
-    const sm = WO_SUMMARY;
+  // WO_SUMMARY загружается по запросу; WO_INDEX — при старте через initWoDateFilter
+  const _woSum = (window.WO_SUMMARY && WO_SUMMARY.meta && WO_SUMMARY.meta.total > 0) ? WO_SUMMARY
+               : (window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.total > 0) ? WO_INDEX : null;
+  if(_woSum){
+    const sm = _woSum;
     const total = sm.meta.total;
     const sheetsCount = (sm.by_sheet||[]).length;
     const pointsCount = (sm.by_point||[]).length;
@@ -4855,8 +4862,11 @@ function _renderOverviewSections(){
   const sections=[];
 
   // ── Списания — актуальные данные из Google Sheets ─────────────────────────
-  if(window.WO_SUMMARY && WO_SUMMARY.meta && WO_SUMMARY.meta.total > 0){
-    const sm = WO_SUMMARY;
+  // WO_SUMMARY загружается по запросу; WO_INDEX — при старте через initWoDateFilter
+  const _woSum = (window.WO_SUMMARY && WO_SUMMARY.meta && WO_SUMMARY.meta.total > 0) ? WO_SUMMARY
+               : (window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.total > 0) ? WO_INDEX : null;
+  if(_woSum){
+    const sm = _woSum;
     const total = sm.meta.total;
     const sheetsCount = (sm.by_sheet||[]).length;
     const pointsCount = (sm.by_point||[]).length;
