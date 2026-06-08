@@ -3541,7 +3541,7 @@ async function loadWoSheet(sheetName) {
   try {
     const r=await fetch('/api/writeoffs/sheet?name='+encodeURIComponent(sheetName),{headers:{'X-View-Password':sessionPassword}});
     console.log('[WO] HTTP', r.status, sheetName);
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok){let em='HTTP '+r.status;try{const j=await r.json();if(j&&j.error)em+=' — '+j.error;}catch(ex){}throw new Error(em);}
     WO_DATA=await r.json(); WO_FILTERED=WO_DATA; _woActiveSheet=sheetName;
     setActivePill(sheetName);
     console.log('[WO] records='+WO_DATA?.meta?.records+' points='+WO_DATA?.by_point?.length);
@@ -5031,7 +5031,8 @@ function renderCards(){
   });
   const mx=p.warehouses[0]?.total||1;
   const ccEl=document.getElementById('cc');if(ccEl)ccEl.textContent=`Показано ${whs.length} из ${p.warehouses.length} складов`;
-  document.getElementById('grid').innerHTML=whs.map(w=>{
+  const gridEl=document.getElementById('grid');if(!gridEl)return;
+  gridEl.innerHTML=whs.map(w=>{
     const lv=lvl(w.total),bw=Math.round(w.total/mx*100);
     const bc=lv==='danger'?'var(--red)':lv==='warn'?'var(--warn)':'var(--acc)';
     const idx=p.warehouses.indexOf(w);
