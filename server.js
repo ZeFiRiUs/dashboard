@@ -793,9 +793,16 @@ app.get('/api/data/writeoffs_by_point', async (req, res) => {
 // ── Production (Производство) ─────────────────────────────────────────────────
 const PROD_FILE_PATH   = 'data/production.json';
 const LOCAL_PROD_FILE  = path.join(LOCAL_DATA_DIR, 'production.json');
-const PROD_SHEET_ID    = '1aQHL9lyceepk0bBTRY9s23VZQcbHPCDX';
-const PROD_GID         = '1287300396';
+const PROD_SHEET_ID    = '1CLLbWhTVlnEEeouJx5TtXpoaM-cmFokcpQke9p7PQy8';
+const PROD_GID         = '1';
 if (!fs.existsSync(LOCAL_PROD_FILE)) fs.writeFileSync(LOCAL_PROD_FILE, 'null');
+
+const PROD_INDEX_FILE = path.join(LOCAL_DATA_DIR, 'production_index.json');
+const _prodSheetCache = {};
+const PROD_SHEET_TTL  = 10 * 60 * 1000;
+let _prodSheetListCache = null, _prodSheetListTs = 0;
+const PROD_LIST_TTL   =  5 * 60 * 1000;
+let _prodSheetListInFlight = null;
 
 let _prodCsvCache = null, _prodCsvCacheTs = 0;
 const PROD_CSV_CACHE_TTL = 5 * 60 * 1000;
@@ -906,6 +913,165 @@ function parseProductionCsv(csv) {
     depts: deptsResult,
   };
 }
+
+// ── Производство: мульти-лист (новый лист = новый период) ────────────────────
+
+async function fetchProdSheetList() {
+  const now = Date.now();
+  if (_prodSheetListCache && (now - _prodSheetListTs) < PROD_LIST_TTL) return _prodSheetListCache;
+  if (_prodSheetListInFlight) return _prodSheetListInFlight;
+  _prodSheetListInFlight = _doFetchProdSheetList().finally(() => { _prodSheetListInFlight = null; });
+  return _prodSheetListInFlight;
+}
+
+async function _doFetchProdSheetList() {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=xlsx`;
+    let r;
+    try {
+      r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
+      clearTimeout(timer);
+    } catch(e) {
+      clearTimeout(timer);
+      const reason = e.name === 'AbortError' ? 'timeout (>10s)' : e.message;
+      console.error('[PROD] XLSX download failed:', reason);
+      return _prodSheetListCache || [];
+    }
+    if (!r.ok) {
+      console.error('[PROD] XLSX HTTP ' + r.status);
+      return _prodSheetListCache || [];
+    }
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf[0] !== 0x50 || buf[1] !== 0x4B) {
+      console.error('[PROD] XLSX не является ZIP');
+      return _prodSheetListCache || [];
+    }
+    const XLSX = require('xlsx');
+    let wb;
+    try {
+      wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
+    } catch(e) {
+      console.error('[PROD] XLSX.read failed:', e.message);
+      return _prodSheetListCache || [];
+    }
+    const gidMap = _extractGidsFromXlsx(buf);
+    const sheets = wb.SheetNames.map(n => ({ name: n, label: n, gid: gidMap[n] != null ? gidMap[n] : null }));
+    console.log('[PROD] Листы:', sheets.map(s => `${s.name}(gid=${s.gid})`).join(', '));
+    _prodSheetListCache = sheets; _prodSheetListTs = Date.now();
+    return sheets;
+  } catch(e) {
+    console.error('[PROD] fetchProdSheetList error:', e.message);
+    return _prodSheetListCache || [];
+  }
+}
+
+async function fetchProdSheetData(sheetName, noCache = false) {
+  const now = Date.now();
+  if (!noCache && _prodSheetCache[sheetName] && (now - _prodSheetCache[sheetName].ts) < PROD_SHEET_TTL)
+    return _prodSheetCache[sheetName].data;
+
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  console.log(`[PROD] Загружаю лист "${sheetName}" через gviz...`);
+  const r = await fetch(gvizUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
+  const gvizText = await r.text();
+  const jsonStart = gvizText.indexOf('{');
+  const jsonEnd   = gvizText.lastIndexOf('}');
+  if (jsonStart < 0 || jsonEnd < 0) throw new Error(`gviz: не JSON для листа "${sheetName}"`);
+  const gviz = JSON.parse(gvizText.slice(jsonStart, jsonEnd + 1));
+  if (gviz.status !== 'ok') {
+    const errMsg = (gviz.errors && gviz.errors[0] && gviz.errors[0].message) || String(gviz.status);
+    throw new Error(`gviz error: ${errMsg} (лист: "${sheetName}")`);
+  }
+  const gvizCols = (gviz.table && gviz.table.cols) || [];
+  const gvizRows = (gviz.table && gviz.table.rows) || [];
+  const csvEsc = v => (/[,"\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
+  const csvLines = gvizRows.map(row => {
+    const c = row.c || [];
+    return gvizCols.map((_, i) => {
+      const cell = c[i];
+      if (!cell || cell.v === null || cell.v === undefined) return '';
+      const v = cell.f != null ? cell.f : String(cell.v);
+      return csvEsc(v);
+    }).join(',');
+  });
+  const header = gvizCols.map(c => csvEsc(c.label || '')).join(',');
+  const csv = [header, ...csvLines].join('\n');
+
+  const parsed = parseProductionCsv(csv);
+  if (parsed && parsed.meta) parsed.meta.sheet = sheetName;
+  console.log(`[PROD] Лист "${sheetName}": ${parsed ? parsed.depts.length : 0} цехов, ФОТ ${parsed ? parsed.meta.total_fot : 0}`);
+  if (parsed && parsed.depts && parsed.depts.length > 0) {
+    _prodSheetCache[sheetName] = { data: parsed, ts: now };
+    return parsed;
+  }
+  return null;
+}
+
+async function rebuildProductionIndex() {
+  try {
+    const sheets = await fetchProdSheetList();
+    if (!sheets || !sheets.length) {
+      fs.writeFileSync(PROD_INDEX_FILE, JSON.stringify({ meta: { total_fot: 0, sheets_count: 0 }, by_sheet: [] }));
+      return;
+    }
+    const bySheet = [];
+    let grandTotalFot = 0;
+    for (const sh of sheets) {
+      try {
+        const data = await fetchProdSheetData(sh.name);
+        if (!data || !data.meta) continue;
+        grandTotalFot += data.meta.total_fot;
+        bySheet.push({ name: sh.name, total_fot: data.meta.total_fot, total_units: data.meta.total_units, depts_count: data.meta.depts_count });
+      } catch(e) {
+        console.error(`[PROD index] Ошибка листа "${sh.name}":`, e.message);
+      }
+    }
+    const index = { meta: { total_fot: Math.round(grandTotalFot), sheets_count: bySheet.length }, by_sheet: bySheet };
+    fs.writeFileSync(PROD_INDEX_FILE, JSON.stringify(index));
+    console.log(`[PROD] Index rebuilt: ${bySheet.length} листов, ФОТ ${Math.round(grandTotalFot).toLocaleString('ru-RU')} ₽`);
+  } catch(e) {
+    console.error('[PROD] rebuildProductionIndex error:', e.message);
+  }
+}
+
+app.get('/api/production/sheets', async (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    if (req.query.nocache) { _prodSheetListCache = null; _prodSheetListTs = 0; }
+    res.json(await fetchProdSheetList());
+  } catch(e) { res.status(502).json({ error: e.message }); }
+});
+
+app.get('/api/production/sheet', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const { name, nocache } = req.query;
+  if (!name) return res.status(400).json({ error: 'Параметр name обязателен' });
+  try {
+    const data = await fetchProdSheetData(name, nocache === '1');
+    if (!data) return res.status(404).json({ error: `Лист "${name}" не найден или пуст` });
+    res.json(data);
+  } catch(e) { res.status(502).json({ error: e.message }); }
+});
+
+app.get('/api/production/summary', async (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    if (fs.existsSync(PROD_INDEX_FILE)) {
+      try {
+        const idx = JSON.parse(fs.readFileSync(PROD_INDEX_FILE, 'utf8'));
+        if (idx && idx.by_sheet && idx.by_sheet.length) return res.json(idx);
+      } catch(e) { console.error('[PROD] corrupt index:', e.message); }
+    }
+    await rebuildProductionIndex();
+    if (fs.existsSync(PROD_INDEX_FILE)) {
+      try { return res.json(JSON.parse(fs.readFileSync(PROD_INDEX_FILE, 'utf8'))); } catch(e) {}
+    }
+    res.json({ meta: { total_fot: 0, sheets_count: 0 }, by_sheet: [] });
+  } catch(e) { res.status(502).json({ error: e.message }); }
+});
 
 app.get('/api/production', async (req, res) => {
   if (!checkView(req, res)) return;
@@ -2063,6 +2229,7 @@ app.listen(PORT, async () => {
   console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
   await initFromGitHub();
   rebuildWriteoffsIndex();
+  rebuildProductionIndex();
 });
 
 // ── Глобальный обработчик ошибок Express ──────────────────────────────────────
