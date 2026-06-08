@@ -562,27 +562,35 @@ async function fetchWoData(sheetName, noCache=false) {
   const now = Date.now();
   if (!noCache && _woSheetCache[sheetName] && (now - _woSheetCache[sheetName].ts) < WO_SHEET_TTL)
     return _woSheetCache[sheetName].data;
-  // Ищем GID из кэша листов — используем числовой gid= вместо sheet=NAME (кириллица не работает)
-  const sheetList = await fetchWoSheetList();
-  const sheetInfo = sheetList.find(s => s.name === sheetName);
-  const gid = sheetInfo && sheetInfo.gid != null ? sheetInfo.gid : null;
-  let url;
-  if (gid !== null) {
-    url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${gid}`;
-    console.log(`[WO] Загружаю лист "${sheetName}" (gid=${gid})...`);
-  } else {
-    url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
-    console.log(`[WO] Загружаю лист "${sheetName}" (по имени, gid не найден)...`);
-  }
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  // gviz API корректно обрабатывает кириллические имена листов (CSV-экспорт молча возвращает первый лист)
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  console.log(`[WO] Загружаю лист "${sheetName}" через gviz...`);
+  const r = await fetch(gvizUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
-  const csv = await r.text();
-  const lines = csv.split('\n');
-  console.log(`[WO] Лист "${sheetName}": статус ${r.status}, строк ${lines.length}, первая="${lines[0]?.substring(0,80)}"`);
-  if (csv.trimStart().startsWith('<')) {
-    console.log(`[WO] ОШИБКА: Google вернул HTML для листа "${sheetName}" — возможно неверное имя или нет доступа`);
-    throw new Error(`Google вернул HTML вместо CSV для листа "${sheetName}"`);
+  const gvizText = await r.text();
+  const jsonStart = gvizText.indexOf('{');
+  const jsonEnd = gvizText.lastIndexOf('}');
+  if (jsonStart < 0 || jsonEnd < 0) throw new Error(`gviz: не JSON для листа "${sheetName}"`);
+  const gviz = JSON.parse(gvizText.slice(jsonStart, jsonEnd + 1));
+  if (gviz.status !== 'ok') {
+    const errMsg = (gviz.errors && gviz.errors[0] && gviz.errors[0].message) || String(gviz.status);
+    throw new Error(`gviz error: ${errMsg} (лист: "${sheetName}")`);
   }
+  const gvizCols = (gviz.table && gviz.table.cols) || [];
+  const gvizRows = (gviz.table && gviz.table.rows) || [];
+  const csvEsc = v => (/[,"\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v);
+  const csvLines = gvizRows.map(row => {
+    const c = row.c || [];
+    return gvizCols.map((_, i) => {
+      const cell = c[i];
+      if (!cell || cell.v === null || cell.v === undefined) return '';
+      const v = cell.f != null ? cell.f : String(cell.v);
+      return csvEsc(v);
+    }).join(',');
+  });
+  const header = gvizCols.map(c => csvEsc(c.label || '')).join(',');
+  const csv = [header, ...csvLines].join('\n');
+  console.log(`[WO] gviz "${sheetName}": строк ${gvizRows.length}, первая="${csvLines[0]?.substring(0,80)}"`);
   const parsed = parseWoSheet(csv, sheetName);
   console.log(`[WO] Лист "${sheetName}": распарсено ${parsed ? parsed.meta.records : 0} записей, ${parsed ? parsed.by_point.length : 0} точек`);
   if (parsed) {
