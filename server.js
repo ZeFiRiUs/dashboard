@@ -634,6 +634,59 @@ function filterWoData(data, point, article) {
   return filtered;
 }
 
+// Строит агрегированный индекс по всем листам (запускается асинхронно при старте)
+async function rebuildWriteoffsIndex() {
+  try {
+    const sheets = await fetchWoSheetList();
+    if (!sheets || !sheets.length) {
+      fs.writeFileSync(WO_INDEX_FILE, JSON.stringify({
+        meta: { total: 0, sheets_count: 0, dates: [], warehouses: [] },
+        by_sheet: [], by_day: {}, by_wh: {}, by_point: []
+      }));
+      return;
+    }
+    const bySheet = [];
+    let grandTotal = 0;
+    const allPoints = {};
+    for (const sh of sheets) {
+      try {
+        const data = await fetchWoData(sh.name);
+        if (!data || !data.meta) continue;
+        grandTotal += data.meta.total_cost;
+        bySheet.push({
+          name: sh.name,
+          total: Math.round(data.meta.total_cost * 100) / 100,
+          records: data.meta.records,
+          points: data.meta.points.length,
+        });
+        (data.by_point || []).forEach(p => {
+          allPoints[p.name] = (allPoints[p.name] || 0) + p.total;
+        });
+      } catch(e) {
+        console.error(`[WO index] Ошибка листа "${sh.name}":`, e.message);
+      }
+    }
+    const pointList = Object.entries(allPoints)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, total]) => ({ name, total: Math.round(total * 100) / 100 }));
+    const index = {
+      meta: {
+        total: Math.round(grandTotal * 100) / 100,
+        sheets_count: bySheet.length,
+        dates: [],
+        warehouses: pointList,
+      },
+      by_sheet: bySheet,
+      by_point: pointList,
+      by_day: {}, by_wh: {},
+    };
+    fs.writeFileSync(WO_INDEX_FILE, JSON.stringify(index));
+    console.log(`[WO] Index rebuilt: ${bySheet.length} листов, итого ${Math.round(grandTotal).toLocaleString('ru-RU')} ₽`);
+  } catch(e) {
+    console.error('[WO] rebuildWriteoffsIndex error:', e.message);
+  }
+}
+
 // ─── API ────────────────────────────────────────────────────────────────────
 
 // GET /api/writeoffs/sheets — список листов
@@ -644,6 +697,26 @@ app.get('/api/writeoffs/sheets', async (req, res) => {
     res.json(await fetchWoSheetList());
   }
   catch(e) { res.status(502).json({ error: e.message }); }
+});
+
+// GET /api/writeoffs/summary — агрегация всех листов для Сводки
+app.get('/api/writeoffs/summary', async (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    // Сначала пробуем кэш (index file)
+    if (fs.existsSync(WO_INDEX_FILE)) {
+      const idx = JSON.parse(fs.readFileSync(WO_INDEX_FILE, 'utf8'));
+      if (idx && idx.by_sheet && idx.by_sheet.length) {
+        return res.json(idx);
+      }
+    }
+    // Нет кэша — строим на лету
+    await rebuildWriteoffsIndex();
+    if (fs.existsSync(WO_INDEX_FILE)) {
+      return res.json(JSON.parse(fs.readFileSync(WO_INDEX_FILE, 'utf8')));
+    }
+    res.json({ meta: { total: 0, sheets_count: 0, dates: [], warehouses: [] }, by_sheet: [], by_point: [] });
+  } catch(e) { res.status(502).json({ error: e.message }); }
 });
 
 // GET /api/writeoffs/debug?name=Май — диагностика парсера
