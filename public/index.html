@@ -1019,8 +1019,11 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <div class="sdot ok" id="prod-sdot"></div>
       <span>Производство<span id="prod-period-label"></span></span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;overflow-x:auto">
-      <div id="prod-period-pills" style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="prod-period-select" onchange="loadProdSheet(this.value)"
+        style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:130px;display:none">
+        <option value="">— Период —</option>
+      </select>
       <button id="prod-sync-btn" class="btn btn-acc" onclick="syncProductionFromSheets()" style="flex-shrink:0;white-space:nowrap">&#8635; Обновить</button>
       <span id="prod-sync-msg" style="font-size:11px;color:var(--grn)"></span>
     </div>
@@ -1659,27 +1662,33 @@ async function loadProdSheetList(force) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const sheets = await r.json();
     PROD_SHEETS_LIST = sheets;
-    renderProdPeriodPills(sheets);
+    renderProdPeriodSelect(sheets);
     if (sheets.length && !_prodActiveSheet) {
+      await loadProdSheet(sheets[sheets.length - 1].name);
+    } else if (sheets.length && _prodActiveSheet &&
+               !sheets.find(function(s){return s.name===_prodActiveSheet;})) {
+      // Активный лист удалён — переключаемся на последний
       await loadProdSheet(sheets[sheets.length - 1].name);
     }
   } catch(e) { console.error('loadProdSheetList:', e); }
 }
 
-function renderProdPeriodPills(sheets) {
-  const container = document.getElementById('prod-period-pills');
-  if (!container) return;
-  container.innerHTML = (sheets || []).map(s =>
-    '<button class="prod-pill' + (s.name === _prodActiveSheet ? ' prod-pill-active' : '') + '"'
-    + ' data-name="' + s.name + '"'
-    + ' onclick="loadProdSheet(\'' + s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')">'
-    + s.label + '</button>'
-  ).join('');
+function renderProdPeriodSelect(sheets) {
+  const sel = document.getElementById('prod-period-select');
+  if (!sel) return;
+  if (!sheets || !sheets.length) { sel.style.display = 'none'; return; }
+  sel.style.display = '';
+  sel.innerHTML = (sheets || []).map(function(s) {
+    return '<option value="' + s.name + '"' + (s.name === _prodActiveSheet ? ' selected' : '') + '>' + s.label + '</option>';
+  }).join('');
 }
 
 async function loadProdSheet(sheetName) {
+  if (!sheetName) return;
   _prodActiveSheet = sheetName;
-  renderProdPeriodPills(PROD_SHEETS_LIST || []);
+  // Sync select value
+  const sel = document.getElementById('prod-period-select');
+  if (sel) sel.value = sheetName;
   const sdot = document.getElementById('prod-sdot');
   if (sdot) sdot.className = 'sdot spin';
   try {
@@ -1731,13 +1740,22 @@ async function syncProductionFromSheets() {
   const btn = document.getElementById('prod-sync-btn');
   const msg = document.getElementById('prod-sync-msg');
   if (btn) btn.disabled = true;
-  if (msg) msg.textContent = '\u29d0 \u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...';
+  if (msg) msg.textContent = '\u27f3 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435...';
   try {
+    // force=true \u0441\u0431\u0440\u0430\u0441\u044b\u0432\u0430\u0435\u0442 \u0441\u043f\u0438\u0441\u043e\u043a \u043b\u0438\u0441\u0442\u043e\u0432 \u043d\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435 (nocache=1)
     await loadProdSheetList(true);
-    if (_prodActiveSheet) await loadProdSheet(_prodActiveSheet);
-    if (msg) { msg.textContent = '\u2705 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e'; setTimeout(() => msg.textContent = '', 4000); }
+    // \u041f\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0430\u043a\u0442\u0438\u0432\u043d\u044b\u0439 \u043b\u0438\u0441\u0442 \u0441 nocache
+    if (_prodActiveSheet) {
+      const r = await fetch('/api/production/sheet?name=' + encodeURIComponent(_prodActiveSheet) + '&nocache=1',
+        { headers: { 'X-View-Password': sessionPassword } });
+      if (r.ok) {
+        const data = await r.json();
+        if (data && data.meta) applyProductionData(data);
+      }
+    }
+    if (msg) { msg.textContent = '\u2705 \u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e'; setTimeout(function(){msg.textContent='';}, 4000); }
   } catch(e) {
-    if (msg) { msg.textContent = '\u274c ' + e.message; setTimeout(() => msg.textContent = '', 5000); }
+    if (msg) { msg.textContent = '\u274c ' + e.message; setTimeout(function(){msg.textContent='';}, 5000); }
   } finally { if (btn) btn.disabled = false; }
 }
 
