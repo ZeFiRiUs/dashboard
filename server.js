@@ -1286,6 +1286,8 @@ const SEBES_SHEETS_DEFAULT = [
 let _sebesSheetsCache = null;
 let _sebesSheetsCacheTs = 0;
 const SEBES_SHEETS_TTL = 5 * 60 * 1000;
+const _sebesSheetCache = {};
+const SEBES_SHEET_TTL = 10 * 60 * 1000;
 
 function readSebesSheets() {
   try {
@@ -1580,12 +1582,49 @@ app.post('/api/sebes/sync', async (req, res) => {
 
 app.get('/api/sebes/sheets', async (req, res) => {
   if (!checkView(req, res)) return;
+  if (req.query.nocache === '1') { _sebesSheetsCache = null; _sebesSheetsCacheTs = 0; }
   try {
     const sheets = await discoverSebesSheets();
     const dated = sheets.filter(s => parseSheetDate(s.name) !== null)
                         .sort((a,b) => parseSheetDate(a.name) - parseSheetDate(b.name));
     res.json({ sheets: dated, all: sheets });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sebes/sheet', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const name = req.query.name;
+  const noCache = req.query.nocache === '1';
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const now = Date.now();
+  if (!noCache && _sebesSheetCache[name] && (now - _sebesSheetCache[name].ts) < SEBES_SHEET_TTL) {
+    return res.json(_sebesSheetCache[name].data);
+  }
+  try {
+    const allSheets = await discoverSebesSheets();
+    const sheet = allSheets.find(s => s.name === name);
+    if (!sheet) return res.status(404).json({ error: `Sheet "${name}" not found` });
+    const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=csv&gid=${sheet.gid}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const csv = await r.text();
+    const map = parseSebesSheet(csv, name);
+    const items = Object.entries(map).map(([n, v]) => ({
+      name: n, cat: v.cat || 'Прочее', unit: v.unit || 'порц', cost: v.cost
+    }));
+    items.sort((a, b) => a.cat.localeCompare(b.cat, 'ru') || a.name.localeCompare(b.name, 'ru'));
+    const allCats = [...new Set(items.map(i => i.cat))].sort();
+    const result = {
+      meta: { sheet: name, total_items: items.length, all_cats: allCats, created_at: new Date().toISOString().slice(0, 10) },
+      items
+    };
+    _sebesSheetCache[name] = { data: result, ts: now };
+    res.json(result);
+  } catch(e) {
+    console.error('Sebes sheet fetch error:', e.message);
+    if (_sebesSheetCache[name]) return res.json(_sebesSheetCache[name].data);
+    res.status(502).json({ error: e.message });
+  }
 });
 
 app.put('/api/sebes/sheets', express.json(), (req, res) => {
