@@ -2739,6 +2739,16 @@ async function saveSebesSheetsToServer(){
 let WO_DATA = null, WO_FILTERED = null, _woCompareData = null;
 let _woActiveSheet = '';
 
+// Агрегированный индекс всех листов (для Сводки)
+let WO_SUMMARY = null;
+async function _loadWoSummary(){
+  try {
+    const r = await fetch('/api/writeoffs/summary',{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok) return;
+    WO_SUMMARY = await r.json();
+  } catch(e){ /* не критично */ }
+}
+
 async function loadWoSheetList(force) {
   try {
     const url = '/api/writeoffs/sheets' + (force ? '?nocache=1' : '');
@@ -3246,12 +3256,12 @@ function renderWoPointsTable(){
   const noteEl = document.getElementById('wo-points-note');
   if(noteEl) noteEl.style.display = hasRevenue ? '' : 'none';
 }
-function renderOverview(){
-  const monoSt = 'font-family:JetBrains Mono,monospace';
+async function renderOverview(){
   const now = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const updEl = document.getElementById('overview-updated');
+  if(updEl) updEl.textContent = 'Загрузка сводки...';
+  if(!window.WO_SUMMARY) await _loadWoSummary();
   if(updEl) updEl.textContent = 'Обновлено: ' + now;
-
   _renderOverviewSections();
   _renderOverviewCharts();
   _renderOverviewTops();
@@ -3262,24 +3272,50 @@ function _renderOverviewSections(){
   const monoSt='font-family:JetBrains Mono,monospace';
   const sections=[];
 
-  // ── Списания ──────────────────────────────────────────────────────────────
-  if(periods&&periods.length){
+  // ── Списания — актуальные данные из Google Sheets ─────────────────────────
+  if(window.WO_SUMMARY && WO_SUMMARY.meta && WO_SUMMARY.meta.total > 0){
+    const sm = WO_SUMMARY;
+    const total = sm.meta.total;
+    const sheetsCount = (sm.by_sheet||[]).length;
+    const pointsCount = (sm.by_point||[]).length;
+    const crit = (sm.by_point||[]).filter(function(p){return p.total>100000;});
+    const lastSheet = sm.by_sheet&&sm.by_sheet.length ? sm.by_sheet[sm.by_sheet.length-1].name : '—';
+    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:false,
+      lines:[
+        {label:'Итого по всем листам',value:total.toLocaleString('ru-RU')+' ₽',bold:true},
+        {label:'Периодов',value:sheetsCount},
+        {label:'Точек',value:pointsCount},
+        {label:'Последний',value:lastSheet}
+      ],
+      badge:crit.length>0?{text:crit.length+' критичных',color:'var(--red)'}:null});
+  } else if(window.WO_DATA && WO_DATA.meta && WO_DATA.meta.total_cost > 0){
+    const total = WO_DATA.meta.total_cost;
+    const pts = (WO_DATA.by_point||[]).length;
+    const crit = (WO_DATA.by_point||[]).filter(function(p){return p.total>100000;});
+    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:false,
+      lines:[
+        {label:'Сумма',value:total.toLocaleString('ru-RU')+' ₽',bold:true},
+        {label:'Точек',value:pts},
+        {label:'Период',value:WO_DATA.meta.sheet||'—'}
+      ],
+      badge:crit.length>0?{text:crit.length+' критичных',color:'var(--red)'}:null});
+  } else if(periods&&periods.length){
     const p=periods[0];
     const crit=(p.warehouses||[]).filter(function(w){return w.total>100000;});
-    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'59,127,255',empty:false,
+    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:false,
       lines:[
         {label:'Сумма за период',value:p.grand_total.toLocaleString('ru-RU')+' ₽',bold:true},
         {label:'Складов',value:(p.warehouses||[]).length},
         {label:'Период',value:p.period}
       ],
       badge:crit.length>0?{text:crit.length+' критичных',color:'var(--red)'}:null});
-  } else sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'59,127,255',empty:true});
+  } else sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:true});
 
   // ── Стоп-листы ────────────────────────────────────────────────────────────
   if(STOPS_DATA&&STOPS_DATA.periods&&STOPS_DATA.periods.length){
     const sp=expandPeriod(STOPS_DATA.periods[STOPS_DATA.periods.length-1]);
     const actLen=(sp.active||[]).length;
-    sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',rgb:'245,158,11',empty:false,
+    sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',rgb:'242,141,41',empty:false,
       lines:[
         {label:'Стопов за период',value:sp.total_stops,bold:true},
         {label:'Точек затронуто',value:sp.total_points},
@@ -3287,7 +3323,7 @@ function _renderOverviewSections(){
         {label:'Продуктов',value:sp.total_products}
       ],
       badge:actLen>0?{text:actLen+' активных',color:'var(--red)'}:null});
-  } else sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',rgb:'245,158,11',empty:true});
+  } else sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',rgb:'242,141,41',empty:true});
 
   // ── Довозы ────────────────────────────────────────────────────────────────
   if(DEL_DATA&&DEL_DATA.meta){
@@ -3295,7 +3331,7 @@ function _renderOverviewSections(){
     const totalCost=rows.reduce(function(s,r){return s+(r.cost||0);},0);
     const withGuilt=rows.filter(function(r){return r.guilty&&r.guilty.length>0;}).length;
     const noGuilt=(DEL_DATA.meta.total||rows.length)-withGuilt;
-    sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',rgb:'34,197,94',empty:false,
+    sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',rgb:'152,194,30',empty:false,
       lines:[
         {label:'Всего довозов',value:DEL_DATA.meta.total,bold:true},
         {label:'Сумма штрафов',value:totalCost.toLocaleString('ru-RU')+' ₽',color:'var(--red)'},
@@ -3303,7 +3339,7 @@ function _renderOverviewSections(){
         {label:'Без виновного',value:noGuilt,color:noGuilt>0?'var(--warn)':'var(--txt2)'}
       ],
       badge:noGuilt>0?{text:noGuilt+' без виновного',color:'var(--warn)'}:null});
-  } else sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',rgb:'34,197,94',empty:true});
+  } else sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',rgb:'152,194,30',empty:true});
 
   // ── Производство ──────────────────────────────────────────────────────────
   if(PROD_DATA&&PROD_DATA.depts){
@@ -3311,7 +3347,7 @@ function _renderOverviewSections(){
     const totalQty=depts.reduce(function(s,d){return s+(d.output_units||0);},0);
     const totalFot=depts.reduce(function(s,d){return s+(d.pay_dept||0);},0);
     const avgFpu=totalQty>0?(totalFot/totalQty):0;
-    sections.push({icon:'🏭',title:'Производство',tab:'production',rgb:'0,212,170',empty:false,
+    sections.push({icon:'🏭',title:'Производство',tab:'production',rgb:'152,194,30',empty:false,
       lines:[
         {label:'Выпуск (всего)',value:totalQty.toLocaleString('ru-RU')+' ед',bold:true},
         {label:'Цехов',value:depts.length},
@@ -3319,7 +3355,7 @@ function _renderOverviewSections(){
         {label:'ФОТ/единица',value:avgFpu>0?avgFpu.toFixed(2)+' ₽':'—',color:'var(--acc)'}
       ],
       badge:null});
-  } else sections.push({icon:'🏭',title:'Производство',tab:'production',rgb:'0,212,170',empty:true});
+  } else sections.push({icon:'🏭',title:'Производство',tab:'production',rgb:'152,194,30',empty:true});
 
   // ── Себестоимость ─────────────────────────────────────────────────────────
   if(SEBES_DATA&&SEBES_DATA.meta){
@@ -3329,7 +3365,7 @@ function _renderOverviewSections(){
     const withCost=items.filter(function(i){return i.cost>0;});
     const avgCost=withCost.length?Math.round(withCost.reduce(function(s,i){return s+i.cost;},0)/withCost.length):null;
     const noCost=items.filter(function(i){return !i.cost;}).length;
-    sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',rgb:'245,158,11',empty:false,
+    sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',rgb:'242,141,41',empty:false,
       lines:[
         {label:'Позиций',value:SEBES_DATA.meta.total_items,bold:true},
         {label:'Ср. себестоимость',value:avgCost?avgCost.toLocaleString('ru-RU')+' ₽':'—'},
@@ -3338,7 +3374,7 @@ function _renderOverviewSections(){
         {label:'Без себест.',value:noCost+' поз.',color:noCost>0?'var(--warn)':'var(--txt2)'}
       ],
       badge:growthCount>0?{text:'↑'+growthCount+' выросло',color:'var(--red)'}:dropCount>0?{text:'↓'+dropCount+' снизилось',color:'var(--grn)'}:null});
-  } else sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',rgb:'245,158,11',empty:true});
+  } else sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',rgb:'242,141,41',empty:true});
 
   const el=document.getElementById('overview-sections');
   if(!el)return;
@@ -4560,12 +4596,12 @@ function renderWoPointsTable(){
   const noteEl = document.getElementById('wo-points-note');
   if(noteEl) noteEl.style.display = hasRevenue ? '' : 'none';
 }
-function renderOverview(){
-  const monoSt = 'font-family:JetBrains Mono,monospace';
+async function renderOverview(){
   const now = new Date().toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const updEl = document.getElementById('overview-updated');
+  if(updEl) updEl.textContent = 'Загрузка сводки...';
+  if(!window.WO_SUMMARY) await _loadWoSummary();
   if(updEl) updEl.textContent = 'Обновлено: ' + now;
-
   _renderOverviewSections();
   _renderOverviewCharts();
   _renderOverviewTops();
@@ -4576,24 +4612,50 @@ function _renderOverviewSections(){
   const monoSt='font-family:JetBrains Mono,monospace';
   const sections=[];
 
-  // ── Списания ──────────────────────────────────────────────────────────────
-  if(periods&&periods.length){
+  // ── Списания — актуальные данные из Google Sheets ─────────────────────────
+  if(window.WO_SUMMARY && WO_SUMMARY.meta && WO_SUMMARY.meta.total > 0){
+    const sm = WO_SUMMARY;
+    const total = sm.meta.total;
+    const sheetsCount = (sm.by_sheet||[]).length;
+    const pointsCount = (sm.by_point||[]).length;
+    const crit = (sm.by_point||[]).filter(function(p){return p.total>100000;});
+    const lastSheet = sm.by_sheet&&sm.by_sheet.length ? sm.by_sheet[sm.by_sheet.length-1].name : '—';
+    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:false,
+      lines:[
+        {label:'Итого по всем листам',value:total.toLocaleString('ru-RU')+' ₽',bold:true},
+        {label:'Периодов',value:sheetsCount},
+        {label:'Точек',value:pointsCount},
+        {label:'Последний',value:lastSheet}
+      ],
+      badge:crit.length>0?{text:crit.length+' критичных',color:'var(--red)'}:null});
+  } else if(window.WO_DATA && WO_DATA.meta && WO_DATA.meta.total_cost > 0){
+    const total = WO_DATA.meta.total_cost;
+    const pts = (WO_DATA.by_point||[]).length;
+    const crit = (WO_DATA.by_point||[]).filter(function(p){return p.total>100000;});
+    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:false,
+      lines:[
+        {label:'Сумма',value:total.toLocaleString('ru-RU')+' ₽',bold:true},
+        {label:'Точек',value:pts},
+        {label:'Период',value:WO_DATA.meta.sheet||'—'}
+      ],
+      badge:crit.length>0?{text:crit.length+' критичных',color:'var(--red)'}:null});
+  } else if(periods&&periods.length){
     const p=periods[0];
     const crit=(p.warehouses||[]).filter(function(w){return w.total>100000;});
-    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'59,127,255',empty:false,
+    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:false,
       lines:[
         {label:'Сумма за период',value:p.grand_total.toLocaleString('ru-RU')+' ₽',bold:true},
         {label:'Складов',value:(p.warehouses||[]).length},
         {label:'Период',value:p.period}
       ],
       badge:crit.length>0?{text:crit.length+' критичных',color:'var(--red)'}:null});
-  } else sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'59,127,255',empty:true});
+  } else sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:true});
 
   // ── Стоп-листы ────────────────────────────────────────────────────────────
   if(STOPS_DATA&&STOPS_DATA.periods&&STOPS_DATA.periods.length){
     const sp=expandPeriod(STOPS_DATA.periods[STOPS_DATA.periods.length-1]);
     const actLen=(sp.active||[]).length;
-    sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',rgb:'245,158,11',empty:false,
+    sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',rgb:'242,141,41',empty:false,
       lines:[
         {label:'Стопов за период',value:sp.total_stops,bold:true},
         {label:'Точек затронуто',value:sp.total_points},
@@ -4601,7 +4663,7 @@ function _renderOverviewSections(){
         {label:'Продуктов',value:sp.total_products}
       ],
       badge:actLen>0?{text:actLen+' активных',color:'var(--red)'}:null});
-  } else sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',rgb:'245,158,11',empty:true});
+  } else sections.push({icon:'🚫',title:'Стоп листы',tab:'stops',rgb:'242,141,41',empty:true});
 
   // ── Довозы ────────────────────────────────────────────────────────────────
   if(DEL_DATA&&DEL_DATA.meta){
@@ -4609,7 +4671,7 @@ function _renderOverviewSections(){
     const totalCost=rows.reduce(function(s,r){return s+(r.cost||0);},0);
     const withGuilt=rows.filter(function(r){return r.guilty&&r.guilty.length>0;}).length;
     const noGuilt=(DEL_DATA.meta.total||rows.length)-withGuilt;
-    sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',rgb:'34,197,94',empty:false,
+    sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',rgb:'152,194,30',empty:false,
       lines:[
         {label:'Всего довозов',value:DEL_DATA.meta.total,bold:true},
         {label:'Сумма штрафов',value:totalCost.toLocaleString('ru-RU')+' ₽',color:'var(--red)'},
@@ -4617,7 +4679,7 @@ function _renderOverviewSections(){
         {label:'Без виновного',value:noGuilt,color:noGuilt>0?'var(--warn)':'var(--txt2)'}
       ],
       badge:noGuilt>0?{text:noGuilt+' без виновного',color:'var(--warn)'}:null});
-  } else sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',rgb:'34,197,94',empty:true});
+  } else sections.push({icon:'🚚',title:'Довозы',tab:'deliveries',rgb:'152,194,30',empty:true});
 
   // ── Производство ──────────────────────────────────────────────────────────
   if(PROD_DATA&&PROD_DATA.depts){
@@ -4625,7 +4687,7 @@ function _renderOverviewSections(){
     const totalQty=depts.reduce(function(s,d){return s+(d.output_units||0);},0);
     const totalFot=depts.reduce(function(s,d){return s+(d.pay_dept||0);},0);
     const avgFpu=totalQty>0?(totalFot/totalQty):0;
-    sections.push({icon:'🏭',title:'Производство',tab:'production',rgb:'0,212,170',empty:false,
+    sections.push({icon:'🏭',title:'Производство',tab:'production',rgb:'152,194,30',empty:false,
       lines:[
         {label:'Выпуск (всего)',value:totalQty.toLocaleString('ru-RU')+' ед',bold:true},
         {label:'Цехов',value:depts.length},
@@ -4633,7 +4695,7 @@ function _renderOverviewSections(){
         {label:'ФОТ/единица',value:avgFpu>0?avgFpu.toFixed(2)+' ₽':'—',color:'var(--acc)'}
       ],
       badge:null});
-  } else sections.push({icon:'🏭',title:'Производство',tab:'production',rgb:'0,212,170',empty:true});
+  } else sections.push({icon:'🏭',title:'Производство',tab:'production',rgb:'152,194,30',empty:true});
 
   // ── Себестоимость ─────────────────────────────────────────────────────────
   if(SEBES_DATA&&SEBES_DATA.meta){
@@ -4643,7 +4705,7 @@ function _renderOverviewSections(){
     const withCost=items.filter(function(i){return i.cost>0;});
     const avgCost=withCost.length?Math.round(withCost.reduce(function(s,i){return s+i.cost;},0)/withCost.length):null;
     const noCost=items.filter(function(i){return !i.cost;}).length;
-    sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',rgb:'245,158,11',empty:false,
+    sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',rgb:'242,141,41',empty:false,
       lines:[
         {label:'Позиций',value:SEBES_DATA.meta.total_items,bold:true},
         {label:'Ср. себестоимость',value:avgCost?avgCost.toLocaleString('ru-RU')+' ₽':'—'},
@@ -4652,7 +4714,7 @@ function _renderOverviewSections(){
         {label:'Без себест.',value:noCost+' поз.',color:noCost>0?'var(--warn)':'var(--txt2)'}
       ],
       badge:growthCount>0?{text:'↑'+growthCount+' выросло',color:'var(--red)'}:dropCount>0?{text:'↓'+dropCount+' снизилось',color:'var(--grn)'}:null});
-  } else sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',rgb:'245,158,11',empty:true});
+  } else sections.push({icon:'💰',title:'Себестоимость',tab:'sebes',rgb:'242,141,41',empty:true});
 
   const el=document.getElementById('overview-sections');
   if(!el)return;
