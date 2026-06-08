@@ -804,7 +804,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
     <div class="sw"><span class="sic">&#128269;</span>
       <input class="si" id="wo-search" type="text" placeholder="Поиск по точке..." oninput="renderWoPoints()">
     </div>
-    <button class="fbtn" onclick="resetWoFilters()">&#10005; Сбросить</button>
+    <button class="fbtn" onclick="resetWoSheetFilters()">&#10005; Сбросить</button>
   </div>
   <div id="wo-charts-section" style="display:none;margin-bottom:20px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
@@ -3295,6 +3295,8 @@ async function loadData(){
       ss('ok','Синхронизировано из Sheets · '+WO_INDEX.meta.dates.length+' дней · '+new Date().toLocaleTimeString('ru-RU'));
     } else if(window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.total > 0){
       ss('ok','Sheets · '+WO_INDEX.by_point.length+' точек · '+new Date().toLocaleTimeString('ru-RU'));
+    } else if(_woActiveSheet){
+      ss('ok',_woActiveSheet);
     } else {
       ss('warn','Нет данных. Загрузите JSON или синхронизируйте Sheets');
     }
@@ -4708,6 +4710,8 @@ async function loadData(){
       ss('ok','Синхронизировано из Sheets · '+WO_INDEX.meta.dates.length+' дней · '+new Date().toLocaleTimeString('ru-RU'));
     } else if(window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.total > 0){
       ss('ok','Sheets · '+WO_INDEX.by_point.length+' точек · '+new Date().toLocaleTimeString('ru-RU'));
+    } else if(_woActiveSheet){
+      ss('ok',_woActiveSheet);
     } else {
       ss('warn','Нет данных. Загрузите JSON или синхронизируйте Sheets');
     }
@@ -5420,6 +5424,12 @@ function resetWoFilters(){
   ss('ok','Синхронизировано · '+periods.length+' периодов · '+new Date().toLocaleTimeString('ru-RU'));
 }
 
+// Сброс фильтров вкладки Аналитика списаний
+function resetWoSheetFilters(){
+  ['wo-point-filter','wo-article-filter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const s=document.getElementById('wo-search');if(s)s.value='';
+  if(WO_DATA){WO_FILTERED=WO_DATA;renderWo();}
+}
 
 function renderCards(){
   const p=d(); if(!p) return;
