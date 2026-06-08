@@ -863,6 +863,24 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
 
 
 
+<!-- Sebes Compare Modal -->
+<div id="sebes-compare-modal" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center" onclick="if(event.target===this)closeSebesCompareModal()">
+  <div style="background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:24px;min-width:620px;max-width:92vw;max-height:84vh;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span style="font-size:16px;font-weight:700;color:var(--txt)">Сравнение периодов — Себестоимость</span>
+      <button onclick="closeSebesCompareModal()" style="background:none;border:none;color:var(--txt2);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">×</button>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;flex-shrink:0">
+      <select id="sebes-cmp-p1" style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:13px;outline:none;cursor:pointer"></select>
+      <span style="color:var(--txt2);font-size:13px;font-weight:600">vs</span>
+      <select id="sebes-cmp-p2" style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:13px;outline:none;cursor:pointer"></select>
+      <button id="sebes-cmp-run-btn" class="btn btn-acc" onclick="runSebesCompare()">Сравнить</button>
+      <span id="sebes-cmp-msg" style="font-size:11px;color:var(--txt2)"></span>
+    </div>
+    <div id="sebes-cmp-table" style="overflow-y:auto;flex:1;min-height:0"></div>
+  </div>
+</div>
+
 <!-- ═══ STOPS TAB ═══ -->
 <div id="page-stops" class="page">
 <div class="wrap">
@@ -1075,6 +1093,11 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <span id="sebes-upload-msg" style="font-size:11px;color:var(--grn)"></span>
       <span id="sebes-sheets-dot" style="width:7px;height:7px;border-radius:50%;background:var(--txt3)"></span>
       <span id="sebes-sheets-text" style="font-size:11px;color:var(--txt3)">Sheets</span>
+      <select id="sebes-period-select" onchange="loadSebesSheet(this.value)"
+        style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;font-family:Manrope,sans-serif;outline:none;cursor:pointer;min-width:130px;display:none">
+        <option value="">— Все периоды —</option>
+      </select>
+      <button id="sebes-compare-btn" class="btn" onclick="openSebesCompareModal()" style="display:none;white-space:nowrap">⚖ Сравнить</button>
       <button class="btn btn-acc" onclick="syncSebesFromTab()">&#8635; Обновить</button>
     </div>
   </div>
@@ -1951,6 +1974,177 @@ function resetProdFilter(){const f=document.getElementById('prod-dept-filter');i
 // ══ SEBES (Себестоимость) ══════════════════════════════════════════════════
 let SEBES_DATA = null;
 let SEBES_SORT_COL = 'markup', SEBES_SORT_DESC = true;
+let SEBES_SHEETS_LIST = null, _sebesActiveSheet = null;
+
+async function loadSebesSheetList(force) {
+  try {
+    const url = '/api/sebes/sheets' + (force ? '?nocache=1' : '');
+    const r = await fetch(url, {headers:{'X-View-Password':sessionPassword}});
+    if (!r.ok) return;
+    const j = await r.json();
+    SEBES_SHEETS_LIST = j.sheets || [];
+    renderSebesPeriodSelect(SEBES_SHEETS_LIST);
+    const cmpBtn = document.getElementById('sebes-compare-btn');
+    if (cmpBtn) cmpBtn.style.display = SEBES_SHEETS_LIST.length > 1 ? '' : 'none';
+  } catch(e) { console.error('loadSebesSheetList:', e.message); }
+}
+
+function renderSebesPeriodSelect(sheets) {
+  const sel = document.getElementById('sebes-period-select');
+  if (!sel) return;
+  sel.style.display = sheets.length ? '' : 'none';
+  sel.innerHTML = '<option value="">— Все периоды —</option>' +
+    sheets.map(s => `<option value="${s.name}"${s.name===_sebesActiveSheet?' selected':''}>${s.name}</option>`).join('');
+}
+
+async function loadSebesSheet(sheetName) {
+  _sebesActiveSheet = sheetName || null;
+  const sel = document.getElementById('sebes-period-select');
+  if (sel) sel.value = sheetName || '';
+  if (!sheetName) {
+    await syncSebesFromTab();
+    return;
+  }
+  const sdot = document.getElementById('sebes-sdot');
+  if (sdot) sdot.className = 'sdot spin';
+  try {
+    const r = await fetch('/api/sebes/sheet?name='+encodeURIComponent(sheetName), {headers:{'X-View-Password':sessionPassword}});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const items = (data.items || []).map(it => ({
+      ...it, trend:'same', diff:null, diff_pct:null,
+      total_diff:null, total_diff_pct:null, price:null, markup:null,
+      history:[{period:sheetName, cost:it.cost}]
+    }));
+    applySebesData({
+      meta:{
+        source:'Google Sheets', periods:[sheetName],
+        total_items:data.meta.total_items, total_cats:data.meta.all_cats.length,
+        with_history:0, growth_count:0, drop_count:0,
+        all_cats:data.meta.all_cats, avg_markup:null,
+        no_cost:items.filter(i=>!i.cost).length, created_at:data.meta.created_at
+      },
+      top_growth:[], top_drop:[], top_margin:[], low_margin:[], all_items:items
+    });
+  } catch(e) {
+    console.error('loadSebesSheet:', e.message);
+    if (sdot) sdot.className = 'sdot warn';
+  }
+}
+
+function openSebesCompareModal() {
+  const modal = document.getElementById('sebes-compare-modal');
+  if (!modal) return;
+  const sheets = SEBES_SHEETS_LIST || [];
+  if (sheets.length < 2) { alert('Нужно минимум 2 периода для сравнения'); return; }
+  const opts = sheets.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+  const p1sel = document.getElementById('sebes-cmp-p1');
+  const p2sel = document.getElementById('sebes-cmp-p2');
+  if (p1sel) p1sel.innerHTML = opts;
+  if (p2sel) p2sel.innerHTML = opts;
+  if (p1sel && sheets.length) p1sel.value = sheets[sheets.length-1].name;
+  if (p2sel && sheets.length > 1) p2sel.value = sheets[sheets.length-2].name;
+  document.getElementById('sebes-cmp-table').innerHTML = '';
+  document.getElementById('sebes-cmp-msg').textContent = '';
+  modal.style.display = 'flex';
+}
+
+function closeSebesCompareModal() {
+  const modal = document.getElementById('sebes-compare-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function runSebesCompare() {
+  const p1 = document.getElementById('sebes-cmp-p1')?.value;
+  const p2 = document.getElementById('sebes-cmp-p2')?.value;
+  const msg = document.getElementById('sebes-cmp-msg');
+  const btn = document.getElementById('sebes-cmp-run-btn');
+  if (!p1 || !p2) return;
+  if (p1 === p2) { if(msg) msg.textContent = 'Выберите разные периоды'; return; }
+  if (btn) { btn.disabled=true; btn.textContent='⏳ Загружаю...'; }
+  if (msg) msg.textContent = '';
+  try {
+    const h = {'X-View-Password':sessionPassword};
+    const [r1, r2] = await Promise.all([
+      fetch('/api/sebes/sheet?name='+encodeURIComponent(p1), {headers:h}),
+      fetch('/api/sebes/sheet?name='+encodeURIComponent(p2), {headers:h})
+    ]);
+    if (!r1.ok) throw new Error(`Ошибка "${p1}": HTTP ${r1.status}`);
+    if (!r2.ok) throw new Error(`Ошибка "${p2}": HTTP ${r2.status}`);
+    const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+    renderSebesCompareTable(d1, d2, p1, p2);
+  } catch(e) {
+    if (msg) msg.textContent = e.message;
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='Сравнить'; }
+  }
+}
+
+function renderSebesCompareTable(d1, d2, name1, name2) {
+  const container = document.getElementById('sebes-cmp-table');
+  if (!container) return;
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fmt = n => n != null ? n.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' ₽' : '—';
+  const m1={}, m2={};
+  (d1.items||[]).forEach(it => { m1[it.name]=it; });
+  (d2.items||[]).forEach(it => { m2[it.name]=it; });
+  const allNames = [...new Set([...Object.keys(m1), ...Object.keys(m2)])];
+  const catMap = {};
+  allNames.forEach(n => {
+    const cat = (m1[n]||m2[n]).cat || 'Прочее';
+    if (!catMap[cat]) catMap[cat] = [];
+    catMap[cat].push(n);
+  });
+  const delta = (v1, v2) => {
+    if (v1==null && v2==null) return '<span style="color:var(--txt3)">—</span>';
+    if (v1==null) return `<span style="color:var(--warn)">новое</span>`;
+    if (v2==null) return `<span style="color:var(--txt3)">убрано</span>`;
+    const d = v2 - v1;
+    const pct = v1 ? Math.round(d/v1*1000)/10 : (v2?100:0);
+    if (Math.abs(d) < 0.005) return '<span style="color:var(--txt3)">0%</span>';
+    const col = d > 0 ? 'var(--red)' : 'var(--grn)';
+    const sign = d > 0 ? '+' : '';
+    return `<span style="color:${col}">${d>0?'▲':'▼'} ${sign}${pct}%</span>`;
+  };
+  const thS='text-align:right;padding:6px 8px;color:var(--txt2);font-weight:600;font-size:11px';
+  const thL='text-align:left;padding:6px 8px;color:var(--txt2);font-weight:600;font-size:11px';
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="border-bottom:2px solid var(--bd)">
+      <th style="${thL}">Категория / Позиция</th>
+      <th style="${thS}">${esc(name1)}</th><th style="${thS}">${esc(name2)}</th>
+      <th style="${thS}">Изменение</th>
+    </tr></thead><tbody>`;
+  const cats = Object.keys(catMap).sort((a,b)=>a.localeCompare(b,'ru'));
+  cats.forEach((cat, ci) => {
+    const names = catMap[cat].sort((a,b)=>a.localeCompare(b,'ru'));
+    const changed = names.filter(n=>(m1[n]?.cost)!==(m2[n]?.cost)).length;
+    html += `<tr style="cursor:pointer;background:var(--card2);border-top:1px solid var(--bd)" onclick="toggleSebesCmpCat(${ci})">
+      <td colspan="4" style="padding:7px 8px;font-weight:700;font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em">
+        <span id="sebes-cmp-arrow-${ci}">▶</span> ${esc(cat)}
+        <span style="font-weight:400;opacity:.6">&nbsp;${names.length} поз.</span>
+        ${changed?`<span style="margin-left:8px;color:var(--warn);font-weight:400">${changed} изменений</span>`:''}
+      </td></tr>`;
+    names.forEach((n,ni) => {
+      const v1=(m1[n]||{}).cost, v2=(m2[n]||{}).cost;
+      html += `<tr class="sebes-cmp-item-row" data-scat="${ci}" style="display:none;border-bottom:1px solid rgba(128,128,128,.07)">
+        <td style="padding:5px 8px 5px 20px;color:var(--txt)">${esc(n)}</td>
+        <td style="text-align:right;padding:5px 8px;color:var(--txt2)">${fmt(v1)}</td>
+        <td style="text-align:right;padding:5px 8px;color:var(--txt2)">${fmt(v2)}</td>
+        <td style="text-align:right;padding:5px 8px">${delta(v1,v2)}</td>
+      </tr>`;
+    });
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function toggleSebesCmpCat(ci) {
+  const rows = document.querySelectorAll('.sebes-cmp-item-row[data-scat="'+ci+'"]');
+  const arrow = document.getElementById('sebes-cmp-arrow-'+ci);
+  const expanded = rows.length && rows[0].style.display !== 'none';
+  rows.forEach(r => r.style.display = expanded ? 'none' : '');
+  if (arrow) arrow.textContent = expanded ? '▶' : '▼';
+}
 
 async function loadSebesFromServer(){
   const sdot=document.getElementById('sebes-sdot');
@@ -1977,6 +2171,8 @@ async function syncSebesFromTab(){
   const sdot=document.getElementById('sebes-sdot');
   if(btn){btn.disabled=true;btn.innerHTML='⟳ Загрузка...';}
   if(sdot)sdot.className='sdot spin';
+  _sebesActiveSheet = null;
+  await loadSebesSheetList(true);
   try{
     const r=await fetch('/api/sebes/csv?nocache=1',{headers:{'X-View-Password':sessionPassword}});
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -1985,6 +2181,8 @@ async function syncSebesFromTab(){
     else if(sdot)sdot.className='sdot warn';
   }catch(e){if(sdot)sdot.className='sdot warn';if(msg)msg.textContent='Ошибка';}
   if(btn){btn.disabled=false;btn.innerHTML='&#8635; Обновить';}
+  const sel=document.getElementById('sebes-period-select');
+  if(sel)sel.value='';
 }
 
 function applySebesData(data){
@@ -2408,6 +2606,7 @@ function switchTab(tab,btn){
     if(PROD_DATA) renderProduction();
   }
   if(tab==='sebes'){
+    loadSebesSheetList();
     if(!SEBES_DATA) loadSebesFromServer().then(ok=>{ if(!ok) renderSebes(); });
     else renderSebes();
   }
