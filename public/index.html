@@ -3519,11 +3519,34 @@ async function renderOverview(){
   const updEl = document.getElementById('overview-updated');
   if(updEl) updEl.textContent = 'Загрузка сводки...';
   if(!window.WO_SUMMARY) await _loadWoSummary();
+  // Если сводный индекс недоступен — инициируем загрузку первого листа WO
+  // (асинхронно, без блокировки; перерисуем секции когда WO_DATA появится)
+  const _needWoLoad = !window.WO_SUMMARY && !window.WO_INDEX && !window.WO_DATA;
   if(updEl) updEl.textContent = 'Обновлено: ' + now;
   _renderOverviewSections();
   _renderOverviewCharts();
   _renderOverviewTops();
   _renderOverviewAlerts();
+  if(_needWoLoad){
+    // Тихо подгружаем первый лист WO чтобы показать данные в сводке
+    (async function(){
+      try{
+        const sr = await fetch('/api/writeoffs/sheets',{headers:{'X-View-Password':sessionPassword}});
+        if(!sr.ok) return;
+        const sheets = await sr.json();
+        if(!sheets||!sheets.length) return;
+        const last = sheets[sheets.length-1];
+        const dr = await fetch('/api/writeoffs/sheet?name='+encodeURIComponent(last.name),{headers:{'X-View-Password':sessionPassword}});
+        if(!dr.ok) return;
+        WO_DATA = await dr.json(); WO_FILTERED = WO_DATA; _woActiveSheet = last.name;
+        if(document.getElementById('page-overview')?.classList.contains('active')){
+          _renderOverviewSections();
+          _renderOverviewCharts();
+          _renderOverviewAlerts();
+        }
+      }catch(e){ /* не критично */ }
+    })();
+  }
 }
 
 function _renderOverviewSections(){
@@ -4850,11 +4873,34 @@ async function renderOverview(){
   const updEl = document.getElementById('overview-updated');
   if(updEl) updEl.textContent = 'Загрузка сводки...';
   if(!window.WO_SUMMARY) await _loadWoSummary();
+  // Если сводный индекс недоступен — инициируем загрузку первого листа WO
+  // (асинхронно, без блокировки; перерисуем секции когда WO_DATA появится)
+  const _needWoLoad = !window.WO_SUMMARY && !window.WO_INDEX && !window.WO_DATA;
   if(updEl) updEl.textContent = 'Обновлено: ' + now;
   _renderOverviewSections();
   _renderOverviewCharts();
   _renderOverviewTops();
   _renderOverviewAlerts();
+  if(_needWoLoad){
+    // Тихо подгружаем первый лист WO чтобы показать данные в сводке
+    (async function(){
+      try{
+        const sr = await fetch('/api/writeoffs/sheets',{headers:{'X-View-Password':sessionPassword}});
+        if(!sr.ok) return;
+        const sheets = await sr.json();
+        if(!sheets||!sheets.length) return;
+        const last = sheets[sheets.length-1];
+        const dr = await fetch('/api/writeoffs/sheet?name='+encodeURIComponent(last.name),{headers:{'X-View-Password':sessionPassword}});
+        if(!dr.ok) return;
+        WO_DATA = await dr.json(); WO_FILTERED = WO_DATA; _woActiveSheet = last.name;
+        if(document.getElementById('page-overview')?.classList.contains('active')){
+          _renderOverviewSections();
+          _renderOverviewCharts();
+          _renderOverviewAlerts();
+        }
+      }catch(e){ /* не критично */ }
+    })();
+  }
 }
 
 function _renderOverviewSections(){
