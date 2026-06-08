@@ -621,15 +621,35 @@ function filterWoData(data, point, article) {
   if (!point && !article) return data;
   const filtered = {
     ...data,
-    by_point:   data.by_point.filter(p => !point   || p.name === point),
-    by_article: data.by_article.filter(a => !article || a.art === article),
+    by_point: data.by_point.filter(p => !point || p.name === point),
     meta: { ...data.meta },
   };
+  // Пересчитываем by_article из artBreakdown отфильтрованных точек
+  if (point) {
+    const artMap = {};
+    const filteredTotal = filtered.by_point.reduce((s, p) => s + p.total, 0);
+    filtered.by_point.forEach(p => {
+      (p.artBreakdown || []).forEach(a => {
+        artMap[a.art] = (artMap[a.art] || 0) + a.cost;
+      });
+    });
+    let artList = Object.entries(artMap)
+      .sort((a, b) => b[1] - a[1])
+      .map(([art, cost]) => ({
+        art,
+        cost: Math.round(cost * 100) / 100,
+        pct: filteredTotal > 0 ? Math.round(cost / filteredTotal * 1000) / 10 : 0,
+      }));
+    if (article) artList = artList.filter(a => a.art === article);
+    filtered.by_article = artList;
+  } else {
+    filtered.by_article = data.by_article.filter(a => !article || a.art === article);
+  }
   if (point || article) {
     const pts = filtered.by_point;
-    const total = pts.reduce((s,p)=>s+p.total, 0);
+    const total = pts.reduce((s, p) => s + p.total, 0);
     filtered.meta.filtered_cost = Math.round(total * 100) / 100;
-    filtered.meta.filtered_records = pts.reduce((s,p)=>s+p.top10Items.length, 0);
+    filtered.meta.filtered_records = pts.reduce((s, p) => s + p.top10Items.length, 0);
   }
   return filtered;
 }
