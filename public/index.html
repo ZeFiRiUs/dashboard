@@ -376,6 +376,7 @@ html.light .sidebar{background:rgba(255,255,255,.85);border-right-color:var(--bd
 .sidebar-toggle-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd);background:transparent;cursor:pointer;color:var(--txt2);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;font-family:'Manrope',sans-serif;padding:0}
 .sidebar-toggle-btn:hover{background:var(--card);border-color:rgba(255,223,0,.4);color:var(--acc)}
 .sidebar-nav-inner{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px}
+.sidebar-footer{padding:8px;flex-shrink:0;border-top:1px solid var(--bd)}
 .sidebar-btn{display:flex;align-items:center;gap:12px;padding:10px 12px;border:none;background:transparent;color:var(--txt2);font-size:13px;font-weight:600;font-family:'Manrope',sans-serif;cursor:pointer;transition:all .15s;width:100%;text-align:left;white-space:nowrap;border-radius:8px;margin-bottom:2px;position:relative}
 .sidebar-btn:hover{background:var(--card);color:var(--txt)}
 .sidebar-btn.active{background:linear-gradient(90deg,rgba(255,223,0,.14),rgba(255,223,0,.04));color:var(--acc)}
@@ -621,17 +622,12 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
   </div>
   <div class="hbtns">
     <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Сменить тему">🌙</button>
-    <button class="btn btn-warn" onclick="openAdmin()">🔒 <span>Управление</span></button>
-    <button class="btn" id="logout-btn" onclick="doLogout()" style="display:none" title="Выйти">↩ <span>Выйти</span></button>
   </div>
 </header>
 
 <!-- Боковая навигация (десктоп) -->
 <nav id="sidebar" class="sidebar">
-  <div class="sidebar-head">
-    <button class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Свернуть меню">‹</button>
-  </div>
-  <div class="sidebar-nav-inner">
+  <div class="sidebar-nav-inner" style="padding-top:12px">
     <button class="sidebar-btn active" data-tab="overview" onclick="switchTab('overview',this)">
       <span class="sidebar-icon">🏠</span><span class="sidebar-label">Сводка</span>
     </button>
@@ -655,6 +651,14 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
     </button>
     <button class="sidebar-btn" data-tab="compare" onclick="switchTab('compare',this)">
       <span class="sidebar-icon">⇄</span><span class="sidebar-label">Сравнение</span>
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    <button class="sidebar-btn" onclick="openAdmin()">
+      <span class="sidebar-icon">🔒</span><span class="sidebar-label">Управление</span>
+    </button>
+    <button class="sidebar-btn" id="logout-btn" onclick="doLogout()" style="display:none">
+      <span class="sidebar-icon">↩</span><span class="sidebar-label">Выйти</span>
     </button>
   </div>
 </nav>
@@ -703,6 +707,10 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <span>Сравнение</span>
     </button>
     <div style="border-top:1px solid var(--bd);margin:6px 0"></div>
+    <button class="mob-menu-item" onclick="openAdmin();toggleMobMenu()">
+      <span style="font-size:20px">🔒</span>
+      <span>Управление</span>
+    </button>
     <button class="mob-menu-item" id="mob-logout-btn" onclick="doLogout()" style="display:none">
       <span style="font-size:20px">↩</span>
       <span>Выйти</span>
@@ -6336,12 +6344,8 @@ function _updateSheetsBarVisibility(isAdmin){
 }
 _updateSheetsBarVisibility(false); // скрыта по умолчанию
 
-// Восстанавливаем состояние sidebar
-if(localStorage.getItem('sidebarCollapsed')==='1'){
-  document.body.classList.add('sb-col');
-  const sbToggle=document.getElementById('sidebar-toggle');
-  if(sbToggle)sbToggle.textContent='›';
-}
+// Sidebar всегда свёрнут, раскрывается только по hover
+document.body.classList.add('sb-col');
 
 if(sessionPassword){
   fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':sessionPassword,'X-Admin-Password':sessionPassword},body:JSON.stringify({password:sessionPassword})})
