@@ -891,10 +891,10 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
   </div>
 
   <!-- Empty state -->
-  <div id="stops-empty" style="display:flex;align-items:center;justify-content:center;padding:60px 20px;min-height:52vh">
-    <div style="width:100%;max-width:400px;text-align:center">
-      <div style="width:80px;height:80px;margin:0 auto 28px;border-radius:22px;background:rgba(242,141,41,.08);border:1px solid rgba(242,141,41,.18);display:flex;align-items:center;justify-content:center;font-size:36px">🚫</div>
-      <div style="font-size:20px;font-weight:700;color:var(--txt);margin-bottom:10px;letter-spacing:-.01em">Данные стоп-листов не загружены</div>
+  <div id="stops-empty" style="padding:80px 20px;text-align:center">
+    <div style="max-width:420px;margin:0 auto">
+      <div style="width:80px;height:80px;border-radius:22px;background:rgba(242,141,41,.08);border:1px solid rgba(242,141,41,.18);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 28px">🚫</div>
+      <div style="font-size:20px;font-weight:700;color:var(--txt);margin-bottom:10px">Данные стоп-листов не загружены</div>
       <div style="font-size:13px;color:var(--txt3);line-height:1.7;margin-bottom:32px">Синхронизируйте данные из Google Sheets,<br>чтобы увидеть аналитику по стоп-листам</div>
       <button class="btn btn-acc" onclick="loadStopsFromSheets(true)" style="padding:11px 28px;font-size:13px;font-weight:600">&#8635; Синхронизировать</button>
     </div>
@@ -966,10 +966,10 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <button class="btn btn-acc" onclick="loadDeliveriesFromSheets(true)">&#8635; Обновить</button>
     </div>
   </div>
-  <div id="del-empty" style="display:flex;align-items:center;justify-content:center;padding:60px 20px;min-height:52vh">
-    <div style="width:100%;max-width:400px;text-align:center">
-      <div style="width:80px;height:80px;margin:0 auto 28px;border-radius:22px;background:rgba(152,194,30,.08);border:1px solid rgba(152,194,30,.18);display:flex;align-items:center;justify-content:center;font-size:36px">🚚</div>
-      <div style="font-size:20px;font-weight:700;color:var(--txt);margin-bottom:10px;letter-spacing:-.01em">Данные довозов не загружены</div>
+  <div id="del-empty" style="padding:80px 20px;text-align:center">
+    <div style="max-width:420px;margin:0 auto">
+      <div style="width:80px;height:80px;border-radius:22px;background:rgba(152,194,30,.08);border:1px solid rgba(152,194,30,.18);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 28px">🚚</div>
+      <div style="font-size:20px;font-weight:700;color:var(--txt);margin-bottom:10px">Данные довозов не загружены</div>
       <div style="font-size:13px;color:var(--txt3);line-height:1.7;margin-bottom:32px">Синхронизируйте данные из Google Sheets,<br>чтобы увидеть аналитику по довозам</div>
       <button class="btn btn-acc" onclick="loadDeliveriesFromSheets(true)" style="padding:11px 28px;font-size:13px;font-weight:600">&#8635; Синхронизировать</button>
     </div>
