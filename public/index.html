@@ -3293,6 +3293,8 @@ async function loadData(){
       // Данные есть только в индексе (синхронизация из Sheets) — строим период из всего диапазона
       buildPeriodFromIndex();
       ss('ok','Синхронизировано из Sheets · '+WO_INDEX.meta.dates.length+' дней · '+new Date().toLocaleTimeString('ru-RU'));
+    } else if(window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.total > 0){
+      ss('ok','Sheets · '+WO_INDEX.by_point.length+' точек · '+new Date().toLocaleTimeString('ru-RU'));
     } else {
       ss('warn','Нет данных. Загрузите JSON или синхронизируйте Sheets');
     }
@@ -4704,6 +4706,8 @@ async function loadData(){
       // Данные есть только в индексе (синхронизация из Sheets) — строим период из всего диапазона
       buildPeriodFromIndex();
       ss('ok','Синхронизировано из Sheets · '+WO_INDEX.meta.dates.length+' дней · '+new Date().toLocaleTimeString('ru-RU'));
+    } else if(window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.total > 0){
+      ss('ok','Sheets · '+WO_INDEX.by_point.length+' точек · '+new Date().toLocaleTimeString('ru-RU'));
     } else {
       ss('warn','Нет данных. Загрузите JSON или синхронизируйте Sheets');
     }
