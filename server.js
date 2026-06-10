@@ -1759,7 +1759,7 @@ app.put('/api/sebes/sheets', express.json(), (req, res) => {
 });
 
 // ── Deliveries CSV proxy (Google Sheets) ─────────────────────────────────────
-const DELIVERIES_SHEET_ID = '1Rfwer4_rEocp7wPb-NLYsFbkWYkq5SVrO7mkYbCoflw';
+const DELIVERIES_SHEET_ID = '1m_VKlpmoJ9g7WRjcNOwSaLo8B5YyWFFXrlFZ6NL4U14';
 let _delCsvCache = null;
 let _delCsvCacheTs = 0;
 const DEL_CSV_CACHE_TTL = 5 * 60 * 1000;
