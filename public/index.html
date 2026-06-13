@@ -944,6 +944,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
     <div style="font-size:14px;font-weight:700;color:var(--txt);display:flex;align-items:center">
       <span class="abadge"></span>Активные стопы
       <span id="active-count" style="font-size:12px;color:var(--txt3);font-weight:400;margin-left:6px"></span>
+      <span id="active-date-label" style="font-size:11px;color:var(--acc);font-weight:600;margin-left:10px;display:none"></span>
     </div>
     <select id="active-point-filter" onchange="renderActiveStops()"
       style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
@@ -2666,6 +2667,18 @@ async function loadStopsFromSheets(force){
     const csv = await r.text();
     const data = parseStopsCsv(csv);
     if(!data || !data.periods || !data.periods[0]) throw new Error('Нет данных в таблице');
+    // Загружаем активные стоп-листы с второго листа и заменяем вычисленные
+    try {
+      const ar = await fetch('/api/stops/active-csv' + (force ? '?nocache=1' : ''), {headers:{'X-View-Password':sessionPassword}});
+      if(ar.ok) {
+        const activeCsv = await ar.text();
+        const parsed = parseActiveStopsCsv(activeCsv);
+        if(parsed && parsed.rows && parsed.rows.length) {
+          data.periods[0].active = parsed.rows;
+          if(parsed.date) window._activeStopsDate = parsed.date;
+        }
+      }
+    } catch(ae) { console.warn('[stops] active sheet:', ae.message); }
     applyStopsData(data);
     if(dotEl) dotEl.style.background = 'var(--grn)';
     const ts = new Date().toLocaleTimeString('ru-RU');
@@ -2790,6 +2803,51 @@ function parseStopsCsv(csv){
   };
 }
 
+// Парсер второго листа стоп-листов (актуальные стопы на конкретную дату)
+function parseActiveStopsCsv(csv){
+  function parseLine(line){
+    const res=[]; let cur='', inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    res.push(cur.trim()); return res;
+  }
+  const lines=csv.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(lines.length<2) return {rows:[],date:''};
+  // Ищем дату в первых строках (формат DD.MM.YYYY)
+  let sheetDate='';
+  for(let i=0;i<Math.min(3,lines.length);i++){
+    const m=lines[i].match(/(\d{1,2})[.\-](\d{1,2})[.\-](\d{4})/);
+    if(m){sheetDate=`${m[1].padStart(2,'0')}.${m[2].padStart(2,'0')}.${m[3]}`;break;}
+  }
+  // Ищем строку с заголовками колонок
+  let headerIdx=0;
+  for(let i=0;i<Math.min(4,lines.length);i++){
+    const row=parseLine(lines[i]).map(h=>h.toLowerCase());
+    if(row.some(h=>h.includes('точк')||h.includes('продукт')||h.includes('товар'))){headerIdx=i;break;}
+  }
+  const headers=parseLine(lines[headerIdx]).map(h=>h.toLowerCase().trim());
+  const iPoint=headers.findIndex(h=>h.includes('точк'));
+  const iProd =headers.findIndex(h=>h.includes('продукт')||h.includes('товар')||h.includes('позиц')||h.includes('наимен'));
+  const iSince=headers.findIndex(h=>h.includes('добавл')||h.includes('с ')||h.includes('дат'));
+  const iDur  =headers.findIndex(h=>h.includes('длит')||h.includes('мин'));
+  const rows=[];
+  for(let i=headerIdx+1;i<lines.length;i++){
+    const r=parseLine(lines[i]);
+    const pt=iPoint>=0?(r[iPoint]||'').trim():'';
+    const pr=iProd >=0?(r[iProd ]||'').trim():'';
+    if(!pt||!pr) continue;
+    rows.push({
+      pt, pr,
+      s:iSince>=0?(r[iSince]||sheetDate).trim():sheetDate,
+      d:iDur>=0?parseInt(r[iDur])||0:0,
+    });
+  }
+  return {rows, date:sheetDate};
+}
 
 const SUPPLY_SHEET_ID = '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
 const SUPPLY_CSV_URL  = `https://docs.google.com/spreadsheets/d/${SUPPLY_SHEET_ID}/export?format=csv&gid=0`;
@@ -5980,6 +6038,8 @@ function renderStopsData(s){
   if(sel)sel.innerHTML='<option value="">Все точки</option>'+allPts.map(p=>`<option value="${p}" ${p===curPt?'selected':''}>${p}</option>`).join('');
   const active=(s.active||[]).filter(a=>!curPt||a.point===curPt);
   const ce=document.getElementById('active-count'); if(ce)ce.textContent=`(${active.length})`;
+  const dl=document.getElementById('active-date-label');
+  if(dl){const d=window._activeStopsDate||'';dl.textContent=d?'актуально на '+d:'';dl.style.display=d?'':'none';}
   document.getElementById('active-tbody').innerHTML=active.length
     ?active.map(a=>{
         const lv=a.dur>240?'l':a.dur>60?'m':'o';
