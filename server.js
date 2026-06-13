@@ -1949,14 +1949,14 @@ app.get('/api/stops/active-csv', async (req, res) => {
       return res.status(404).json({ error: 'Второй лист не найден в таблице стоп-листов' });
     }
     const sheet = sheets[1];
-    const url = sheet.gid !== null
-      ? `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=csv&gid=${sheet.gid}`
-      : `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
+    // Используем имя листа — GID из workbook.xml (sheetId) не совпадает с gid= в URL экспорта
+    const url = `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
     const csv = await r.text();
     _stopsActiveCsvCache = csv;
     _stopsActiveCsvCacheTs = now;
+    res.set('X-Sheet-Name', sheet.name);
     res.type('text/csv').send(csv);
   } catch(e) {
     console.error('[STOPS] active-csv error:', e.message);
