@@ -670,11 +670,7 @@ async function rebuildWriteoffsIndex() {
   try {
     const sheets = await fetchWoSheetList();
     if (!sheets || !sheets.length) {
-      fs.writeFileSync(WO_INDEX_FILE, JSON.stringify({
-        meta: { total: 0, sheets_count: 0, dates: [], warehouses: [] },
-        by_sheet: [], by_day: {}, by_wh: {}, by_point: []
-      }));
-      return;
+      return; // Sheets недоступны — сохраняем существующий индекс без перезаписи
     }
     const bySheet = [];
     let grandTotal = 0;
