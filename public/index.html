@@ -3560,6 +3560,8 @@ async function renderOverview(){
 function _renderOverviewSections(){
   const monoSt='font-family:JetBrains Mono,monospace';
   const sections=[];
+  // Если periods ещё не построен из индекса — строим сейчас
+  if(!periods.length && window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.dates && WO_INDEX.meta.dates.length) buildPeriodFromIndex();
 
   // ── Списания — актуальные данные из Google Sheets ─────────────────────────
   // WO_SUMMARY загружается по запросу; WO_INDEX — при старте через initWoDateFilter
@@ -4918,6 +4920,8 @@ async function renderOverview(){
 function _renderOverviewSections(){
   const monoSt='font-family:JetBrains Mono,monospace';
   const sections=[];
+  // Если periods ещё не построен из индекса — строим сейчас
+  if(!periods.length && window.WO_INDEX && WO_INDEX.meta && WO_INDEX.meta.dates && WO_INDEX.meta.dates.length) buildPeriodFromIndex();
 
   // ── Списания — актуальные данные из Google Sheets ─────────────────────────
   // WO_SUMMARY загружается по запросу; WO_INDEX — при старте через initWoDateFilter
