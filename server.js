@@ -1880,6 +1880,36 @@ let _stopsCsvCache = null;
 let _stopsCsvCacheTs = 0;
 const STOPS_CSV_CACHE_TTL = 5 * 60 * 1000;
 
+// Список листов таблицы стоп-листов (для поиска второго листа)
+let _stopsSheetListCache = null;
+let _stopsSheetListTs = 0;
+const STOPS_SHEET_LIST_TTL = 10 * 60 * 1000;
+
+async function getStopsSheetList() {
+  const now = Date.now();
+  if (_stopsSheetListCache && (now - _stopsSheetListTs) < STOPS_SHEET_LIST_TTL) {
+    return _stopsSheetListCache;
+  }
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=xlsx`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf[0] !== 0x50 || buf[1] !== 0x4B) throw new Error('Not a ZIP');
+    const XLSX = require('xlsx');
+    const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
+    const gidMap = _extractGidsFromXlsx(buf);
+    const sheets = wb.SheetNames.map((n, i) => ({ index: i, name: n, gid: gidMap[n] != null ? gidMap[n] : null }));
+    console.log('[STOPS] Листы:', sheets.map(s => `${s.name}(gid=${s.gid})`).join(', '));
+    _stopsSheetListCache = sheets;
+    _stopsSheetListTs = now;
+    return sheets;
+  } catch(e) {
+    console.error('[STOPS] getSheetList error:', e.message);
+    return _stopsSheetListCache || [];
+  }
+}
+
 app.get('/api/stops/csv', async (req, res) => {
   if (!checkView(req, res)) return;
   const now = Date.now();
@@ -1899,6 +1929,39 @@ app.get('/api/stops/csv', async (req, res) => {
     console.error('Stops CSV fetch error:', e.message);
     if (_stopsCsvCache) return res.type('text/csv').send(_stopsCsvCache);
     res.status(502).json({ error: 'Не удалось получить данные: ' + e.message });
+  }
+});
+
+// GET /api/stops/active-csv — второй лист (актуальные стоп-листы)
+let _stopsActiveCsvCache = null;
+let _stopsActiveCsvCacheTs = 0;
+
+app.get('/api/stops/active-csv', async (req, res) => {
+  if (!checkView(req, res)) return;
+  const now = Date.now();
+  const noCache = req.query.nocache === '1';
+  if (!noCache && _stopsActiveCsvCache && (now - _stopsActiveCsvCacheTs) < STOPS_CSV_CACHE_TTL) {
+    return res.type('text/csv').send(_stopsActiveCsvCache);
+  }
+  try {
+    const sheets = await getStopsSheetList();
+    if (!sheets || sheets.length < 2) {
+      return res.status(404).json({ error: 'Второй лист не найден в таблице стоп-листов' });
+    }
+    const sheet = sheets[1];
+    const url = sheet.gid !== null
+      ? `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=csv&gid=${sheet.gid}`
+      : `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    _stopsActiveCsvCache = csv;
+    _stopsActiveCsvCacheTs = now;
+    res.type('text/csv').send(csv);
+  } catch(e) {
+    console.error('[STOPS] active-csv error:', e.message);
+    if (_stopsActiveCsvCache) return res.type('text/csv').send(_stopsActiveCsvCache);
+    res.status(502).json({ error: e.message });
   }
 });
 
