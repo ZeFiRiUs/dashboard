@@ -2844,8 +2844,7 @@ function parseActiveStopsCsv(csv){
   }
   function fmtTs(d){return d?d.toISOString().slice(0,16).replace('T',' '):'';}
 
-  // Дата из имени листа берётся выше (в loadStopsFromSheets через _activeStopsDate)
-  // Здесь просто извлекаем активные строки
+  // Второй лист — снапшот активных стопов, все строки берём как активные
   const rows=[];
   let curPt='';
   for(let i=headerIdx+1;i<lines.length;i++){
@@ -2854,17 +2853,12 @@ function parseActiveStopsCsv(csv){
     const pr=iProd >=0?(r[iProd ]||'').trim():'';
     // Сгруппированный формат: строка с точкой но без продукта — заголовок группы
     if(pt && !pr){curPt=pt; continue;}
-    // Реальная точка: либо в этой строке, либо последняя запомненная
     const realPt=pt||curPt;
     if(!realPt||!pr) continue;
-    if(pt) curPt=pt; // обновляем при явном указании
-    const addedTs  =iAdded  >=0?parseTs(r[iAdded ]):null;
-    const removedTs=iRemoved>=0?parseTs(r[iRemoved]):null;
-    if(!addedTs) continue;
-    // Только активные — без даты исключения
-    if(removedTs) continue;
+    if(pt) curPt=pt;
+    const addedTs=iAdded>=0?parseTs(r[iAdded]):null;
     const mn=iDur>=0?parseDur(r[iDur]):0;
-    rows.push({pt:realPt, pr, s:fmtTs(addedTs), d:mn});
+    rows.push({point:realPt, product:pr, since:addedTs?fmtTs(addedTs):'', dur:mn});
   }
   return {rows};
 }
