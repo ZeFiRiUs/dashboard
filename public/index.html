@@ -3768,10 +3768,10 @@ function _renderOverviewTops(){
   if(gEl && DEL_DATA && DEL_DATA.rows){
     const agg={};
     DEL_DATA.rows.forEach(function(r){
-      (r.guilty||[]).forEach(function(g){
-        if(!agg[g])agg[g]={count:0,cost:0};
-        agg[g].count++;agg[g].cost+=r.cost;
-      });
+      const g=(r.guilty||'').trim();
+      if(!g)return;
+      if(!agg[g])agg[g]={count:0,cost:0};
+      agg[g].count++;agg[g].cost+=r.cost;
     });
     const top=Object.entries(agg).sort((a,b)=>b[1].count-a[1].count).slice(0,7);
     if(top.length){
@@ -5123,10 +5123,10 @@ function _renderOverviewTops(){
   if(gEl && DEL_DATA && DEL_DATA.rows){
     const agg={};
     DEL_DATA.rows.forEach(function(r){
-      (r.guilty||[]).forEach(function(g){
-        if(!agg[g])agg[g]={count:0,cost:0};
-        agg[g].count++;agg[g].cost+=r.cost;
-      });
+      const g=(r.guilty||'').trim();
+      if(!g)return;
+      if(!agg[g])agg[g]={count:0,cost:0};
+      agg[g].count++;agg[g].cost+=r.cost;
     });
     const top=Object.entries(agg).sort((a,b)=>b[1].count-a[1].count).slice(0,7);
     if(top.length){
