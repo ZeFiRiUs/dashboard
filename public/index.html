@@ -3717,7 +3717,8 @@ function _renderOverviewCharts(){
   // Списания — топ точек из WO_SUMMARY.by_point
   const woEl = document.getElementById('overview-wo-chart');
   const woSub = document.getElementById('overview-wo-sub');
-  const woPoints = (window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length) ? WO_SUMMARY.by_point : null;
+  const woPoints = (window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length) ? WO_SUMMARY.by_point
+    : (periods&&periods.length&&periods[0].warehouses&&periods[0].warehouses.length) ? periods[0].warehouses : null;
   if(woEl && woPoints){
     const top = woPoints.slice(0,8);
     const maxT = top[0].total;
@@ -3810,8 +3811,10 @@ function _renderOverviewAlerts(){
   const alerts=[];
 
   // Точки с критичными списаниями
-  if(window.WO_SUMMARY && WO_SUMMARY.by_point && WO_SUMMARY.by_point.length){
-    const crit=WO_SUMMARY.by_point.filter(function(p){return p.total>100000;});
+  const _alertWoPoints=(window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length)?WO_SUMMARY.by_point
+    :(periods&&periods.length&&periods[0].warehouses&&periods[0].warehouses.length)?periods[0].warehouses:null;
+  if(_alertWoPoints){
+    const crit=_alertWoPoints.filter(function(p){return p.total>100000;});
     if(crit.length) alerts.push({
       type:'danger',icon:'📊',
       text:'Критичные списания: '+crit.slice(0,5).map(function(p){return p.name+' ('+Math.round(p.total/1000)+'k ₽)';}).join(', ')
@@ -5072,7 +5075,8 @@ function _renderOverviewCharts(){
   // Списания — топ точек из WO_SUMMARY.by_point
   const woEl = document.getElementById('overview-wo-chart');
   const woSub = document.getElementById('overview-wo-sub');
-  const woPoints = (window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length) ? WO_SUMMARY.by_point : null;
+  const woPoints = (window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length) ? WO_SUMMARY.by_point
+    : (periods&&periods.length&&periods[0].warehouses&&periods[0].warehouses.length) ? periods[0].warehouses : null;
   if(woEl && woPoints){
     const top = woPoints.slice(0,8);
     const maxT = top[0].total;
@@ -5165,8 +5169,10 @@ function _renderOverviewAlerts(){
   const alerts=[];
 
   // Точки с критичными списаниями
-  if(window.WO_SUMMARY && WO_SUMMARY.by_point && WO_SUMMARY.by_point.length){
-    const crit=WO_SUMMARY.by_point.filter(function(p){return p.total>100000;});
+  const _alertWoPoints=(window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length)?WO_SUMMARY.by_point
+    :(periods&&periods.length&&periods[0].warehouses&&periods[0].warehouses.length)?periods[0].warehouses:null;
+  if(_alertWoPoints){
+    const crit=_alertWoPoints.filter(function(p){return p.total>100000;});
     if(crit.length) alerts.push({
       type:'danger',icon:'📊',
       text:'Критичные списания: '+crit.slice(0,5).map(function(p){return p.name+' ('+Math.round(p.total/1000)+'k ₽)';}).join(', ')
