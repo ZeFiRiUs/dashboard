@@ -2671,11 +2671,13 @@ async function loadStopsFromSheets(force){
     try {
       const ar = await fetch('/api/stops/active-csv' + (force ? '?nocache=1' : ''), {headers:{'X-View-Password':sessionPassword}});
       if(ar.ok) {
+        const sheetName = ar.headers.get('X-Sheet-Name')||'';
+        const dm = sheetName.match(/(\d{1,2})[.\-](\d{1,2})[.\-](\d{4})/);
+        if(dm) window._activeStopsDate = `${dm[1].padStart(2,'0')}.${dm[2].padStart(2,'0')}.${dm[3]}`;
         const activeCsv = await ar.text();
         const parsed = parseActiveStopsCsv(activeCsv);
         if(parsed && parsed.rows && parsed.rows.length) {
           data.periods[0].active = parsed.rows;
-          if(parsed.date) window._activeStopsDate = parsed.date;
         }
       }
     } catch(ae) { console.warn('[stops] active sheet:', ae.message); }
@@ -2817,12 +2819,6 @@ function parseActiveStopsCsv(csv){
   }
   const lines=csv.split('\n').map(l=>l.trim()).filter(Boolean);
   if(lines.length<2) return {rows:[],date:''};
-  // Ищем дату в первых строках (формат DD.MM.YYYY)
-  let sheetDate='';
-  for(let i=0;i<Math.min(3,lines.length);i++){
-    const m=lines[i].match(/(\d{1,2})[.\-](\d{1,2})[.\-](\d{4})/);
-    if(m){sheetDate=`${m[1].padStart(2,'0')}.${m[2].padStart(2,'0')}.${m[3]}`;break;}
-  }
   // Ищем строку с заголовками колонок
   let headerIdx=0;
   for(let i=0;i<Math.min(4,lines.length);i++){
@@ -2830,23 +2826,47 @@ function parseActiveStopsCsv(csv){
     if(row.some(h=>h.includes('точк')||h.includes('продукт')||h.includes('товар'))){headerIdx=i;break;}
   }
   const headers=parseLine(lines[headerIdx]).map(h=>h.toLowerCase().trim());
-  const iPoint=headers.findIndex(h=>h.includes('точк'));
-  const iProd =headers.findIndex(h=>h.includes('продукт')||h.includes('товар')||h.includes('позиц')||h.includes('наимен'));
-  const iSince=headers.findIndex(h=>h.includes('добавл')||h.includes('с ')||h.includes('дат'));
-  const iDur  =headers.findIndex(h=>h.includes('длит')||h.includes('мин'));
+  const iPoint  =headers.findIndex(h=>h.includes('точк'));
+  const iProd   =headers.findIndex(h=>h.includes('продукт')||h.includes('товар')||h.includes('позиц')||h.includes('наимен'));
+  const iAdded  =headers.findIndex(h=>h.includes('добавл'));
+  const iRemoved=headers.findIndex(h=>h.includes('исключ')||h.includes('снят'));
+  const iDur    =headers.findIndex(h=>h.includes('длит'));
+
+  function parseTs(s){
+    if(!s) return null;
+    const m=String(s).match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{1,2}):(\d{2})/);
+    if(m) return new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5]);
+    const d=new Date(s); return isNaN(d)?null:d;
+  }
+  function parseDur(s){
+    if(!s||s==='-') return 0;
+    const m=String(s).match(/(\d+):(\d+)/); return m?+m[1]*60++m[2]:0;
+  }
+  function fmtTs(d){return d?d.toISOString().slice(0,16).replace('T',' '):'';}
+
+  // Дата из имени листа берётся выше (в loadStopsFromSheets через _activeStopsDate)
+  // Здесь просто извлекаем активные строки
   const rows=[];
+  let curPt='';
   for(let i=headerIdx+1;i<lines.length;i++){
     const r=parseLine(lines[i]);
     const pt=iPoint>=0?(r[iPoint]||'').trim():'';
     const pr=iProd >=0?(r[iProd ]||'').trim():'';
-    if(!pt||!pr) continue;
-    rows.push({
-      pt, pr,
-      s:iSince>=0?(r[iSince]||sheetDate).trim():sheetDate,
-      d:iDur>=0?parseInt(r[iDur])||0:0,
-    });
+    // Сгруппированный формат: строка с точкой но без продукта — заголовок группы
+    if(pt && !pr){curPt=pt; continue;}
+    // Реальная точка: либо в этой строке, либо последняя запомненная
+    const realPt=pt||curPt;
+    if(!realPt||!pr) continue;
+    if(pt) curPt=pt; // обновляем при явном указании
+    const addedTs  =iAdded  >=0?parseTs(r[iAdded ]):null;
+    const removedTs=iRemoved>=0?parseTs(r[iRemoved]):null;
+    if(!addedTs) continue;
+    // Только активные — без даты исключения
+    if(removedTs) continue;
+    const mn=iDur>=0?parseDur(r[iDur]):0;
+    rows.push({pt:realPt, pr, s:fmtTs(addedTs), d:mn});
   }
-  return {rows, date:sheetDate};
+  return {rows};
 }
 
 const SUPPLY_SHEET_ID = '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
