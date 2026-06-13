@@ -2840,7 +2840,7 @@ function parseActiveStopsCsv(csv){
   }
   function parseDur(s){
     if(!s||s==='-') return 0;
-    const m=String(s).match(/(\d+):(\d+)/); return m?+m[1]*60++m[2]:0;
+    const m=String(s).match(/(\d+):(\d+)/); return m?+m[1]*60+ +m[2]:0;
   }
   function fmtTs(d){return d?d.toISOString().slice(0,16).replace('T',' '):'';}
 
