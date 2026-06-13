@@ -1025,7 +1025,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <div class="sw" style="max-width:280px"><span class="sic">🔍</span><input class="si" id="del-search" type="text" placeholder="Поиск по точке, виновному, позиции..." oninput="applyDelFilter()"></div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto">
-      <table class="stops-tbl"><thead><tr><th style="cursor:pointer;user-select:none" onclick="toggleDelSort()" title="Сортировать по дате"><span id="del-sort-icon">↓</span> Дата</th><th>Точка</th><th>Тип</th><th>Виновный</th><th>Товар</th><th>Причина</th><th>Кол-во</th><th>Остаток</th></tr></thead>
+      <table class="stops-tbl"><thead><tr><th style="cursor:pointer;user-select:none" onclick="toggleDelSort()" title="Сортировать по дате"><span id="del-sort-icon">↓</span> Дата</th><th>Точка</th><th>Тип</th><th>Виновный</th><th>Товары</th><th>Причина</th><th>Позиций</th><th>Стоимость</th></tr></thead>
       <tbody id="del-tbody"></tbody></table>
     </div>
   </div>
@@ -1397,14 +1397,14 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
     <!-- Tags row -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px" id="del-modal-tags"></div>
     <!-- Позиции -->
-    <div class="st">Товар</div>
+    <div class="st">Товары</div>
     <div id="del-modal-items" style="background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;color:var(--txt);line-height:1.7;white-space:pre-line"></div>
     <!-- Детали -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px" id="del-modal-details">
       <div class="mk"><div class="mkl">Причина</div><div id="del-modal-reason" style="font-size:13px;color:var(--txt);margin-top:4px;font-weight:600"></div></div>
       <div class="mk"><div class="mkl">Виновный</div><div id="del-modal-guilty" style="font-size:13px;color:var(--warn);margin-top:4px;font-weight:600"></div></div>
       <div class="mk"><div class="mkl">Отправитель</div><div id="del-modal-dept" style="font-size:13px;color:var(--txt);margin-top:4px;font-weight:600"></div></div>
-      <div class="mk"><div class="mkl">Кол-во / Остаток</div><div id="del-modal-cost" style="font-size:13px;font-weight:700;margin-top:4px"></div></div>
+      <div class="mk"><div class="mkl">Стоимость довоза</div><div id="del-modal-cost" style="font-size:13px;font-weight:700;margin-top:4px"></div></div>
     </div>
     <!-- Реестр -->
     <div id="del-modal-reg"></div>
@@ -1548,15 +1548,17 @@ function applyDelFilter(){
       (r.items||'').toLowerCase().includes(searchVal))
   );
   rows=[...rows].sort((a,b)=>DEL_SORT_DESC?b.iso.localeCompare(a.iso):a.iso.localeCompare(b.iso));
-  const withGuilty=rows.filter(r=>r.guilty&&r.guilty.length>0).length;
-  const dovozy=rows.filter(r=>r.type==='#довоз').length;
-  const dobavit=rows.filter(r=>r.type==='#добавить').length;
+  const deliveries=groupDeliveries(rows);
+  window._delDeliveries=deliveries;
+  const withGuilty=deliveries.filter(d=>d.guilty&&d.guilty.length>0).length;
+  const dovozy=deliveries.filter(d=>d.type==='#довоз').length;
+  const dobavit=deliveries.filter(d=>d.type==='#добавить').length;
   const kEl=document.getElementById('del-kpis');
   if(kEl)kEl.innerHTML=`
-    <div class="kpi r"><div class="kl">Всего записей</div><div class="kv">${rows.length}</div><div class="ks">${(dateFrom||dateTo)?'за период':'всего'}</div></div>
+    <div class="kpi r"><div class="kl">Всего довозов</div><div class="kv">${deliveries.length}</div><div class="ks">${(dateFrom||dateTo)?'за период':'всего'} · ${rows.length} поз.</div></div>
     <div class="kpi w"><div class="kl">#довоз</div><div class="kv">${dovozy}</div><div class="ks">срочный довоз</div></div>
-    <div class="kpi r"><div class="kl">С виновным</div><div class="kv">${withGuilty}</div><div class="ks">из ${rows.length}</div></div>
-    <div class="kpi"><div class="kl">Без виновного</div><div class="kv">${rows.length-withGuilty}</div><div class="ks">нет ответственного</div></div>`;
+    <div class="kpi r"><div class="kl">С виновным</div><div class="kv">${withGuilty}</div><div class="ks">из ${deliveries.length}</div></div>
+    <div class="kpi"><div class="kl">Без виновного</div><div class="kv">${deliveries.length-withGuilty}</div><div class="ks">нет ответственного</div></div>`;
   const dateData=DEL_DATA.meta.all_dates.filter(d=>(!dateFrom||d.iso>=dateFrom)&&(!dateTo||d.iso<=dateTo));
   const maxN=dateData.length?Math.max(...dateData.map(d=>d.n)):1;
   const dEl=document.getElementById('del-by-date');
@@ -1637,19 +1639,22 @@ function applyDelFilter(){
       </div>
       <div style="background:var(--bd);border-radius:2px;height:3px"><div style="height:3px;border-radius:2px;background:${i===0?'var(--red)':i<3?'var(--warn)':'var(--acc)'};width:${Math.round(v.count/maxPC*100)}%"></div></div>
       ${v.cost>0?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">${v.cost.toLocaleString('ru-RU')} ₽</div>`:''}</div>`).join('');
-  const rcEl=document.getElementById('del-rows-count');if(rcEl)rcEl.textContent=`(${rows.length} записей)`;
+  const rcEl=document.getElementById('del-rows-count');if(rcEl)rcEl.textContent=`(${deliveries.length} довозов · ${rows.length} позиций)`;
   const tbEl=document.getElementById('del-tbody');
-  if(tbEl)tbEl.innerHTML=rows.map((r,i)=>`<tr style="cursor:pointer" onclick="openDelModal(${i})" title="Нажмите для подробностей">
-    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;color:var(--txt)">${r.date}</td>
-    <td style="font-weight:600;color:var(--txt);white-space:nowrap">${r.point}</td>
-    <td style="font-size:11px;white-space:nowrap;color:${r.type==='#довоз'?'var(--red)':'var(--acc)'}">${r.type||'—'}</td>
-    <td style="font-size:11px;color:var(--txt2);max-width:120px">${(r.guilty||[]).join(', ')||'—'}</td>
-    <td style="font-size:11px;color:var(--txt2);max-width:200px"><div style="white-space:pre-line;max-height:60px;overflow:hidden">${r.items||'—'}</div></td>
-    <td style="font-size:11px;color:var(--txt3);max-width:140px">${r.reason||'—'}</td>
-    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt2);white-space:nowrap">${r.qty||'—'}</td>
-    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt3);white-space:nowrap">${r.remainder||'—'}</td>
-    </tr>`).join('');
-  // Сохраняем текущие строки для модалки
+  if(tbEl)tbEl.innerHTML=deliveries.map((d,i)=>{
+    const fi=d.items[0]||{name:'—',qty:'',remainder:''};
+    const more=d.items.length>1?` <span style="color:var(--acc);font-size:10px">+${d.items.length-1}</span>`:'';
+    return `<tr style="cursor:pointer" onclick="openDelGroupModal(${i})" title="Нажмите для подробностей">
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;color:var(--txt)">${d.date}${d.time?' '+d.time:''}</td>
+    <td style="font-weight:600;color:var(--txt);white-space:nowrap">${d.point}</td>
+    <td style="font-size:11px;white-space:nowrap;color:${d.type==='#довоз'?'var(--red)':'var(--acc)'}">${d.type||'—'}</td>
+    <td style="font-size:11px;color:var(--txt2);max-width:120px">${(d.guilty||[]).join(', ')||'—'}</td>
+    <td style="font-size:11px;color:var(--txt2);max-width:200px">${fi.name||'—'}${more}</td>
+    <td style="font-size:11px;color:var(--txt3);max-width:140px">${d.reason||'—'}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt2);text-align:center">${d.items.length}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${d.cost>0?'var(--acc)':'var(--txt3)'};white-space:nowrap">${d.cost>0?d.cost.toLocaleString('ru-RU')+' ₽':'—'}</td>
+    </tr>`;
+  }).join('');
   window._delRows = rows;
 }
 // ── DELIVERY MODAL ────────────────────────────────────────────────────────────
@@ -1672,6 +1677,29 @@ function openDelModal(idx){
   costEl.style.color='var(--txt)';
   document.getElementById('del-modal-reg').innerHTML=r.link
     ?`<a href="${r.link}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:8px;background:rgba(0,136,255,.08);border:1px solid rgba(0,136,255,.25);font-size:12px;color:#4da6ff;text-decoration:none;font-weight:600">→ Открыть сообщение в Telegram</a>`
+    :'';
+  op('del-modal');
+}
+function openDelGroupModal(idx){
+  const d=(window._delDeliveries||[])[idx]; if(!d)return;
+  document.getElementById('del-modal-point').textContent=d.point;
+  document.getElementById('del-modal-date').textContent=d.date+(d.time?' в '+d.time:'')+(d.type?' · '+d.type:'');
+  const tags=[];
+  if(d.type) tags.push({text:d.type, color:d.type==='#довоз'?'var(--red)':'var(--acc)'});
+  if(d.guilty&&d.guilty.length) tags.push({text:'⚠ Есть виновный',color:'var(--warn)'});
+  if(d.items.length>1) tags.push({text:d.items.length+' позиций',color:'var(--txt2)'});
+  document.getElementById('del-modal-tags').innerHTML=tags.map(t=>
+    `<span style="font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid ${t.color};color:${t.color};font-weight:600">${t.text}</span>`
+  ).join('');
+  document.getElementById('del-modal-items').textContent=d.items.map(it=>`${it.name}: ${it.qty}${it.remainder?' (ост. '+it.remainder+')':''}`).join('\n')||'—';
+  document.getElementById('del-modal-reason').textContent=d.reason||'—';
+  document.getElementById('del-modal-guilty').textContent=(d.guilty&&d.guilty.length)?d.guilty.join(', '):'—';
+  document.getElementById('del-modal-dept').textContent=d.sender||'—';
+  const costEl=document.getElementById('del-modal-cost');
+  if(d.cost>0){costEl.textContent=d.cost.toLocaleString('ru-RU')+' ₽';costEl.style.color='var(--acc)';}
+  else{costEl.textContent='—';costEl.style.color='var(--txt3)';}
+  document.getElementById('del-modal-reg').innerHTML=d.link
+    ?`<a href="${d.link}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border-radius:8px;background:rgba(0,136,255,.08);border:1px solid rgba(0,136,255,.25);font-size:12px;color:#4da6ff;text-decoration:none;font-weight:600">→ Открыть сообщение в Telegram</a>`
     :'';
   op('del-modal');
 }
@@ -2870,7 +2898,7 @@ function parseDeliveriesCsv(csv){
       guilty:    guiltyRaw ? guiltyRaw.split(/[,\n]+/).map(g=>g.trim()).filter(Boolean) : [],
       link:      (r[C.link]||'').trim(),
       dept:      '',
-      cost:      0,
+      cost:      +((r[11]||'').replace(/[\s₽ ]/g,'').replace(',','.')) || 0,
       registered:'',
     };
     rows.push(row);
@@ -2895,7 +2923,23 @@ function parseDeliveriesCsv(csv){
     rows,
   };
 }
-
+function groupDeliveries(rows){
+  const map=new Map();
+  rows.forEach(r=>{
+    const key=r.link&&r.link.length>5
+      ?r.link
+      :`__${r.iso}_${r.time}_${r.point}_${r.type}`;
+    if(!map.has(key)){
+      map.set(key,{key,iso:r.iso,date:r.date,time:r.time,sender:r.sender,
+        point:r.point,type:r.type,reason:r.reason,guilty:r.guilty,
+        link:r.link,cost:r.cost,items:[]});
+    }
+    const g=map.get(key);
+    if(!g.cost&&r.cost) g.cost=r.cost;
+    g.items.push({name:r.items,qty:r.qty,remainder:r.remainder});
+  });
+  return [...map.values()];
+}
 
 let _sebesSheets = [];
 
