@@ -806,12 +806,7 @@ app.get('/api/writeoffs/index', async (req, res) => {
     res.json(null);
   } catch { res.json(null); }
 });
-app.get('/api/writeoffs/dates', (req, res) => {
-  if (!checkView(req,res)) return; res.json([]);
-});
-app.get('/api/writeoffs/range', (req, res) => {
-  if (!checkView(req,res)) return; res.json({ period:'', grand_total:0, warehouses:[] });
-});
+
 app.get('/api/data/writeoffs_by_point', async (req, res) => {
   if (!checkView(req,res)) return;
   try {
@@ -1940,17 +1935,6 @@ app.get('/api/supply/csv', async (req, res) => {
 });
 
 
-app.get('/api/data/writeoffs_by_point', async (req, res) => {
-  if (!checkView(req, res)) return;
-  try {
-    const localPath = path.join(LOCAL_DATA_DIR, 'writeoffs_by_point.json');
-    if (fs.existsSync(localPath)) {
-      return res.json(JSON.parse(fs.readFileSync(localPath, 'utf8')));
-    }
-    res.json(null);
-  } catch(e) { res.json(null); }
-});
-
 app.post('/api/sebes', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
@@ -2479,18 +2463,18 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(d) { const [y,m,day]=d.split('-'); return `${day}.${m}.${y}`; }
 
-app.listen(PORT, async () => {
-  console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
-  await initFromGitHub();
-  rebuildWriteoffsIndex();
-  rebuildProductionIndex();
-});
-
 // ── Глобальный обработчик ошибок Express ──────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Express error:', err.message);
   if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Файл слишком большой (макс. 25MB)' });
   res.status(500).json({ error: err.message || 'Внутренняя ошибка сервера' });
+});
+
+app.listen(PORT, async () => {
+  console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
+  await initFromGitHub();
+  rebuildWriteoffsIndex();
+  rebuildProductionIndex();
 });
 
 process.on('uncaughtException', err => { console.error('uncaughtException:', err.message); });
