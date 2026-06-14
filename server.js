@@ -2183,7 +2183,6 @@ function parseStopsXlsx(buffer) {
   const byDay = {};
   rowsList.forEach(r => { (byDay[r.d] = byDay[r.d]||[]).push(r); });
 
-  const DOW2 = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
   function compress(rows, label) {
     const byDate={}, byPt={}, byProd={};
     rows.forEach(r => {
@@ -2312,7 +2311,6 @@ function parseWriteoffsXlsx(buffer, periodLabel) {
   const SALES_DOC    = /^Отчет о розничных продажах/i;
   const SKIP_NAMES   = new Set(['','nan','Итого','Номенклатура','Хозяйственная операция',
     'Вид деятельности','Покупатель','Документ движения, Корреспонденция','Склад']);
-  const ITEM_CODE    = /^\d{3,4}[а-яс]\s/i;
 
   const byWh = {};
   let curWh = null, inWriteoffs = false;
@@ -2379,6 +2377,7 @@ function parseWriteoffsXlsx(buffer, periodLabel) {
 // ── XLSX upload endpoints ─────────────────────────────────────────────────────
 app.post('/api/stops/xlsx', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
+  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   try {
     const data = parseStopsXlsx(req.file.buffer);
     const { sha } = await readStops();
@@ -2389,6 +2388,7 @@ app.post('/api/stops/xlsx', upload.single('file'), async (req, res) => {
 
 app.post('/api/sebes/xlsx', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
+  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   try {
     const period = req.query.period || '';
     const mode   = req.query.mode || 'replace';
@@ -2403,6 +2403,7 @@ app.post('/api/sebes/xlsx', upload.single('file'), async (req, res) => {
 
 app.post('/api/writeoffs/xlsx', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
+  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   try {
     const period = req.query.period || '';
     const data   = parseWriteoffsXlsx(req.file.buffer, period);
@@ -2461,6 +2462,26 @@ app.delete('/api/data/:key', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// Агрегирует строки writeoffs_raw в сводку по точкам и датам
+function aggregateWriteoffs(rows, label) {
+  const totalCost = rows.reduce((s, r) => s + (r.cost || 0), 0);
+  const byWh = {}, byDate = {};
+  rows.forEach(r => {
+    if (r.wh)  byWh[r.wh]  = (byWh[r.wh]  || 0) + (r.cost || 0);
+    if (r.d)   byDate[r.d] = (byDate[r.d]  || 0) + (r.cost || 0);
+  });
+  const byPoint = Object.entries(byWh)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, cost]) => ({ name, total: Math.round(cost * 100) / 100 }));
+  return {
+    meta: { period: label, records: rows.length, total_cost: Math.round(totalCost * 100) / 100 },
+    by_point: byPoint,
+    by_date: Object.entries(byDate).sort()
+      .map(([d, cost]) => ({ d, cost: Math.round(cost * 100) / 100 })),
+  };
+}
+
 // ── Writeoffs dates & range — MUST be before the catch-all route ─────────────
 app.get('/api/writeoffs/dates', (req, res) => {
   if (!checkView(req, res)) return;
@@ -2478,7 +2499,9 @@ app.get('/api/writeoffs/range', (req, res) => {
     const { from, to } = req.query; // dd.mm.yyyy
     if (!from || !to) return res.status(400).json({ error: 'Параметры from и to обязательны' });
     const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE, 'utf8'));
-    const rows = raw.rows.filter(r => r.d >= from && r.d <= to);
+    const toIso = s => { const [d,m,y]=s.split('.'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; };
+    const isoFrom = toIso(from), isoTo = toIso(to);
+    const rows = raw.rows.filter(r => r.d >= isoFrom && r.d <= isoTo);
     res.json(aggregateWriteoffs(rows, `${from} — ${to}`));
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
