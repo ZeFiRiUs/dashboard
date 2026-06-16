@@ -607,13 +607,18 @@ function parseWoSheet(csv, sheetName) {
   // Агрегация по точкам
   const byPointMap = {};
   records.forEach(r => {
-    if (!byPointMap[r.wh]) byPointMap[r.wh] = { total:0, byArticle:{}, byItem:{} };
+    if (!byPointMap[r.wh]) byPointMap[r.wh] = { total:0, byArticle:{}, byItem:{}, byArticleItem:{} };
     byPointMap[r.wh].total += r.cost;
     byPointMap[r.wh].byArticle[r.article] = (byPointMap[r.wh].byArticle[r.article]||0) + r.cost;
     if (!byPointMap[r.wh].byItem[r.item])
       byPointMap[r.wh].byItem[r.item] = { cost:0, qty:0, unit:r.unit };
     byPointMap[r.wh].byItem[r.item].cost += r.cost;
     byPointMap[r.wh].byItem[r.item].qty  += r.qty;
+    if (!byPointMap[r.wh].byArticleItem[r.article]) byPointMap[r.wh].byArticleItem[r.article] = {};
+    if (!byPointMap[r.wh].byArticleItem[r.article][r.item])
+      byPointMap[r.wh].byArticleItem[r.article][r.item] = { cost:0, qty:0, unit:r.unit };
+    byPointMap[r.wh].byArticleItem[r.article][r.item].cost += r.cost;
+    byPointMap[r.wh].byArticleItem[r.article][r.item].qty  += r.qty;
   });
 
   const byPoint = Object.entries(byPointMap)
@@ -629,6 +634,12 @@ function parseWoSheet(csv, sheetName) {
           qty:  Math.round(d.qty  * 1000) / 1000,
           unit: d.unit,
         })),
+      itemsByArticle: Object.entries(v.byArticleItem).reduce((acc, [art, items]) => {
+        acc[art] = Object.entries(items)
+          .sort((a,b) => b[1].cost - a[1].cost).slice(0, 10)
+          .map(([item, d]) => ({ item, cost: Math.round(d.cost*100)/100, qty: Math.round(d.qty*1000)/1000, unit: d.unit }));
+        return acc;
+      }, {}),
       artBreakdown: Object.entries(v.byArticle)
         .sort((a,b) => b[1] - a[1])
         .map(([art, cost]) => ({
@@ -735,7 +746,7 @@ function filterWoData(data, point, article) {
       const artEntry = (p.artBreakdown || []).find(a => a.art === article);
       const artCost = artEntry ? artEntry.cost : 0;
       if (artCost === 0) return null;
-      return { ...p, total: artCost };
+      return { ...p, total: artCost, top10Items: (p.itemsByArticle || {})[article] || [] };
     }).filter(Boolean).sort((a, b) => b.total - a.total);
   }
 
