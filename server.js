@@ -9,6 +9,10 @@ const PORT      = process.env.PORT || 3000;
 const ADMIN_PW  = process.env.ADMIN_PASSWORD || 'admin2026';
 const VIEW_PW   = process.env.VIEW_PASSWORD  || 'view2026';
 
+if (!process.env.ADMIN_PASSWORD || !process.env.VIEW_PASSWORD) {
+  console.error('[SECURITY] WARNING: ADMIN_PASSWORD и/или VIEW_PASSWORD не заданы — используются дефолтные пароли! Установите переменные окружения.');
+}
+
 // GitHub storage config
 const GH_TOKEN  = process.env.GH_TOKEN  || '';
 const GH_OWNER  = process.env.GH_OWNER  || '';
@@ -93,10 +97,15 @@ function ghRequest(method, path, body) {
 }
 
 async function ghRead(filePath) {
-  const r = await ghRequest('GET', filePath);
-  if (r.status !== 200) return null;
-  const content = Buffer.from(r.body.content, 'base64').toString('utf8');
-  return { content: JSON.parse(content), sha: r.body.sha };
+  try {
+    const r = await ghRequest('GET', filePath);
+    if (r.status !== 200) return null;
+    const content = Buffer.from(r.body.content, 'base64').toString('utf8');
+    return { content: JSON.parse(content), sha: r.body.sha };
+  } catch(e) {
+    console.error('[ghRead] Ошибка чтения', filePath, ':', e.message);
+    return null;
+  }
 }
 
 async function ghWrite(filePath, data, sha, message) {
@@ -565,7 +574,8 @@ async function fetchWoData(sheetName, noCache=false) {
   // gviz API корректно обрабатывает кириллические имена листов (CSV-экспорт молча возвращает первый лист)
   const gvizUrl = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
   console.log(`[WO] Загружаю лист "${sheetName}" через gviz...`);
-  const r = await fetch(gvizUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  const _ac1 = new AbortController(); const _t1 = setTimeout(() => _ac1.abort(), 15000);
+  const r = await fetch(gvizUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: _ac1.signal }).finally(() => clearTimeout(_t1));
   if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
   const gvizText = await r.text();
   const jsonStart = gvizText.indexOf('{');
@@ -1120,7 +1130,8 @@ async function fetchProdSheetData(sheetName, noCache = false) {
 
   const gvizUrl = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
   console.log(`[PROD] Загружаю лист "${sheetName}" через gviz...`);
-  const r = await fetch(gvizUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  const _ac2 = new AbortController(); const _t2 = setTimeout(() => _ac2.abort(), 15000);
+  const r = await fetch(gvizUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: _ac2.signal }).finally(() => clearTimeout(_t2));
   if (!r.ok) throw new Error(`HTTP ${r.status} для листа "${sheetName}"`);
   const gvizText = await r.text();
   const jsonStart = gvizText.indexOf('{');
@@ -2531,8 +2542,8 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
   console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
   await initFromGitHub();
-  rebuildWriteoffsIndex();
-  rebuildProductionIndex();
+  await rebuildWriteoffsIndex();
+  await rebuildProductionIndex();
 });
 
 process.on('uncaughtException', err => { console.error('uncaughtException:', err.message); });
