@@ -1775,7 +1775,7 @@ async function loadProductionFromServer() {
       const data = await r2.json();
       if (data && data.meta) { applyProductionData(data); return true; }
     }
-  } catch(e) {}
+  } catch(e) { console.error('loadProductionFromServer:', e.message); }
   if (sdot) sdot.className = 'sdot warn';
   renderProduction(); return false;
 }
@@ -2230,6 +2230,23 @@ function applySebesData(data){
   renderSebes();
 }
 
+async function loadSebesFromSheets(force){
+  const sdot=document.getElementById('sebes-sdot');
+  if(sdot)sdot.className='sdot spin';
+  _sebesActiveSheet=null;
+  await loadSebesSheetList(true);
+  try{
+    const r=await fetch('/api/sebes/csv'+(force?'?nocache=1':''),{headers:{'X-View-Password':sessionPassword}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    if(data&&data.meta){applySebesData(data);}else throw new Error('Нет данных в таблице');
+  }catch(e){
+    if(sdot)sdot.className='sdot warn';
+    console.error('loadSebesFromSheets:',e.message);
+    throw e;
+  }
+}
+
 async function uploadSebesJson(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
@@ -2276,7 +2293,7 @@ function _sebesTrendRow(it, showDiff){
     +'</div>'
     +(showDiff&&it.diff_pct!==null?'<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:'+diffClr+';'+monoSt+'">'+diffIcon+Math.abs(it.diff_pct)+'%</div>'
       +'<div style="font-size:10px;color:var(--txt3)">'+it.cost+' ₽</div></div>'
-    :'<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--txt);'+monoSt+'">'+it.markup+'%</div>'
+    :'<div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--txt);'+monoSt+'">'+(it.markup!=null?it.markup+'%':'—')+'</div>'
       +'<div style="font-size:10px;color:var(--txt3)">'+(it.cost||'—')+' ₽</div></div>')
     +'</div>';
 }
@@ -5205,22 +5222,22 @@ function openCmp(){
   let html='';
   for(let i=0;i<periods.length-1;i++){
     const a=periods[i],b=periods[i+1];
-    const dt=Math.round((a.grand_total-b.grand_total)/b.grand_total*100);
+    const dt=b.grand_total!==0?Math.round((a.grand_total-b.grand_total)/b.grand_total*100):null;
     html+=`<div class="cmprow">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div><div style="font-size:13px;font-weight:700;color:var(--txt)">${a.period}</div><div style="font-size:11px;color:var(--txt3)">vs ${b.period}</div></div>
         <div style="text-align:right">
-          <div style="font-size:16px;font-weight:800;color:${dt>0?'var(--red)':'var(--grn)'}">${dt>0?'↑':'↓'}${Math.abs(dt)}%</div>
+          <div style="font-size:16px;font-weight:800;color:${dt===null?'var(--txt3)':dt>0?'var(--red)':'var(--grn)'}">${dt===null?'—':dt>0?'↑':'↓'}${dt===null?'':Math.abs(dt)+'%'}</div>
           <div style="font-size:11px;color:var(--txt3)">${fmtR(a.grand_total)} → ${fmtR(b.grand_total)}</div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px">
         ${a.warehouses.slice(0,8).map(w=>{
           const wb=b.warehouses.find(x=>x.name===w.name);if(!wb)return'';
-          const d2=Math.round((w.total-wb.total)/wb.total*100);
+          const d2=wb.total!==0?Math.round((w.total-wb.total)/wb.total*100):null;
           return `<div style="background:var(--surf);border:1px solid var(--bd);border-radius:6px;padding:7px 9px">
             <div style="font-size:10px;color:var(--txt3);margin-bottom:2px">${w.name.length>16?w.name.substring(0,15)+'…':w.name}</div>
-            <div style="font-size:12px;font-weight:700;color:${d2>0?'var(--red)':'var(--grn)'}">${d2>0?'↑':'↓'}${Math.abs(d2)}%</div>
+            <div style="font-size:12px;font-weight:700;color:${d2===null?'var(--txt3)':d2>0?'var(--red)':'var(--grn)'}">${d2===null?'—':d2>0?'↑':'↓'}${d2===null?'':Math.abs(d2)+'%'}</div>
           </div>`;
         }).join('')}
       </div></div>`;
@@ -6050,7 +6067,7 @@ if(sessionPassword){
         _updateSheetsBarVisibility(j.role==='admin');
         applyTabVisibility(j.role==='admin');
       } else{sessionStorage.removeItem('dash_pw');sessionPassword='';}
-    }).catch(()=>{document.getElementById('ls').style.display='none';loadData();});
+    }).catch(()=>{sessionStorage.removeItem('dash_pw');sessionPassword='';});
 }
 </script>
 </body>
