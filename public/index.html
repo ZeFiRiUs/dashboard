@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -843,7 +843,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
 
 <div id="wo-point-modal" onclick="if(event.target===this)closeWoModal()"
   style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;overflow-y:auto;padding:20px;backdrop-filter:blur(4px)">
-  <div style="max-width:600px;margin:40px auto;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:24px;position:relative;opacity:1">
+  <div style="max-width:680px;margin:40px auto;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:24px;position:relative;opacity:1">
     <button class="mx" onclick="closeWoModal()" style="position:absolute;top:16px;right:16px">&#10005;</button>
     <div id="wo-modal-content"></div>
   </div>
@@ -3271,14 +3271,22 @@ function renderWoPoints(){
   }).join('');
 }
 
+let _woModalItems=[], _woModalTab='', _woModalQuery='', _woModalArtColors={};
 function openWoPointModal(idx){
   const p=(WO_FILTERED.by_point||[])[idx];if(!p)return;
   const modal=document.getElementById('wo-point-modal'),content=document.getElementById('wo-modal-content');
   if(!modal||!content)return;
-  const maxItem=p.top10Items&&p.top10Items.length?p.top10Items[0].cost:1;
-  let html='<div style="font-size:18px;font-weight:800;color:var(--txt);margin-bottom:2px">'+p.name+'</div>'
-    +'<div style="font-size:26px;font-weight:800;color:var(--acc);margin-bottom:20px">'+p.total.toLocaleString('ru-RU')+' \u20bd</div>'
-    +'<div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:10px">\u0421\u0442\u0430\u0442\u044c\u0438 \u2014 \u0434\u043e\u043b\u044f \u043e\u0442 \u0441\u0443\u043c\u043c\u044b \u0442\u043e\u0447\u043a\u0438</div>';
+
+  _woModalItems = p.allItems || p.top10Items || [];
+  _woModalTab   = '';
+  _woModalQuery = '';
+  _woModalArtColors = {};
+  (p.artBreakdown||[]).forEach(function(a,i){ _woModalArtColors[a.art]=WO_ART_COLORS[i%WO_ART_COLORS.length]; });
+
+  let html = '<div style="font-size:18px;font-weight:800;color:var(--txt);margin-bottom:2px">'+p.name+'</div>'
+    +'<div style="font-size:26px;font-weight:800;color:var(--acc);margin-bottom:20px">'+p.total.toLocaleString('ru-RU')+' \u20bd</div>';
+
+  html += '<div style="font-size:11px;font-weight:700;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">\u0421\u0442\u0430\u0442\u044c\u0438</div>';
   (p.artBreakdown||[]).forEach(function(a,i){
     const clr=WO_ART_COLORS[i%WO_ART_COLORS.length],pct=p.total>0?a.cost/p.total*100:0;
     html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'
@@ -3287,16 +3295,79 @@ function openWoPointModal(idx){
       +'<div style="font-size:11px;font-weight:700;color:'+clr+';width:65px;text-align:right">'+a.cost.toLocaleString('ru-RU')+' \u20bd</div>'
       +'<div style="font-size:11px;color:var(--txt3);width:36px;text-align:right;font-weight:700">'+a.pct+'%</div></div>';
   });
-  html+='<div style="font-size:12px;font-weight:700;color:var(--txt);margin:18px 0 10px">\u0422\u043e\u043f-10 \u043f\u043e\u0437\u0438\u0446\u0438\u0439</div>';
-  (p.top10Items||[]).forEach(function(item,i){
-    const pct=maxItem>0?item.cost/maxItem*100:0;
-    html+='<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:3px">'
-      +'<div style="font-size:11px;color:var(--txt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">'+(i+1)+'. '+item.item+'</div>'
-      +'<div style="font-size:11px;font-weight:700;color:var(--txt);white-space:nowrap">'+item.cost.toLocaleString('ru-RU')+' \u20bd</div></div>'
-      +'<div style="height:3px;background:var(--surf);border-radius:2px;margin-bottom:2px"><div style="height:100%;width:'+pct+'%;background:var(--acc);border-radius:2px"></div></div>'
-      +'<div style="font-size:10px;color:var(--txt3)">'+item.qty+' '+item.unit+'</div></div>';
+
+  html += '<div style="border-top:1px solid var(--bd);margin:16px 0 14px"></div>';
+
+  const arts = [...new Set(_woModalItems.map(function(i){return i.article;}).filter(Boolean))];
+  if(arts.length > 1){
+    html += '<div id="wo-modal-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">';
+    html += '<button onclick="setWoModalTab(\'\')" id="wo-mtab-" style="background:var(--acc);color:#fff;border:none;font-size:11px;font-weight:600;padding:4px 11px;border-radius:20px;cursor:pointer">\u0412\u0441\u0435 ('+_woModalItems.length+')</button>';
+    arts.forEach(function(art){
+      const cnt = _woModalItems.filter(function(i){return i.article===art;}).length;
+      const clr = _woModalArtColors[art]||'var(--txt3)';
+      const short = art.length>18 ? art.slice(0,17)+'\u2026' : art;
+      html += '<button onclick="setWoModalTab(\''+art.replace(/\\/g,'\\\\').replace(/'/g,'\\\'')+'\')" id="wo-mtab-'+art.replace(/[^a-z\u0430-\u044f\u0451\u04100-9]/gi,'_')+'" '
+        +'style="background:var(--surf);color:'+clr+';border:1px solid '+clr+'44;font-size:11px;padding:4px 11px;border-radius:20px;cursor:pointer">'+short+' ('+cnt+')</button>';
+    });
+    html += '</div>';
+  }
+
+  html += '<div style="background:var(--surf);border:1px solid var(--bd);border-radius:8px;display:flex;align-items:center;gap:8px;padding:6px 12px;margin-bottom:10px">'
+    +'<span style="color:var(--txt3);font-size:13px">\ud83d\udd0d</span>'
+    +'<input id="wo-modal-search" oninput="onWoModalSearch(this.value)" placeholder="\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u043f\u043e\u0437\u0438\u0446\u0438\u0438..." '
+    +'style="background:none;border:none;outline:none;font-size:12px;color:var(--txt);font-family:Manrope,sans-serif;width:100%"></div>';
+
+  html += '<div style="font-size:10px;font-weight:700;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">'
+    +'\u041f\u043e\u0437\u0438\u0446\u0438\u0438 \u2014 <span id="wo-modal-count">'+_woModalItems.length+'</span></div>'
+    +'<div id="wo-modal-list" style="overflow-y:auto;max-height:300px;padding-right:2px"></div>';
+
+  content.innerHTML = html;
+  modal.style.display = 'block';
+  renderWoModalList();
+}
+
+function renderWoModalList(){
+  const listEl = document.getElementById('wo-modal-list');
+  const cntEl  = document.getElementById('wo-modal-count');
+  if(!listEl) return;
+  const q = _woModalQuery.toLowerCase().trim();
+  const filtered = _woModalItems.filter(function(i){
+    const tabOk  = !_woModalTab || i.article === _woModalTab;
+    const srchOk = !q || i.item.toLowerCase().includes(q);
+    return tabOk && srchOk;
   });
-  content.innerHTML=html; modal.style.display='block';
+  if(cntEl) cntEl.textContent = filtered.length;
+  if(!filtered.length){
+    listEl.innerHTML = '<div style="color:var(--txt3);font-size:12px;padding:12px 0">\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</div>';
+    return;
+  }
+  listEl.innerHTML = filtered.map(function(item){
+    const clr = _woModalArtColors[item.article] || 'var(--txt3)';
+    const artLabel = item.article || '\u2014';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--surf)">'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+item.item+'</div>'
+      +'<div style="font-size:10px;color:'+clr+';margin-top:1px">'+artLabel+'</div></div>'
+      +'<div style="text-align:right;flex-shrink:0">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--txt)">'+item.cost.toLocaleString('ru-RU')+' \u20bd</div>'
+      +'<div style="font-size:10px;color:var(--txt3)">'+item.qty+' '+item.unit+'</div></div></div>';
+  }).join('');
+}
+
+function setWoModalTab(art){
+  _woModalTab = art;
+  document.querySelectorAll('#wo-modal-tabs button').forEach(function(b){
+    const isActive = b.id === 'wo-mtab-'+(art ? art.replace(/[^a-z\u0430-\u044f\u0451\u04100-9]/gi,'_') : '');
+    b.style.background = isActive ? 'var(--acc)' : 'var(--surf)';
+    b.style.color      = isActive ? '#fff' : '';
+    b.style.border     = isActive ? 'none' : '';
+  });
+  renderWoModalList();
+}
+
+function onWoModalSearch(val){
+  _woModalQuery = val;
+  renderWoModalList();
 }
 
 function closeWoModal(){const m=document.getElementById('wo-point-modal');if(m)m.style.display='none';}
