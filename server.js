@@ -1,4 +1,4 @@
-﻿﻿const express = require('express');
+﻿const express = require('express');
 const multer  = require('multer');
 const fs      = require('fs');
 const path    = require('path');
@@ -27,6 +27,62 @@ const LOCAL_DATA_FILE = path.join(LOCAL_DATA_DIR, 'periods.json');
 const LOCAL_STOPS_FILE = path.join(LOCAL_DATA_DIR, 'stops_raw.json');
 const LOCAL_STOPS_FULL = path.join(LOCAL_DATA_DIR, 'stops_full.json');
 const WO_RAW_FILE = path.join(LOCAL_DATA_DIR, 'writeoffs_raw.json');
+
+// ── Sheets Config (управляется через /api/config) ────────────────────────────
+const LOCAL_CONFIG_FILE = path.join(LOCAL_DATA_DIR, 'sheets_config.json');
+const GH_CONFIG_PATH    = 'data/sheets_config.json';
+
+const DEFAULT_IDS = {
+  writeoffs:  process.env.WRITEOFFS_SHEET_ID || '1Xn7t2kazUNEjG4ZRkc00Im4DIWLlBtZSlIPXglciLUQ',
+  stops:      process.env.STOPS_SHEET_ID     || '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY',
+  deliveries: '1m_VKlpmoJ9g7WRjcNOwSaLo8B5YyWFFXrlFZ6NL4U14',
+  production: process.env.PROD_SHEET_ID      || '1CLLbWhTVlnEEeouJx5TtXpoaM-cmFokcpQke9p7PQy8',
+  sebes:      process.env.SEBES_SHEET_ID     || '1gsS8IhZvNLrPojda-3uCJM_5VtcdlQ-f4V-g9w7DYqg',
+};
+
+let _configCache = null;
+
+function getSheetsConfig() {
+  if (_configCache) return _configCache;
+  try {
+    if (fs.existsSync(LOCAL_CONFIG_FILE))
+      _configCache = JSON.parse(fs.readFileSync(LOCAL_CONFIG_FILE, 'utf8'));
+    else _configCache = {};
+  } catch { _configCache = {}; }
+  return _configCache;
+}
+
+function getSheetId(key) {
+  return getSheetsConfig()[key]?.spreadsheetId || DEFAULT_IDS[key] || '';
+}
+
+function extractSpreadsheetId(url) {
+  if (!url) return null;
+  const m = String(url).match(/\/d\/([a-zA-Z0-9_-]{20,})/);
+  if (m) return m[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(String(url).trim())) return String(url).trim();
+  return null;
+}
+
+async function saveSheetsConfig(cfg) {
+  _configCache = cfg;
+  fs.writeFileSync(LOCAL_CONFIG_FILE, JSON.stringify(cfg, null, 2));
+  if (GH_TOKEN && GH_OWNER) {
+    try {
+      const r = await ghRead(GH_CONFIG_PATH);
+      await ghWrite(GH_CONFIG_PATH, cfg, r?.sha, 'Update sheets config');
+    } catch(e) { console.error('[Config] GitHub write:', e.message); }
+  }
+  Object.keys(_woSheetCache).forEach(k => delete _woSheetCache[k]);
+  _woSheetListCache = null; _woSheetListTs = 0;
+  Object.keys(_prodSheetCache).forEach(k => delete _prodSheetCache[k]);
+  _prodSheetListCache = null; _prodSheetListTs = 0;
+  Object.keys(_sebesSheetCache).forEach(k => delete _sebesSheetCache[k]);
+  _sebesSheetsCache = null; _sebesSheetsCacheTs = 0;
+  _delCsvCache = null; _delCsvCacheTs = 0;
+  _stopsCsvCache = null; _stopsCsvCacheTs = 0;
+}
+
 fs.mkdirSync(LOCAL_DATA_DIR, { recursive: true });
 if (!fs.existsSync(LOCAL_STOPS_FULL)) fs.writeFileSync(LOCAL_STOPS_FULL, 'null');
 if (!fs.existsSync(LOCAL_DATA_FILE))  fs.writeFileSync(LOCAL_DATA_FILE,  JSON.stringify([]));
@@ -40,11 +96,8 @@ async function initFromGitHub() {
   }
   console.log('[INFO] Загружаем данные из GitHub...');
   const files = [
-    { path: DATA_PATH,       local: LOCAL_DATA_FILE,  def: '[]' },
     { path: 'data/stops_full.json', local: path.join(LOCAL_DATA_DIR,'stops_full.json'), def: 'null' },
-    { path: 'data/deliveries.json', local: path.join(LOCAL_DATA_DIR,'deliveries.json'), def: 'null' },
-    { path: 'data/production.json', local: path.join(LOCAL_DATA_DIR,'production.json'), def: 'null' },
-    { path: 'data/sebes.json', local: path.join(LOCAL_DATA_DIR,'sebes.json'), def: 'null' },
+    { path: GH_CONFIG_PATH,         local: LOCAL_CONFIG_FILE,                           def: '{}' },
   ];
   for (const f of files) {
     try {
@@ -181,6 +234,74 @@ function checkAdmin(req, res) {
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true, github: !!(GH_TOKEN && GH_OWNER) }));
 
+// ── Sheets Config API ────────────────────────────────────────────────────────
+app.get('/api/config', (req, res) => {
+  if (!checkView(req, res)) return;
+  const cfg = getSheetsConfig();
+  const result = {};
+  ['writeoffs','stops','deliveries','production','sebes'].forEach(key => {
+    const c = cfg[key] || {};
+    const defId = DEFAULT_IDS[key] || '';
+    result[key] = {
+      ...c,
+      url: c.url || (c.spreadsheetId
+        ? `https://docs.google.com/spreadsheets/d/${c.spreadsheetId}`
+        : (defId ? `https://docs.google.com/spreadsheets/d/${defId}` : '')),
+      spreadsheetId: c.spreadsheetId || defId,
+    };
+  });
+  res.json(result);
+});
+
+app.post('/api/config', express.json(), async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  try {
+    const cfg = req.body;
+    if (typeof cfg !== 'object' || Array.isArray(cfg))
+      return res.status(400).json({ error: 'Ожидается объект конфигурации' });
+    ['writeoffs','stops','deliveries','production','sebes'].forEach(key => {
+      if (cfg[key]) {
+        const id = extractSpreadsheetId(cfg[key].url || cfg[key].spreadsheetId || '');
+        if (id) cfg[key].spreadsheetId = id;
+      }
+    });
+    await saveSheetsConfig(cfg);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/config/test', express.json(), async (req, res) => {
+  if (!checkAdmin(req, res)) return;
+  const { url } = req.body || {};
+  const spreadsheetId = extractSpreadsheetId(url);
+  if (!spreadsheetId) return res.status(400).json({ error: 'Не удалось найти ID таблицы в ссылке' });
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    let r;
+    try {
+      r = await fetch(
+        `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=xlsx`,
+        { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal }
+      );
+      clearTimeout(timer);
+    } catch(fetchErr) {
+      clearTimeout(timer);
+      return res.status(400).json({ error: fetchErr.name === 'AbortError'
+        ? 'Таблица не отвечает (таймаут 12с)'
+        : 'Ошибка соединения: ' + fetchErr.message });
+    }
+    if (r.status === 403 || r.status === 401)
+      return res.status(400).json({ error: 'Таблица закрыта. Откройте доступ: Файл → Поделиться → Просматривать может каждый' });
+    if (!r.ok) return res.status(400).json({ error: `HTTP ${r.status}` });
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf[0] !== 0x50 || buf[1] !== 0x4B) return res.status(400).json({ error: 'Неверный формат ответа' });
+    const XLSX = require('xlsx');
+    const wb = XLSX.read(buf, { type: 'buffer', bookSheets: true });
+    res.json({ ok: true, spreadsheetId, sheets: wb.SheetNames });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Auth check ────────────────────────────────────────────────────────────────
 app.post('/api/auth', (req, res) => {
   const pw = req.headers['x-view-password']
@@ -192,38 +313,6 @@ app.post('/api/auth', (req, res) => {
   // Для диагностики — логируем что пришло (без самого пароля)
   console.log('Auth fail: header keys=', Object.keys(req.headers).filter(k=>k.includes('password')||k.includes('auth')), 'body keys=', Object.keys(req.body||{}));
   res.status(401).json({ ok: false });
-});
-
-// ── GET periods ───────────────────────────────────────────────────────────────
-app.get('/api/periods', async (req, res) => {
-  if (!checkView(req, res)) return;
-  const { data } = await readPeriods();
-  res.json(data);
-});
-
-// ── POST period ───────────────────────────────────────────────────────────────
-app.post('/api/periods', upload.single('file'), async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-  try {
-    const newData = JSON.parse(req.file ? req.file.buffer.toString() : req.body.data);
-    if (!newData.warehouses || !newData.period) return res.status(400).json({ error: 'Неверный формат' });
-    const { data: periods, sha } = await readPeriods();
-    const idx = periods.findIndex(p => p.period === newData.period);
-    if (idx >= 0) periods[idx] = newData; else periods.unshift(newData);
-    const dest = await writePeriods(periods, sha);
-    res.json({ ok: true, period: newData.period, total: periods.length, saved_to: dest });
-  } catch(e) { res.status(400).json({ error: e.message }); }
-});
-
-// ── DELETE period ─────────────────────────────────────────────────────────────
-app.delete('/api/periods/:idx', async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-  const { data: periods, sha } = await readPeriods();
-  const i = parseInt(req.params.idx);
-  if (isNaN(i) || i < 0 || i >= periods.length) return res.status(404).json({ error: 'Не найден' });
-  const removed = periods.splice(i, 1)[0];
-  await writePeriods(periods, sha);
-  res.json({ ok: true, removed: removed.period });
 });
 
 // ── Stops: read/write via GitHub (same pattern as periods) ──────────────────
@@ -332,7 +421,6 @@ app.post('/api/deliveries', upload.single('file'), async (req, res) => {
 //     WH_HEADER: col0=название склада, col1-col5 пустые
 //     DATA: col0=товар, col1=ед, col2=статья(корреспонденция), col3=кол-во, col4=цена, col5=сумма
 const WO_INDEX_FILE  = path.join(LOCAL_DATA_DIR, 'writeoffs_index.json');
-const WRITEOFFS_SHEET_ID = process.env.WRITEOFFS_SHEET_ID || '1Xn7t2kazUNEjG4ZRkc00Im4DIWLlBtZSlIPXglciLUQ';
 
 const _woSheetCache = {};
 const WO_SHEET_TTL  = 10 * 60 * 1000;
@@ -408,7 +496,7 @@ async function _doFetchWoSheetList() {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 10000); // 10 сек таймаут
-    const url = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=xlsx`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('writeoffs')}/export?format=xlsx`;
     let r;
     try {
       r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
@@ -580,7 +668,7 @@ async function fetchWoData(sheetName, noCache=false) {
   if (!noCache && _woSheetCache[sheetName] && (now - _woSheetCache[sheetName].ts) < WO_SHEET_TTL)
     return _woSheetCache[sheetName].data;
   // gviz API корректно обрабатывает кириллические имена листов (CSV-экспорт молча возвращает первый лист)
-  const gvizUrl = `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${getSheetId('writeoffs')}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
   console.log(`[WO] Загружаю лист "${sheetName}" через gviz...`);
   const _ac1 = new AbortController(); const _t1 = setTimeout(() => _ac1.abort(), 15000);
   const r = await fetch(gvizUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: _ac1.signal }).finally(() => clearTimeout(_t1));
@@ -775,8 +863,8 @@ app.get('/api/writeoffs/debug', async (req, res) => {
     const sheetInfo = sheetList.find(s => s.name === name);
     const gid = sheetInfo != null && sheetInfo.gid != null ? sheetInfo.gid : null;
     const url = gid !== null
-      ? `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&gid=${gid}`
-      : `https://docs.google.com/spreadsheets/d/${WRITEOFFS_SHEET_ID}/export?format=csv&sheet=${encoded}`;
+      ? `https://docs.google.com/spreadsheets/d/${getSheetId('writeoffs')}/export?format=csv&gid=${gid}`
+      : `https://docs.google.com/spreadsheets/d/${getSheetId('writeoffs')}/export?format=csv&sheet=${encoded}`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     const csv = await r.text();
     const isHtml = csv.trimStart().startsWith('<');
@@ -833,7 +921,6 @@ app.get('/api/data/writeoffs_by_point', async (req, res) => {
 // ── Production (Производство) ─────────────────────────────────────────────────
 const PROD_FILE_PATH   = 'data/production.json';
 const LOCAL_PROD_FILE  = path.join(LOCAL_DATA_DIR, 'production.json');
-const PROD_SHEET_ID    = process.env.PROD_SHEET_ID    || '1CLLbWhTVlnEEeouJx5TtXpoaM-cmFokcpQke9p7PQy8';
 const PROD_GID         = '1';
 if (!fs.existsSync(LOCAL_PROD_FILE)) fs.writeFileSync(LOCAL_PROD_FILE, 'null');
 
@@ -1091,7 +1178,7 @@ async function _doFetchProdSheetList() {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 10000);
-    const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=xlsx`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('production')}/export?format=xlsx`;
     let r;
     try {
       r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
@@ -1135,7 +1222,7 @@ async function fetchProdSheetData(sheetName, noCache = false) {
   if (!noCache && _prodSheetCache[sheetName] && (now - _prodSheetCache[sheetName].ts) < PROD_SHEET_TTL)
     return _prodSheetCache[sheetName].data;
 
-  const gvizUrl = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${getSheetId('production')}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
   console.log(`[PROD] Загружаю лист "${sheetName}" через gviz...`);
   const _ac2 = new AbortController(); const _t2 = setTimeout(() => _ac2.abort(), 15000);
   const r = await fetch(gvizUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: _ac2.signal }).finally(() => clearTimeout(_t2));
@@ -1236,7 +1323,7 @@ app.get('/api/production/csv', async (req, res) => {
     return res.json(_prodCsvCache);
   }
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=csv&gid=${PROD_GID}`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('production')}/export?format=csv&gid=${PROD_GID}`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
     const csv = await r.text();
@@ -1254,7 +1341,7 @@ app.post('/api/production/sync', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     _prodCsvCache = null; _prodCsvCacheTs = 0;
-    const url = `https://docs.google.com/spreadsheets/d/${PROD_SHEET_ID}/export?format=csv&gid=${PROD_GID}`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('production')}/export?format=csv&gid=${PROD_GID}`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
     const csv = await r.text();
@@ -1312,7 +1399,6 @@ app.get('/api/sebes', async (req, res) => {
 });
 
 // ── Sebes CSV proxy (Google Sheets) ──────────────────────────────────────────
-const SEBES_SHEET_ID = process.env.SEBES_SHEET_ID || '1gsS8IhZvNLrPojda-3uCJM_5VtcdlQ-f4V-g9w7DYqg';
 // Листы: название → gid. Ключ используется как метка периода.
 // Формат названия листа: DD.MM или DD.MM.YYYY → сортируем по дате
 // ── Список листов себестоимости — хранится в файле, управляется через UI ──────
@@ -1356,7 +1442,7 @@ async function _doDiscoverSebesSheets() {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000);
-    const xlsxUrl = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/export?format=xlsx`;
+    const xlsxUrl = `https://docs.google.com/spreadsheets/d/${getSheetId('sebes')}/export?format=xlsx`;
     let r;
     try {
       r = await fetch(xlsxUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
@@ -1501,7 +1587,7 @@ function parseSebesGviz(gviz, periodLabel) {
 }
 
 async function fetchSebesGviz(sheetName) {
-  const url = `https://docs.google.com/spreadsheets/d/${SEBES_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const url = `https://docs.google.com/spreadsheets/d/${getSheetId('sebes')}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
   const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   if (!r.ok) throw new Error(`gviz HTTP ${r.status} для листа "${sheetName}"`);
   const txt = await r.text();
@@ -1743,7 +1829,6 @@ app.put('/api/sebes/sheets', express.json(), (req, res) => {
 });
 
 // ── Deliveries CSV proxy (Google Sheets) ─────────────────────────────────────
-const DELIVERIES_SHEET_ID = '1m_VKlpmoJ9g7WRjcNOwSaLo8B5YyWFFXrlFZ6NL4U14';
 let _delCsvCache = null;
 let _delCsvCacheTs = 0;
 const DEL_CSV_CACHE_TTL = 5 * 60 * 1000;
@@ -1756,7 +1841,7 @@ app.get('/api/deliveries/csv', async (req, res) => {
     return res.type('text/csv').send(_delCsvCache);
   }
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${DELIVERIES_SHEET_ID}/export?format=csv&gid=0`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('deliveries')}/export?format=csv&gid=0`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
     const csv = await r.text();
@@ -1775,7 +1860,7 @@ app.post('/api/deliveries/sync', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     _delCsvCache = null; _delCsvCacheTs = 0;
-    const url = `https://docs.google.com/spreadsheets/d/${DELIVERIES_SHEET_ID}/export?format=csv&gid=0`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('deliveries')}/export?format=csv&gid=0`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
     const csv = await r.text();
@@ -1868,7 +1953,6 @@ function parseDeliveriesCsvServer(csv) {
 }
 
 // ── Stops CSV proxy (Google Sheets) ──────────────────────────────────────────
-const STOPS_SHEET_ID = process.env.STOPS_SHEET_ID || '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY';
 let _stopsCsvCache = null;
 let _stopsCsvCacheTs = 0;
 const STOPS_CSV_CACHE_TTL = 5 * 60 * 1000;
@@ -1884,7 +1968,7 @@ async function getStopsSheetList() {
     return _stopsSheetListCache;
   }
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=xlsx`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('stops')}/export?format=xlsx`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const buf = Buffer.from(await r.arrayBuffer());
@@ -1911,7 +1995,7 @@ app.get('/api/stops/csv', async (req, res) => {
     return res.type('text/csv').send(_stopsCsvCache);
   }
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=csv&gid=0`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('stops')}/export?format=csv&gid=0`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
     const csv = await r.text();
@@ -1943,7 +2027,7 @@ app.get('/api/stops/active-csv', async (req, res) => {
     }
     const sheet = sheets[1];
     // Используем имя листа — GID из workbook.xml (sheetId) не совпадает с gid= в URL экспорта
-    const url = `https://docs.google.com/spreadsheets/d/${STOPS_SHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('stops')}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
     const csv = await r.text();
@@ -1955,34 +2039,6 @@ app.get('/api/stops/active-csv', async (req, res) => {
     console.error('[STOPS] active-csv error:', e.message);
     if (_stopsActiveCsvCache) return res.type('text/csv').send(_stopsActiveCsvCache);
     res.status(502).json({ error: e.message });
-  }
-});
-
-// ── Supply CSV proxy (Google Sheets) ─────────────────────────────────────────
-const SUPPLY_SHEET_ID = process.env.SUPPLY_SHEET_ID || '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
-let _supplyCache = null;
-let _supplyCacheTs = 0;
-const SUPPLY_CACHE_TTL = 5 * 60 * 1000;
-
-app.get('/api/supply/csv', async (req, res) => {
-  if (!checkView(req, res)) return;
-  const now = Date.now();
-  const noCache = req.query.nocache === '1';
-  if (!noCache && _supplyCache && (now - _supplyCacheTs) < SUPPLY_CACHE_TTL) {
-    return res.type('text/csv').send(_supplyCache);
-  }
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/${SUPPLY_SHEET_ID}/export?format=csv&gid=0`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
-    const csv = await r.text();
-    _supplyCache   = csv;
-    _supplyCacheTs = now;
-    res.type('text/csv').send(csv);
-  } catch(e) {
-    console.error('Supply CSV fetch error:', e.message);
-    if (_supplyCache) return res.type('text/csv').send(_supplyCache); // отдаём кэш при ошибке
-    res.status(502).json({ error: 'Не удалось получить данные из Google Sheets: ' + e.message });
   }
 });
 
@@ -2228,145 +2284,6 @@ function parseStopsXlsx(buffer) {
   };
 }
 
-// ── Себестоимость из XLSX ─────────────────────────────────────────────────────
-function parseSebesXlsx(buffer, periodLabel) {
-  const XLSX = getXlsx();
-  const wb   = XLSX.read(buffer, { type:'buffer' });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows  = XLSX.utils.sheet_to_json(sheet, { header:1, defval:null });
-
-  // Находим заголовочную строку
-  let hRow = 0;
-  for (let i = 0; i < Math.min(rows.length,5); i++) {
-    const r = rows[i].map(v=>String(v||'').toLowerCase());
-    if (r.some(v=>v.includes('номенкл')||v.includes('наимен'))) { hRow = i; break; }
-  }
-  const headers = rows[hRow].map(v=>String(v||'').toLowerCase());
-  const idxName = headers.findIndex(h=>h.includes('номенкл')||h.includes('наимен'));
-  const idxCat  = headers.findIndex(h=>h.includes('катег'));
-  const idxCost = headers.findIndex(h=>h.includes('стоим')||h.includes('себест')||h.includes('цена'));
-
-  if (idxName < 0 || idxCost < 0) throw new Error('Не найдены колонки «Номенклатура» и «Стоимость» в файле себестоимости');
-
-  const SKIP = new Set(['итого','','nan']);
-  const nameUnitRe = /^(.+?),\s*(порц|шт|л|кг|мл|г)\.?\s*$/i;
-  const label = periodLabel || new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
-  const items = [];
-
-  for (let i = hRow+1; i < rows.length; i++) {
-    const r = rows[i];
-    const raw  = String(r[idxName]||'').trim();
-    if (!raw || SKIP.has(raw.toLowerCase())) continue;
-    const costRaw = r[idxCost];
-    const cost = costRaw !== null && !isNaN(+costRaw) ? Math.round(+costRaw*100)/100 : null;
-    const cat  = idxCat >= 0 ? String(r[idxCat]||'').trim() : 'Прочее';
-    const m    = raw.match(nameUnitRe);
-    const name = m ? m[1].trim() : raw;
-    const unit = m ? m[2] : 'порц';
-    items.push({ name, cat: cat||'Прочее', unit, cost, price:null, markup:null,
-                 trend:'same', diff:null, diff_pct:null, total_diff:null, total_diff_pct:null,
-                 history: cost !== null ? [{period:label, cost}] : [] });
-  }
-
-  if (!items.length) throw new Error('Не найдено позиций себестоимости');
-
-  const allCats = [...new Set(items.map(i=>i.cat).filter(Boolean))].sort();
-  return {
-    meta: {
-      source:'Себестоимость блюд', periods:[label],
-      total_items:items.length, total_cats:allCats.length,
-      with_history:0, growth_count:0, drop_count:0,
-      all_cats:allCats, avg_markup:null,
-      no_cost: items.filter(i=>!i.cost).length,
-      created_at: new Date().toISOString().slice(0,10),
-    },
-    top_growth:[], top_drop:[], top_margin:[], low_margin:[],
-    all_items: items,
-  };
-}
-
-// ── Списания из XLSX ──────────────────────────────────────────────────────────
-function parseWriteoffsXlsx(buffer, periodLabel) {
-  const XLSX = getXlsx();
-  const wb   = XLSX.read(buffer, { type:'buffer' });
-  const sheetName = wb.SheetNames.find(n=>n.toLowerCase().includes('лист')) || wb.SheetNames[0];
-  const sheet = wb.Sheets[sheetName];
-  const rows  = XLSX.utils.sheet_to_json(sheet, { header:1, defval:null });
-
-  // Известные имена складов (суффикс «склад» или точное совпадение)
-  const WH_EXACT = new Set(['Склад','Склад основной','Цех пекарня склад',
-    'Цех производство (склад)','Третья Рабочая (Склад)',
-    'Сафари-парк (Шкотово) склад','Пожарная академия о. Русский склад']);
-
-  const isWh = s => WH_EXACT.has(s) || /склад$/i.test(s) || /\(склад\)$/i.test(s);
-
-  const WRITEOFF_DOC = /^Списание запасов \d+ от [\d.]+,\s*.+/i;
-  const SALES_DOC    = /^Отчет о розничных продажах/i;
-  const SKIP_NAMES   = new Set(['','nan','Итого','Номенклатура','Хозяйственная операция',
-    'Вид деятельности','Покупатель','Документ движения, Корреспонденция','Склад']);
-
-  const byWh = {};
-  let curWh = null, inWriteoffs = false;
-
-  for (const row of rows) {
-    const col0 = String(row[0]||'').trim();
-    let cost = null;
-    // col5 — себестоимость, col7 — выручка
-    if (row[5] !== null && row[5] !== undefined && !isNaN(+row[5])) cost = +row[5];
-
-    if (isWh(col0)) {
-      curWh = col0; inWriteoffs = false;
-      if (!byWh[curWh]) byWh[curWh] = {total:0, items:{}, cats:{}};
-      continue;
-    }
-    if (col0 === 'Списание запасов')    { inWriteoffs = true;  continue; }
-    if (SALES_DOC.test(col0))           { inWriteoffs = false; continue; }
-    if (!curWh || !inWriteoffs)         continue;
-    if (!cost || cost <= 0)             continue;
-    if (SKIP_NAMES.has(col0))           continue;
-    if (WRITEOFF_DOC.test(col0))        continue;
-
-    const cat = (() => {
-      const n = col0.toLowerCase();
-      if (/кофе|молоко|сок|чай|сироп/.test(n))        return 'Напитки/Бар';
-      if (/курица|свинина|говяж|бедро|филе|мясо/.test(n)) return 'Мясо/Птица';
-      if (/огурц|помидор|лимон|капуст|салат|банан/.test(n)) return 'Овощи/Фрукты';
-      if (/булочка|лаваш|тортилья|хлеб/.test(n))      return 'Выпечка';
-      if (/соус|майонез/.test(n))                      return 'Соусы';
-      if (/пакет|салфетк|пергамент|бумажн/.test(n))   return 'Расходники';
-      if (/десерт|тирамис|мороженое|желе/.test(n))     return 'Десерты';
-      if (/^тсп |^п\/ф /.test(n))                      return 'Полуфабрикаты';
-      return 'Прочее';
-    })();
-
-    byWh[curWh].total += cost;
-    byWh[curWh].cats[cat] = (byWh[curWh].cats[cat]||0) + cost;
-    if (!byWh[curWh].items[col0]) byWh[curWh].items[col0] = {cost:0, qty:0};
-    byWh[curWh].items[col0].cost += cost;
-  }
-
-  const grand = Object.values(byWh).reduce((s,v)=>s+v.total, 0);
-  if (!grand) throw new Error('Не удалось найти данные списаний. Проверьте структуру файла.');
-
-  const label = periodLabel || new Date().toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
-  const warehouses = Object.entries(byWh)
-    .filter(([,v])=>v.total>0)
-    .sort((a,b)=>b[1].total-a[1].total)
-    .map(([name,v]) => {
-      const top10 = Object.entries(v.items).sort((a,b)=>b[1].cost-a[1].cost).slice(0,10)
-        .map(([nm,i])=>({name:nm, cost:Math.round(i.cost), qty:Math.round(i.qty*100)/100}));
-      return {
-        name, total:Math.round(v.total),
-        pct: Math.round(v.total/grand*1000)/10,
-        n_items: Object.keys(v.items).length,
-        cats: Object.fromEntries(Object.entries(v.cats).map(([k,vv])=>[k,Math.round(vv)])),
-        top3: top10.slice(0,3), top10,
-      };
-    });
-
-  return { period: label, grand_total: Math.round(grand), warehouses };
-}
-
 // ── XLSX upload endpoints ─────────────────────────────────────────────────────
 app.post('/api/stops/xlsx', upload.single('file'), async (req, res) => {
   if (!checkAdmin(req, res)) return;
@@ -2376,41 +2293,6 @@ app.post('/api/stops/xlsx', upload.single('file'), async (req, res) => {
     const { sha } = await readStops();
     const dest = await writeStops(data, sha);
     res.json({ ok:true, days:Object.keys(data.days).length, periods:data.periods.length, saved_to:dest });
-  } catch(e) { res.status(400).json({ error: e.message }); }
-});
-
-app.post('/api/sebes/xlsx', upload.single('file'), async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
-  try {
-    const period = req.query.period || '';
-    const mode   = req.query.mode || 'replace';
-    const incoming = parseSebesXlsx(req.file.buffer, period);
-    const { data: existing, sha } = await readSebes();
-    const finalData = (mode === 'merge' && existing && existing.meta && existing.all_items)
-      ? mergeSebesPeriods(existing, incoming) : incoming;
-    const dest = await writeSebes(finalData, sha);
-    res.json({ ok:true, items:finalData.all_items.length, periods:finalData.meta.periods, mode, saved_to:dest });
-  } catch(e) { res.status(400).json({ error: e.message }); }
-});
-
-app.post('/api/writeoffs/xlsx', upload.single('file'), async (req, res) => {
-  if (!checkAdmin(req, res)) return;
-  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
-  try {
-    const period = req.query.period || '';
-    const data   = parseWriteoffsXlsx(req.file.buffer, period);
-    // Сохраняем как новый период
-    const existing = JSON.parse(fs.readFileSync(LOCAL_DATA_FILE, 'utf8'));
-    existing.push(data);
-    fs.writeFileSync(LOCAL_DATA_FILE, JSON.stringify(existing));
-    rebuildWriteoffsIndex();
-    if (GH_TOKEN && GH_OWNER) {
-      try {
-        await ghWriteSafe(DATA_PATH, existing, 'Add writeoffs period via xlsx');
-      } catch(e) { console.error('GH write wo:', e.message); }
-    }
-    res.json({ ok:true, warehouses:data.warehouses.length, grand_total:data.grand_total, period:data.period });
   } catch(e) { res.status(400).json({ error: e.message }); }
 });
 
@@ -2470,30 +2352,6 @@ function aggregateWriteoffs(rows, label) {
       .map(([d, cost]) => ({ d, cost: Math.round(cost * 100) / 100 })),
   };
 }
-
-// ── Writeoffs dates & range — MUST be before the catch-all route ─────────────
-app.get('/api/writeoffs/dates', (req, res) => {
-  if (!checkView(req, res)) return;
-  try {
-    const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE, 'utf8'));
-    const totals = {};
-    raw.rows.forEach(r => { totals[r.d] = (totals[r.d]||0) + r.cost; });
-    res.json(Object.entries(totals).sort().map(([d,t])=>({d, total:Math.round(t)})));
-  } catch { res.json([]); }
-});
-
-app.get('/api/writeoffs/range', (req, res) => {
-  if (!checkView(req, res)) return;
-  try {
-    const { from, to } = req.query; // dd.mm.yyyy
-    if (!from || !to) return res.status(400).json({ error: 'Параметры from и to обязательны' });
-    const raw = JSON.parse(fs.readFileSync(WO_RAW_FILE, 'utf8'));
-    const toIso = s => { const [d,m,y]=s.split('.'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; };
-    const isoFrom = toIso(from), isoTo = toIso(to);
-    const rows = raw.rows.filter(r => r.d >= isoFrom && r.d <= isoTo);
-    res.json(aggregateWriteoffs(rows, `${from} — ${to}`));
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
 
 // ── Settings (настройки дашборда) ────────────────────────────────────────────
 const SETTINGS_FILE = path.join(LOCAL_DATA_DIR, 'settings.json');
