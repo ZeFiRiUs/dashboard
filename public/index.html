@@ -1,65 +1,65 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DASHBOARD</title>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --body-bg:linear-gradient(140deg,#0a0a0c 0%,#0d0f14 40%,#111318 75%,#171a20 100%);
-  --bg:#0a0a0c;--surf:#111318;--card:#171a20;--card2:#1e2028;--bd:rgba(255,223,0,0.13);
-  --acc:#ffdf00;--grn:#98c21e;--warn:#f28d29;--red:#F04060;
-  --txt:#F0F0F2;--txt2:#87879A;--txt3:#43435A;
-  --sh-sm:0 1px 3px rgba(0,0,0,.5);--sh-md:0 4px 16px rgba(0,0,0,.45);--sh-lg:0 8px 32px rgba(0,0,0,.55)
+  --body-bg:#0D0D0F;
+  --bg:#0D0D0F;--surf:#161618;--card:#1C1C1F;--card2:#222226;--bd:rgba(232,80,58,0.13);
+  --acc:#E8503A;--grn:#4CAF6E;--warn:#F09C38;--red:#FF4560;
+  --txt:#EFEFEF;--txt2:#9090A0;--txt3:#505060;
+  --sh-sm:0 1px 4px rgba(0,0,0,.6);--sh-md:0 4px 16px rgba(0,0,0,.5);--sh-lg:0 8px 32px rgba(0,0,0,.6)
 }
 
 html.light{
-  --body-bg:#f3e6c4;
-  --bg:#f3e6c4;--surf:rgba(236,218,176,0.96);--card:rgba(233,213,170,0.98);--card2:#ddc485;--bd:rgba(140,96,5,0.14);
-  --acc:#a87605;--grn:#496402;--warn:#9e5808;--red:#ae1226;
-  --txt:#332007;--txt2:#70522a;--txt3:#9e7a44;
-  --sh-sm:0 1px 3px rgba(80,40,0,.04);--sh-md:0 4px 16px rgba(80,40,0,.06);--sh-lg:0 8px 32px rgba(80,40,0,.09)
+  --body-bg:#F5F3EF;
+  --bg:#F5F3EF;--surf:#FAFAF8;--card:#FFFFFF;--card2:#F0EDE8;--bd:rgba(60,40,20,0.12);
+  --acc:#C8391E;--grn:#2E7D4F;--warn:#B8720A;--red:#C0152E;
+  --txt:#1A1814;--txt2:#6A6055;--txt3:#A09585;
+  --sh-sm:0 1px 3px rgba(0,0,0,.05);--sh-md:0 4px 16px rgba(0,0,0,.08);--sh-lg:0 8px 32px rgba(0,0,0,.12)
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--body-bg);color:var(--txt);font-family:'Manrope',sans-serif;min-height:100vh;transition:color .25s,background .25s}
+body{background:var(--body-bg);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh;transition:color .25s,background .25s}
 
 /* LOGIN */
-.login-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(ellipse at 30% 40%,rgba(255,223,0,.07) 0%,transparent 60%),radial-gradient(ellipse at 75% 70%,rgba(34,197,94,.04) 0%,transparent 50%)}
-.login-box{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:44px 40px;width:92%;max-width:380px;text-align:center;box-shadow:var(--sh-lg),0 0 0 1px rgba(255,223,0,.07)}
-.login-logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,rgba(255,223,0,.22),rgba(255,223,0,.08));border:1px solid rgba(255,223,0,.3);display:flex;align-items:center;justify-content:center;margin:0 auto 22px;font-size:24px;box-shadow:0 0 24px rgba(255,223,0,.15)}
+.login-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(ellipse at 30% 40%,rgba(232,80,58,.06) 0%,transparent 60%),radial-gradient(ellipse at 75% 70%,rgba(76,175,110,.03) 0%,transparent 50%)}
+.login-box{background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:44px 40px;width:92%;max-width:380px;text-align:center;box-shadow:var(--sh-lg)}
+.login-logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,rgba(232,80,58,.18),rgba(232,80,58,.06));border:1px solid rgba(232,80,58,.28);display:flex;align-items:center;justify-content:center;margin:0 auto 22px;font-size:24px;box-shadow:0 0 24px rgba(232,80,58,.15)}
 .login-title{font-size:22px;font-weight:800;margin-bottom:6px;color:var(--txt);letter-spacing:-.02em}
 .login-sub{font-size:12px;color:var(--txt2);margin-bottom:28px;line-height:1.5}
-.login-inp{width:100%;background:var(--surf);border:1px solid var(--bd);border-radius:12px;padding:13px 16px;color:var(--txt);font-size:15px;font-family:'Manrope',sans-serif;outline:none;text-align:center;letter-spacing:.15em;margin-bottom:12px;transition:border-color .2s,box-shadow .2s}
-.login-inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(255,223,0,.12)}
-.login-btn{width:100%;background:var(--acc);border:none;border-radius:12px;padding:14px;color:#000;font-size:14px;font-weight:700;cursor:pointer;font-family:'Manrope',sans-serif;transition:opacity .15s,transform .1s,box-shadow .15s;box-shadow:0 4px 14px rgba(255,223,0,.35)}
-.login-btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 6px 20px rgba(255,223,0,.4)}
+.login-inp{width:100%;background:var(--surf);border:1px solid var(--bd);border-radius:12px;padding:13px 16px;color:var(--txt);font-size:15px;font-family:'Inter',sans-serif;outline:none;text-align:center;letter-spacing:.15em;margin-bottom:12px;transition:border-color .2s,box-shadow .2s}
+.login-inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(232,80,58,.12)}
+.login-btn{width:100%;background:var(--acc);border:none;border-radius:12px;padding:14px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:opacity .15s,transform .1s,box-shadow .15s;box-shadow:0 4px 14px rgba(232,80,58,.35)}
+.login-btn:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 6px 20px rgba(232,80,58,.4)}
 .login-btn:active{transform:translateY(0)}
 .login-err{color:var(--red);font-size:12px;margin-top:10px;min-height:18px}
 .login-hint{font-size:11px;color:var(--txt3);margin-top:16px;line-height:1.5}
 
 /* HEADER */
 header{background:var(--surf);border-bottom:1px solid var(--bd);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;transition:background .25s;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-html.light header{background:rgba(236,218,176,.92);border-bottom-color:rgba(140,96,5,.14)}
+html.light header{background:rgba(250,250,248,.92);border-bottom-color:var(--bd)}
 .logo{display:flex;align-items:center;gap:10px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--grn);animation:pulse 2.5s infinite;box-shadow:0 0 7px var(--grn)}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
 .brand{font-size:15px;font-weight:800;letter-spacing:.04em;color:var(--txt)}
 .hbtns{display:flex;gap:8px;align-items:center}
-.btn{font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Manrope',sans-serif;white-space:nowrap}
-.btn:hover{background:var(--card2);color:var(--txt);border-color:rgba(255,223,0,.3)}
-.btn-acc{background:rgba(255,223,0,.13);border-color:rgba(255,223,0,.35);color:var(--acc);font-weight:700}.btn-acc:hover{background:rgba(255,223,0,.2);border-color:var(--acc)}
+.btn{font-size:12px;padding:7px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif;white-space:nowrap}
+.btn:hover{background:var(--card2);color:var(--txt);border-color:rgba(232,80,58,.3)}
+.btn-acc{background:rgba(232,80,58,.1);border-color:rgba(232,80,58,.3);color:var(--acc);font-weight:700}.btn-acc:hover{background:rgba(232,80,58,.18);border-color:var(--acc)}
 .btn-warn{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--warn);font-weight:700}.btn-warn:hover{background:rgba(245,158,11,.18);border-color:var(--warn)}
 .theme-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s}
-.theme-btn:hover{border-color:rgba(255,223,0,.35);color:var(--txt)}
+.theme-btn:hover{border-color:rgba(232,80,58,.35);color:var(--txt)}
 html.light .btn{color:var(--txt2);border-color:var(--bd);background:var(--card2)}
 html.light .btn:hover{background:var(--card);color:var(--txt)}
 html.light .theme-btn{color:var(--txt2);border-color:var(--bd);background:var(--card2)}
 
 /* TAB NAV */
 .tab-nav{display:flex;gap:2px;background:var(--surf);border-bottom:1px solid var(--bd);padding:0 24px;position:sticky;top:60px;z-index:90;transition:background .25s;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-html.light .tab-nav{background:rgba(236,218,176,.92);border-bottom-color:rgba(140,96,5,.14)}
-.tab-nav-btn{padding:14px 20px;font-size:13px;font-weight:600;color:var(--txt2);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Manrope',sans-serif}
+html.light .tab-nav{background:rgba(250,250,248,.92);border-bottom-color:var(--bd)}
+.tab-nav-btn{padding:14px 20px;font-size:13px;font-weight:600;color:var(--txt2);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;font-family:'Inter',sans-serif}
 .tab-nav-btn:hover{color:var(--txt)}
 .tab-nav-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
 .page{display:none}.page.active{display:block}
@@ -74,20 +74,20 @@ html.light .tab-nav{background:rgba(236,218,176,.92);border-bottom-color:rgba(14
 
 /* KPIS */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
-.kpi{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.65) 0%,rgba(255,223,0,.1) 55%,rgba(242,141,41,.4) 100%) border-box;border:1.5px solid transparent;border-radius:20px;padding:18px;position:relative;overflow:hidden;transition:background .25s,transform .2s,box-shadow .2s;box-shadow:0 0 22px rgba(255,223,0,.1),0 0 2px rgba(255,223,0,.22),var(--sh-sm)}
-.kpi:hover{transform:translateY(-2px);box-shadow:0 0 32px rgba(255,223,0,.18),0 0 4px rgba(255,223,0,.32),var(--sh-md)}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--acc),transparent);filter:blur(.5px)}
-.kpi.g::before{background:linear-gradient(90deg,transparent,var(--grn),transparent)}
-.kpi.w::before{background:linear-gradient(90deg,transparent,var(--warn),transparent)}
-.kpi.r::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
-.kpi.g{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(34,197,94,.65) 0%,rgba(34,197,94,.1) 55%,rgba(242,141,41,.4) 100%) border-box;box-shadow:0 0 22px rgba(34,197,94,.1),0 0 2px rgba(34,197,94,.22),var(--sh-sm)}
-.kpi.g:hover{box-shadow:0 0 32px rgba(34,197,94,.18),0 0 4px rgba(34,197,94,.32),var(--sh-md)}
-.kpi.w{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(245,158,11,.65) 0%,rgba(245,158,11,.1) 55%,rgba(251,146,60,.4) 100%) border-box;box-shadow:0 0 22px rgba(245,158,11,.1),0 0 2px rgba(245,158,11,.22),var(--sh-sm)}
-.kpi.w:hover{box-shadow:0 0 32px rgba(245,158,11,.18),0 0 4px rgba(245,158,11,.32),var(--sh-md)}
-.kpi.r{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(240,64,96,.65) 0%,rgba(240,64,96,.1) 55%,rgba(255,157,60,.4) 100%) border-box;box-shadow:0 0 22px rgba(240,64,96,.1),0 0 2px rgba(240,64,96,.22),var(--sh-sm)}
-.kpi.r:hover{box-shadow:0 0 32px rgba(240,64,96,.18),0 0 4px rgba(240,64,96,.32),var(--sh-md)}
+.kpi{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--acc);border-radius:12px;padding:18px;position:relative;overflow:hidden;transition:all .15s;box-shadow:var(--sh-sm)}
+.kpi:hover{transform:translateY(-1px);box-shadow:var(--sh-md)}
+.kpi::before{display:none}
+
+
+
+.kpi.g{border-left-color:var(--grn)}
+
+.kpi.w{border-left-color:var(--warn)}
+
+.kpi.r{border-left-color:var(--red)}
+
 .kl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600}
-.kv{font-size:24px;font-weight:800;line-height:1;margin-bottom:4px;letter-spacing:-.02em}
+.kv{font-size:26px;font-weight:400;font-family:'DM Serif Display',serif;line-height:1;margin-bottom:4px;letter-spacing:-.01em}
 .ks{font-size:11px;color:var(--txt3);line-height:1.4}
 .kd{font-size:11px;font-weight:700;margin-top:5px}
 .kd.up{color:var(--red)}.kd.dn{color:var(--grn)}.kd.fl{color:var(--txt3)}
@@ -95,25 +95,25 @@ html.light .tab-nav{background:rgba(236,218,176,.92);border-bottom-color:rgba(14
 /* PERIODS TABS */
 .ptabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
 .ptab{font-size:11px;padding:5px 14px;border-radius:20px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;transition:all .15s;font-family:'JetBrains Mono',monospace;letter-spacing:.02em}
-.ptab:hover{border-color:rgba(255,223,0,.4);color:var(--txt)}
-.ptab.act{background:var(--acc);color:#000;border-color:var(--acc);box-shadow:0 2px 10px rgba(255,223,0,.35)}
+.ptab:hover{border-color:rgba(232,80,58,.4);color:var(--txt)}
+.ptab.act{background:var(--acc);color:#fff;border-color:var(--acc);box-shadow:0 2px 8px rgba(232,80,58,.3)}
 
 /* FILTERS */
 .frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
-.fbtn{font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;transition:all .15s;font-family:'Manrope',sans-serif}
-.fbtn:hover,.fbtn.act{background:var(--acc);color:#000;border-color:var(--acc);box-shadow:0 2px 8px rgba(255,223,0,.28)}
+.fbtn{font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid var(--bd);background:var(--card);color:var(--txt2);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+.fbtn:hover,.fbtn.act{background:var(--acc);color:#fff;border-color:var(--acc);box-shadow:0 2px 6px rgba(232,80,58,.28)}
 .sw{position:relative;flex:1;min-width:200px}
-.si{width:100%;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:9px 12px 9px 36px;color:var(--txt);font-size:13px;font-family:'Manrope',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s}
-.si:focus{border-color:rgba(255,223,0,.5);box-shadow:0 0 0 3px rgba(255,223,0,.08)}
+.si{width:100%;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:9px 12px 9px 36px;color:var(--txt);font-size:13px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s}
+.si:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(232,80,58,.1)}
 .sic{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:14px;pointer-events:none}
 .cc{font-size:13px;color:var(--txt2);margin-bottom:12px}
 
 /* CARDS */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:32px}
-.card{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.45) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.28) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;cursor:pointer;transition:all .2s;box-shadow:0 0 18px rgba(255,223,0,.07),var(--sh-sm)}
-.card:hover{transform:translateY(-2px);box-shadow:0 0 28px rgba(255,223,0,.16),0 0 3px rgba(255,223,0,.28),0 8px 24px rgba(0,0,0,.2)}
-.card.ld{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(240,64,96,.65) 0%,rgba(240,64,96,.08) 55%,rgba(255,157,60,.35) 100%) border-box;box-shadow:0 0 18px rgba(240,64,96,.08),var(--sh-sm)}
-.card.lw{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(245,158,11,.65) 0%,rgba(245,158,11,.08) 55%,rgba(251,146,60,.35) 100%) border-box;box-shadow:0 0 18px rgba(245,158,11,.08),var(--sh-sm)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;cursor:pointer;transition:all .15s;box-shadow:var(--sh-sm)}
+.card:hover{transform:translateY(-1px);box-shadow:var(--sh-md);border-color:rgba(232,80,58,.22)}
+.card.ld{border-left:3px solid var(--red)}
+.card.lw{border-left:3px solid var(--warn)}
 .ch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
 .cn{font-size:13px;font-weight:700;color:var(--txt)}
 .ct{font-size:16px;font-weight:800;font-family:'JetBrains Mono',monospace}
@@ -132,7 +132,7 @@ html.light .tab-nav{background:rgba(236,218,176,.92);border-bottom-color:rgba(14
 /* OVERLAY */
 .ov{display:none;position:fixed;inset:0;background:rgba(2,6,23,.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
 .ov.open{display:flex}
-.modal{background:var(--card);border:1px solid var(--bd);border-radius:18px;width:92%;max-width:640px;max-height:90vh;overflow-y:auto;padding:28px;animation:su .2s ease;box-shadow:var(--sh-lg),0 0 0 1px rgba(255,223,0,.06)}
+.modal{background:var(--card);border:1px solid var(--bd);border-radius:18px;width:92%;max-width:640px;max-height:90vh;overflow-y:auto;padding:28px;animation:su .2s ease;box-shadow:var(--sh-lg)}
 @keyframes su{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}
 .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
 .mt{font-size:17px;font-weight:800;color:var(--txt)}
@@ -168,16 +168,16 @@ html.light .tab-nav{background:rgba(236,218,176,.92);border-bottom-color:rgba(14
 
 /* ADMIN */
 .aw{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:var(--sh-sm)}
-.ai{width:100%;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:9px 12px;color:var(--txt);font-size:13px;font-family:'Manrope',sans-serif;outline:none;margin-bottom:8px;transition:border-color .2s,box-shadow .2s}
-.ai:focus{border-color:rgba(255,223,0,.5);box-shadow:0 0 0 3px rgba(255,223,0,.08)}
+.ai{width:100%;background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:9px 12px;color:var(--txt);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:8px;transition:border-color .2s,box-shadow .2s}
+.ai:focus{border-color:rgba(232,80,58,.5);box-shadow:0 0 0 3px rgba(232,80,58,.08)}
 .uz{border:1px dashed var(--bd);border-radius:12px;padding:22px;text-align:center;color:var(--txt2);font-size:13px;cursor:pointer;transition:all .2s;margin-bottom:14px}
-.uz:hover{border-color:rgba(255,223,0,.4);background:rgba(255,223,0,.04);color:var(--txt)}
+.uz:hover{border-color:rgba(232,80,58,.4);background:rgba(232,80,58,.04);color:var(--txt)}
 .pl{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;margin-bottom:14px}
 .pi{display:flex;justify-content:space-between;align-items:center;background:var(--surf);border-radius:10px;padding:10px 14px;font-size:12px;border:1px solid var(--bd)}
 .pp{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt)}
 .ps{color:var(--txt2);font-size:10px;margin-top:1px}
 .pbs{display:flex;gap:4px}
-.pb{background:transparent;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;color:var(--txt2);transition:all .15s;font-family:'Manrope',sans-serif}
+.pb{background:transparent;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;color:var(--txt2);transition:all .15s;font-family:'Inter',sans-serif}
 .pb:hover{background:var(--card2);color:var(--txt)}
 .pb.del:hover{color:var(--red);border-color:rgba(240,64,96,.4);background:rgba(240,64,96,.06)}
 .success-msg{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--grn);margin-bottom:10px}
@@ -235,7 +235,7 @@ html.light .cic{color:var(--txt)}
 html.light .ciq{color:var(--txt3)}
 html.light .bb{background:var(--bd)}
 html.light .ptab{background:var(--card2);border-color:var(--bd);color:var(--txt2)}
-html.light .ptab:hover{border-color:rgba(140,96,5,.3);color:var(--txt)}
+html.light .ptab:hover{border-color:rgba(60,40,20,.3);color:var(--txt)}
 html.light .si{background:rgba(233,213,170,.98);border-color:var(--bd);color:var(--txt)}
 html.light .modal{background:rgba(233,213,170,.99);border-color:var(--bd)}
 html.light .mt{color:var(--txt)}
@@ -270,7 +270,7 @@ html.light .pi{background:var(--card2);border-color:var(--bd)}
 html.light .pp{color:var(--txt)}
 html.light .ps{color:var(--txt2)}
 html.light .cmprow{background:rgba(233,213,170,.98);border-color:var(--bd)}
-html.light .login-box{background:rgba(233,213,170,.99);border-color:rgba(140,96,5,.2)}
+html.light .login-box{background:rgba(233,213,170,.99);border-color:rgba(60,40,20,.2)}
 html.light .login-title{color:var(--txt)}
 html.light .login-sub{color:var(--txt2)}
 html.light .login-inp{background:var(--card2);border-color:var(--bd);color:var(--txt)}
@@ -288,7 +288,7 @@ html.light #active-point-filter{background:rgba(233,213,170,.98);border-color:va
   height:calc(56px + env(safe-area-inset-bottom))}
 .mob-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:2px;padding:6px 4px;border:none;background:transparent;color:var(--txt3);
-  cursor:pointer;font-family:'Manrope',sans-serif;transition:color .15s;min-width:0}
+  cursor:pointer;font-family:'Inter',sans-serif;transition:color .15s;min-width:0}
 .mob-nav-btn.active{color:var(--acc)}
 .mob-nav-icon{font-size:20px;line-height:1}
 .mob-nav-label{font-size:10px;font-weight:600;white-space:nowrap}
@@ -301,7 +301,7 @@ html.light #active-point-filter{background:rgba(233,213,170,.98);border-color:va
 .mob-menu-inner{padding:16px;display:flex;flex-direction:column;gap:4px}
 .mob-menu-item{display:flex;align-items:center;gap:14px;padding:14px 16px;
   border:none;background:transparent;color:var(--txt);font-size:14px;font-weight:600;
-  font-family:'Manrope',sans-serif;cursor:pointer;border-radius:10px;
+  font-family:'Inter',sans-serif;cursor:pointer;border-radius:10px;
   text-align:left;transition:background .15s;width:100%}
 .mob-menu-item:hover{background:var(--card)}
 .mob-menu-item.active{color:var(--acc)}
@@ -370,18 +370,18 @@ footer{text-align:center;padding:20px;color:var(--txt3);font-size:11px;border-to
 /* ── SIDEBAR ──────────────────────────────────────────────────────────────── */
 .sidebar{position:fixed;top:60px;left:0;bottom:0;width:240px;background:var(--surf);border-right:1px solid var(--bd);z-index:89;display:flex;flex-direction:column;transition:width .28s cubic-bezier(.4,0,.2,1),box-shadow .28s;overflow:hidden;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .sidebar.collapsed{width:56px}
-html.light .sidebar{background:rgba(236,218,176,.93);border-right-color:rgba(140,96,5,.14)}
-html.light body.sb-col .sidebar:hover{box-shadow:4px 0 20px rgba(100,60,0,.14)}
+html.light .sidebar{background:rgba(250,250,248,.93);border-right-color:rgba(60,40,20,.14)}
+html.light body.sb-col .sidebar:hover{box-shadow:4px 0 20px rgba(0,0,0,.14)}
 .sidebar-head{display:flex;align-items:center;justify-content:flex-end;padding:10px;border-bottom:1px solid var(--bd);flex-shrink:0;min-height:46px}
 .sidebar.collapsed .sidebar-head{justify-content:center}
-.sidebar-toggle-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd);background:transparent;cursor:pointer;color:var(--txt2);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;font-family:'Manrope',sans-serif;padding:0}
-.sidebar-toggle-btn:hover{background:var(--card);border-color:rgba(255,223,0,.4);color:var(--acc)}
+.sidebar-toggle-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd);background:transparent;cursor:pointer;color:var(--txt2);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;font-family:'Inter',sans-serif;padding:0}
+.sidebar-toggle-btn:hover{background:var(--card);border-color:rgba(232,80,58,.4);color:var(--acc)}
 .sidebar-nav-inner{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px}
 .sidebar-footer{padding:8px;flex-shrink:0;border-top:1px solid var(--bd)}
-.sidebar-btn{display:flex;align-items:center;gap:12px;padding:10px 12px;border:none;background:transparent;color:var(--txt2);font-size:13px;font-weight:600;font-family:'Manrope',sans-serif;cursor:pointer;transition:all .15s;width:100%;text-align:left;white-space:nowrap;border-radius:8px;margin-bottom:2px;position:relative}
+.sidebar-btn{display:flex;align-items:center;gap:12px;padding:10px 12px;border:none;background:transparent;color:var(--txt2);font-size:13px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all .15s;width:100%;text-align:left;white-space:nowrap;border-radius:8px;margin-bottom:2px;position:relative}
 .sidebar-btn:hover{background:var(--card);color:var(--txt)}
-.sidebar-btn.active{background:linear-gradient(90deg,rgba(255,223,0,.14),rgba(255,223,0,.04));color:var(--acc)}
-.sidebar-btn.active::before{content:'';position:absolute;left:0;top:18%;bottom:18%;width:3px;background:var(--acc);border-radius:0 2px 2px 0;box-shadow:0 0 8px rgba(255,223,0,.5)}
+.sidebar-btn.active{background:linear-gradient(90deg,rgba(232,80,58,.14),rgba(232,80,58,.04));color:var(--acc)}
+.sidebar-btn.active::before{content:'';position:absolute;left:0;top:18%;bottom:18%;width:3px;background:var(--acc);border-radius:0 2px 2px 0;box-shadow:0 0 8px rgba(232,80,58,.5)}
 .sidebar.collapsed .sidebar-btn.active::before{display:none}
 .sidebar-icon{font-size:18px;flex-shrink:0;width:24px;text-align:center;line-height:1}
 .sidebar-label{transition:opacity .15s .05s,max-width .2s;max-width:180px;overflow:hidden}
@@ -432,12 +432,12 @@ body.sb-col .sidebar:hover .sidebar-btn.active::before{display:block}
 .skel{border-radius:6px;background:linear-gradient(90deg,var(--card) 25%,var(--card2) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.5s ease infinite}
 
 /* Sidebar icon glow on active */
-.sidebar-btn.active .sidebar-icon{filter:drop-shadow(0 0 6px rgba(255,223,0,.7))}
+.sidebar-btn.active .sidebar-icon{filter:drop-shadow(0 0 6px rgba(232,80,58,.7))}
 
 /* Sidebar btn hover micro-move + glow */
 .sidebar-btn{transition:background .18s,color .18s,transform .18s}
 .sidebar-btn:hover{transform:translateX(3px)}
-.sidebar-btn:hover .sidebar-icon{filter:drop-shadow(0 0 4px rgba(255,223,0,.4));transition:filter .18s}
+.sidebar-btn:hover .sidebar-icon{filter:drop-shadow(0 0 4px rgba(232,80,58,.4));transition:filter .18s}
 
 /* KPI top stripe animated opacity */
 @keyframes stripeBreath{0%,100%{opacity:.6}50%{opacity:1}}
@@ -524,7 +524,7 @@ body.sb-col .sidebar:hover .sidebar-btn.active::before{display:block}
 .sidebar-label{will-change:opacity,max-width;transition:opacity .15s .05s,max-width .25s}
 
 /* Yellow glow ambient on page */
-body::before{content:'';position:fixed;top:-20%;left:-10%;width:500px;height:500px;background:radial-gradient(ellipse,rgba(255,223,0,.04) 0%,transparent 65%);pointer-events:none;z-index:0;animation:ambientDrift 8s ease-in-out infinite alternate}
+body::before{content:'';position:fixed;top:-20%;left:-10%;width:500px;height:500px;background:radial-gradient(ellipse,rgba(232,80,58,.04) 0%,transparent 65%);pointer-events:none;z-index:0;animation:ambientDrift 8s ease-in-out infinite alternate}
 body::after{content:'';position:fixed;bottom:-10%;right:-5%;width:400px;height:400px;background:radial-gradient(ellipse,rgba(242,141,41,.04) 0%,transparent 65%);pointer-events:none;z-index:0;animation:ambientDrift 10s ease-in-out infinite alternate-reverse}
 @keyframes ambientDrift{from{transform:translate(0,0)}to{transform:translate(30px,20px)}}
 
@@ -541,13 +541,13 @@ body::after{content:'';position:fixed;bottom:-10%;right:-5%;width:400px;height:4
 /* Scrollbar */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(255,223,0,.22);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:rgba(255,223,0,.45)}
+::-webkit-scrollbar-thumb{background:rgba(232,80,58,.22);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(232,80,58,.45)}
 html.light ::-webkit-scrollbar-thumb{background:rgba(184,150,10,.25)}
 html.light ::-webkit-scrollbar-thumb:hover{background:rgba(184,150,10,.45)}
 
 /* Brand gradient text */
-.brand{background:linear-gradient(120deg,#fff8c0 0%,#ffdf00 50%,#f28d29 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.brand{background:linear-gradient(120deg,#FFCFB8 0%,#E8503A 50%,#C83020 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 html.light .brand{background:linear-gradient(120deg,#0F1C30 0%,#b8960a 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 
 /* Header / tab-nav depth shadow */
@@ -570,7 +570,7 @@ html.light .page-h{background:linear-gradient(120deg,#0F1C30 0%,var(--acc) 190%)
 .kv,.scc,.ct,.mkv,.cic,.ciq,.tcost,.hv,.hp{font-variant-numeric:tabular-nums}
 
 /* Generic gradient-border content box */
-.box{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.34) 0%,rgba(255,223,0,.04) 55%,rgba(242,141,41,.2) 100%) border-box;border:1px solid transparent;border-radius:14px;padding:18px}
+.box{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(232,80,58,.34) 0%,rgba(232,80,58,.04) 55%,rgba(242,141,41,.2) 100%) border-box;border:1px solid transparent;border-radius:14px;padding:18px}
 
 /* Stop cards — per-severity coloured glow */
 .sc.sh{border:1px solid rgba(240,64,96,.28);border-left:3px solid var(--red);box-shadow:0 0 0 1px rgba(240,64,96,.08),0 4px 20px rgba(240,64,96,.1),var(--sh-sm)}
@@ -580,10 +580,10 @@ html.light .page-h{background:linear-gradient(120deg,#0F1C30 0%,var(--acc) 190%)
 
 
 /* Sidebar active — stronger highlight */
-.sidebar-btn.active{background:linear-gradient(90deg,rgba(255,223,0,.22) 0%,rgba(255,223,0,.04) 100%)}
+.sidebar-btn.active{background:linear-gradient(90deg,rgba(232,80,58,.22) 0%,rgba(232,80,58,.04) 100%)}
 
 /* Compare rows gradient border */
-.cmprow{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.26) 0%,rgba(255,223,0,.03) 55%,rgba(242,141,41,.14) 100%) border-box;border:1px solid transparent}
+.cmprow{background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(232,80,58,.26) 0%,rgba(232,80,58,.03) 55%,rgba(242,141,41,.14) 100%) border-box;border:1px solid transparent}
 
 /* Modal overlay & glass */
 .ov{background:rgba(2,6,23,.72)}
@@ -591,14 +591,14 @@ html.light .ov{background:rgba(15,28,48,.42)}
 .modal{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 
 /* Table alternate row shading */
-.stops-tbl tbody tr:nth-child(even) td{background:rgba(255,223,0,.028)}
+.stops-tbl tbody tr:nth-child(even) td{background:rgba(232,80,58,.028)}
 
 /* Focus ring */
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid rgba(255,223,0,.5);outline-offset:2px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid rgba(232,80,58,.5);outline-offset:2px}
 
 .wo-pill,.prod-pill{background:transparent;border:1px solid var(--bd);border-radius:20px;padding:5px 14px;color:var(--txt2);font-size:12px;font-weight:600;font-family:Manrope,sans-serif;cursor:pointer;transition:border-color .15s,color .15s,background .15s;white-space:nowrap;line-height:1.4}
 .wo-pill:hover,.prod-pill:hover{border-color:var(--acc);color:var(--txt)}
-.wo-pill-active,.prod-pill-active{background:var(--acc);border-color:var(--acc);color:#000;font-weight:700;box-shadow:0 2px 10px rgba(255,223,0,.3)}
+.wo-pill-active,.prod-pill-active{background:var(--acc);border-color:var(--acc);color:#000;font-weight:700;box-shadow:0 2px 10px rgba(232,80,58,.3)}
 html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt2)}
 </style>
 </head>
@@ -745,13 +745,13 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
   <!-- Два графика рядом -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px" id="overview-charts-row">
     <!-- Списания — топ точек -->
-    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.4) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0;overflow:hidden">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(232,80,58,.4) 0%,rgba(232,80,58,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0;overflow:hidden">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">📊 Топ списаний по точкам</div>
       <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-wo-sub">—</div>
       <div id="overview-wo-chart"></div>
     </div>
     <!-- Стопы по дням -->
-    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.4) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0;overflow:hidden">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(232,80,58,.4) 0%,rgba(232,80,58,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0;overflow:hidden">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--txt)">🚫 Динамика стопов</div>
       <div style="font-size:11px;color:var(--txt3);margin-bottom:14px" id="overview-stops-sub">—</div>
       <div class="dow-row" id="overview-stops-chart" style="height:70px;overflow-x:auto"></div>
@@ -761,14 +761,14 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
   <!-- Топы рядом -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px" id="overview-tops-row">
     <!-- Топ виновных по довозам -->
-    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.4) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(232,80,58,.4) 0%,rgba(232,80,58,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">⚠️ Виновные в довозах</div>
       <div id="overview-guilty" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите данные довозов</div>
       </div>
     </div>
     <!-- Топ стопов по продуктам -->
-    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(255,223,0,.4) 0%,rgba(255,223,0,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
+    <div style="background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(137deg,rgba(232,80,58,.4) 0%,rgba(232,80,58,.06) 55%,rgba(242,141,41,.25) 100%) border-box;border:1px solid transparent;border-radius:20px;padding:18px;min-width:0">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--txt)">🚫 Топ стопов</div>
       <div id="overview-top-stops" style="display:flex;flex-direction:column;gap:6px">
         <div style="color:var(--txt3);font-size:12px">Загрузите данные стопов</div>
@@ -905,7 +905,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <div style="width:80px;height:80px;border-radius:22px;background:rgba(242,141,41,.08);border:1px solid rgba(242,141,41,.18);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 28px">🚫</div>
       <div style="font-size:20px;font-weight:700;color:var(--txt);margin-bottom:10px">Данные стоп-листов не загружены</div>
       <div style="font-size:13px;color:var(--txt3);line-height:1.7;margin-bottom:32px">Синхронизируйте данные из Google Sheets,<br>чтобы увидеть аналитику по стоп-листам</div>
-      <button onclick="loadStopsFromSheets(true)" style="display:inline-flex;align-items:center;gap:8px;padding:11px 28px;font-size:13px;font-weight:600;font-family:'Manrope',sans-serif;border-radius:12px;border:1px solid rgba(255,223,0,.35);background:rgba(255,223,0,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#ffdf00;cursor:pointer;transition:all .18s;box-shadow:0 0 20px rgba(255,223,0,.07)" onmouseover="this.style.background='rgba(255,223,0,.15)';this.style.boxShadow='0 0 28px rgba(255,223,0,.15)'" onmouseout="this.style.background='rgba(255,223,0,.08)';this.style.boxShadow='0 0 20px rgba(255,223,0,.07)'">&#8635; Синхронизировать</button>
+      <button onclick="loadStopsFromSheets(true)" style="display:inline-flex;align-items:center;gap:8px;padding:11px 28px;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;border-radius:12px;border:1px solid rgba(232,80,58,.35);background:rgba(232,80,58,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#E8503A;cursor:pointer;transition:all .18s;box-shadow:0 0 20px rgba(232,80,58,.07)" onmouseover="this.style.background='rgba(232,80,58,.15)';this.style.boxShadow='0 0 28px rgba(232,80,58,.15)'" onmouseout="this.style.background='rgba(232,80,58,.08)';this.style.boxShadow='0 0 20px rgba(232,80,58,.07)'">&#8635; Синхронизировать</button>
     </div>
   </div>
 
@@ -914,10 +914,10 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
 
     <!-- Filters row — как в довозах -->
     <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
-      <select id="stops-date-from" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
+      <select id="stops-date-from" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
       <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-      <select id="stops-date-to" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
-      <select id="stops-point-filter" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все точки</option></select>
+      <select id="stops-date-to" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
+      <select id="stops-point-filter" onchange="applyStopsFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:160px"><option value="">Все точки</option></select>
       <button class="fbtn" onclick="resetStopsFilter()">✕ Сбросить</button>
     </div>
   <div id="stops-kpis" class="kpis"></div>
@@ -947,7 +947,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <span id="active-date-label" style="font-size:11px;color:var(--acc);font-weight:600;margin-left:10px;display:none"></span>
     </div>
     <select id="active-point-filter" onchange="renderActiveStops()"
-      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:160px">
+      style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:160px">
       <option value="">Все точки</option>
     </select>
   </div>
@@ -981,26 +981,26 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <div style="width:80px;height:80px;border-radius:22px;background:rgba(152,194,30,.08);border:1px solid rgba(152,194,30,.18);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 28px">🚚</div>
       <div style="font-size:20px;font-weight:700;color:var(--txt);margin-bottom:10px">Данные довозов не загружены</div>
       <div style="font-size:13px;color:var(--txt3);line-height:1.7;margin-bottom:32px">Синхронизируйте данные из Google Sheets,<br>чтобы увидеть аналитику по довозам</div>
-      <button onclick="loadDeliveriesFromSheets(true)" style="display:inline-flex;align-items:center;gap:8px;padding:11px 28px;font-size:13px;font-weight:600;font-family:'Manrope',sans-serif;border-radius:12px;border:1px solid rgba(255,223,0,.35);background:rgba(255,223,0,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#ffdf00;cursor:pointer;transition:all .18s;box-shadow:0 0 20px rgba(255,223,0,.07)" onmouseover="this.style.background='rgba(255,223,0,.15)';this.style.boxShadow='0 0 28px rgba(255,223,0,.15)'" onmouseout="this.style.background='rgba(255,223,0,.08)';this.style.boxShadow='0 0 20px rgba(255,223,0,.07)'">&#8635; Синхронизировать</button>
+      <button onclick="loadDeliveriesFromSheets(true)" style="display:inline-flex;align-items:center;gap:8px;padding:11px 28px;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;border-radius:12px;border:1px solid rgba(232,80,58,.35);background:rgba(232,80,58,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#E8503A;cursor:pointer;transition:all .18s;box-shadow:0 0 20px rgba(232,80,58,.07)" onmouseover="this.style.background='rgba(232,80,58,.15)';this.style.boxShadow='0 0 28px rgba(232,80,58,.15)'" onmouseout="this.style.background='rgba(232,80,58,.08)';this.style.boxShadow='0 0 20px rgba(232,80,58,.07)'">&#8635; Синхронизировать</button>
     </div>
   </div>
   <div id="del-data-wrap" style="display:none">
     <div id="del-kpis" class="kpis" style="margin-bottom:20px"></div>
     <div class="frow" style="margin-bottom:20px;flex-wrap:wrap">
       <!-- Диапазон дат: от — до -->
-      <select id="del-date-from" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
+      <select id="del-date-from" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">С даты...</option></select>
       <span style="color:var(--txt3);font-size:13px;padding:0 2px;align-self:center">—</span>
-      <select id="del-date-to" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
-      <select id="del-point-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все точки</option></select>
-      <select id="del-dept-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
+      <select id="del-date-to" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:145px"><option value="">По дату...</option></select>
+      <select id="del-point-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все точки</option></select>
+      <select id="del-dept-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer">
         <option value="">Все типы</option><option value="#довоз">#довоз</option><option value="#добавить">#добавить</option>
       </select>
-      <select id="del-reason-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все причины</option></select>
+      <select id="del-reason-filter" onchange="applyDelFilter()" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:150px"><option value="">Все причины</option></select>
       <button class="fbtn" onclick="resetDelFilters()">✕ Сбросить</button>
       <div style="display:flex;gap:4px;align-self:center;margin-left:auto">
-        <button class="del-period-btn" data-period="week" onclick="setDelPeriod('week',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Manrope',sans-serif;cursor:pointer">Неделя</button>
-        <button class="del-period-btn" data-period="month" onclick="setDelPeriod('month',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Manrope',sans-serif;cursor:pointer">Месяц</button>
-        <button class="del-period-btn" data-period="all" onclick="setDelPeriod('all',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Manrope',sans-serif;cursor:pointer">Всё</button>
+        <button class="del-period-btn" data-period="week" onclick="setDelPeriod('week',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Inter',sans-serif;cursor:pointer">Неделя</button>
+        <button class="del-period-btn" data-period="month" onclick="setDelPeriod('month',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Inter',sans-serif;cursor:pointer">Месяц</button>
+        <button class="del-period-btn" data-period="all" onclick="setDelPeriod('all',this)" style="background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 14px;color:var(--txt2);font-size:12px;font-family:'Inter',sans-serif;cursor:pointer">Всё</button>
       </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:20px">
@@ -1128,8 +1128,8 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
 
     <!-- Фильтры -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
-      <select id="sebes-cat-filter" onchange="applySebesFilter()" style="flex:2;min-width:150px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer"><option value="">Все категории</option></select>
-      <select id="sebes-sort" onchange="applySebesFilter()" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
+      <select id="sebes-cat-filter" onchange="applySebesFilter()" style="flex:2;min-width:150px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer"><option value="">Все категории</option></select>
+      <select id="sebes-sort" onchange="applySebesFilter()" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer">
         <option value="cost_desc">Себестоим. ↓</option>
         <option value="cost_asc">Себестоим. ↑</option>
         <option value="cat_asc">Категория А–Я</option>
@@ -1137,7 +1137,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
         <option value="diff_desc">Рост ↓</option>
         <option value="diff_asc">Снижение ↓</option>
       </select>
-      <select id="sebes-trend-filter" onchange="applySebesFilter()" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer">
+      <select id="sebes-trend-filter" onchange="applySebesFilter()" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer">
         <option value="">Все изменения</option>
         <option value="up">📈 Выросла</option>
         <option value="down">📉 Снизилась</option>
@@ -1229,7 +1229,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div>
           <div style="font-size:10px;color:var(--txt3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Раздел</div>
-          <select id="cmp-section" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none;cursor:pointer;min-width:150px">
+          <select id="cmp-section" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none;cursor:pointer;min-width:150px">
             <option value="wo">Списания</option>
             <option value="stops">Стоп-листы</option>
             <option value="deliveries">Довозы</option>
@@ -1238,23 +1238,23 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
         <div style="border-left:2px solid var(--acc);padding-left:10px">
           <div style="font-size:10px;color:var(--acc);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Период A</div>
           <div style="display:flex;gap:6px;align-items:center">
-            <input type="date" id="cmp-a-from" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none">
+            <input type="date" id="cmp-a-from" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none">
             <span style="color:var(--txt3)">—</span>
-            <input type="date" id="cmp-a-to" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none">
+            <input type="date" id="cmp-a-to" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none">
           </div>
         </div>
         <div style="border-left:2px solid var(--warn);padding-left:10px">
           <div style="font-size:10px;color:var(--warn);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Период B</div>
           <div style="display:flex;gap:6px;align-items:center">
-            <input type="date" id="cmp-b-from" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none">
+            <input type="date" id="cmp-b-from" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none">
             <span style="color:var(--txt3)">—</span>
-            <input type="date" id="cmp-b-to" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Manrope',sans-serif;outline:none">
+            <input type="date" id="cmp-b-to" onchange="runCompare()" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px;font-family:'Inter',sans-serif;outline:none">
           </div>
         </div>
       </div>
       <div style="margin-top:10px;display:flex;gap:6px">
-        <button onclick="cmpQuickFill('week')" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt2);font-size:11px;font-family:'Manrope',sans-serif;cursor:pointer">Неделя vs прошлая</button>
-        <button onclick="cmpQuickFill('month')" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt2);font-size:11px;font-family:'Manrope',sans-serif;cursor:pointer">Месяц vs прошлый</button>
+        <button onclick="cmpQuickFill('week')" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt2);font-size:11px;font-family:'Inter',sans-serif;cursor:pointer">Неделя vs прошлая</button>
+        <button onclick="cmpQuickFill('month')" style="background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt2);font-size:11px;font-family:'Inter',sans-serif;cursor:pointer">Месяц vs прошлый</button>
       </div>
     </div>
 
@@ -1415,7 +1415,7 @@ html.light .wo-pill,html.light .prod-pill{border-color:var(--bd);color:var(--txt
 <footer>DASHBOARD · Данные обновляются администратором</footer>
 
 <script>
-const CAT={'Напитки/Бар':'#98c5ed','Мясо/Птица':'#f28d29','Овощи/Фрукты':'#98c21e','Выпечка/Хлеб':'#ffdf00','Соусы':'#ff6e2f','Упаковка/Расходники':'#b7bdb8','Десерты':'#f46bb4','Полуфабрикаты':'#a3d8f4','Прочее/Хоз':'#ccdb1f','Прочее':'#fdb2df'};
+const CAT={'Напитки/Бар':'#98c5ed','Мясо/Птица':'#f28d29','Овощи/Фрукты':'#98c21e','Выпечка/Хлеб':'#FFB800','Соусы':'#ff6e2f','Упаковка/Расходники':'#b7bdb8','Десерты':'#f46bb4','Полуфабрикаты':'#a3d8f4','Прочее/Хоз':'#ccdb1f','Прочее':'#fdb2df'};
 let STOPS_PERIODS=[];
 let periods=[], cur=0, flt='all', adminPw='', stopsIdx=STOPS_PERIODS.length-1, stopsFilter='all', sessionPassword=sessionStorage.getItem('dash_pw')||'';
 let WO_INDEX = null;
@@ -1838,7 +1838,7 @@ function renderProduction() {
   if (empty) empty.style.display = 'none';
   if (wrap)  wrap.style.display  = 'block';
   const depts = PROD_DATA.depts.filter(d => d.output_units > 0 || d.pay_dept > 0);
-  const DEPT_COLORS = ['#ffdf00','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4'];
+  const DEPT_COLORS = ['#FFB800','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4'];
   const kpiEl = document.getElementById('prod-dept-kpis');
   if (kpiEl) kpiEl.innerHTML = depts.map(function(d, i) {
     const clr = DEPT_COLORS[i % DEPT_COLORS.length];
@@ -1876,11 +1876,11 @@ function renderProduction() {
 
 function selectProdDept(deptName, cardEl) {
   PROD_ACTIVE_DEPT = deptName;
-  const DEPT_COLORS = ['#ffdf00','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4'];
+  const DEPT_COLORS = ['#FFB800','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4'];
   const depts = PROD_DATA.depts.filter(function(d){return d.output_units>0||d.pay_dept>0;});
   document.querySelectorAll('[data-dept-tab]').forEach(function(btn) {
     const idx = depts.findIndex(function(d){return d.name===btn.dataset.deptTab;});
-    const clr = DEPT_COLORS[idx%DEPT_COLORS.length]||'#ffdf00';
+    const clr = DEPT_COLORS[idx%DEPT_COLORS.length]||'#FFB800';
     const active = btn.dataset.deptTab === deptName;
     btn.style.background = active ? clr : 'var(--card)';
     btn.style.color = active ? '#000' : 'var(--txt2)';
@@ -1944,7 +1944,7 @@ function renderProdProducts() {
   const el = document.getElementById('prod-products-list');
   if (!el || !PROD_DATA) return;
   const filterDept = document.getElementById('prod-dept-filter')?.value||'';
-  const DEPT_COLORS = ['#ffdf00','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4'];
+  const DEPT_COLORS = ['#FFB800','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4'];
   let allProds = [];
   PROD_DATA.depts.forEach(function(d,di){
     if (filterDept && d.name!==filterDept) return;
@@ -1979,7 +1979,7 @@ function renderProdProducts() {
 function renderProdStaff() {
   const el = document.getElementById('prod-staff-table');
   if (!el || !PROD_DATA) return;
-  const DEPT_COLORS = ['#ffdf00','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4'];
+  const DEPT_COLORS = ['#FFB800','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4'];
   const depts = PROD_DATA.depts.filter(function(d){return d.staff&&d.staff.length>0;});
   el.innerHTML='<div style="overflow-x:auto"><table class="stops-tbl"><thead><tr>'
     +'<th>\u0426\u0435\u0445</th><th>\u0421\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a</th>'
@@ -3569,7 +3569,7 @@ async function initWoDateFilter() {
 function applyWoDateFilter() { applyWoFilters(); }
 function applyWoWhFilter()   { applyWoFilters(); }
 
-const WO_ART_COLORS=['#ffdf00','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4','#ff6e2f','#fdb2df','#b7bdb8','#ffb300','#DC2626'];
+const WO_ART_COLORS=['#FFB800','#f28d29','#98c21e','#98c5ed','#f46bb4','#ccdb1f','#a3d8f4','#ff6e2f','#fdb2df','#b7bdb8','#ffb300','#DC2626'];
 
 async function loadWoData() { await loadWoSheetList(); }
 
@@ -3705,7 +3705,7 @@ function renderWoTopPointsChart(){
   if(!pts.length){el.innerHTML='<div style="color:var(--txt3);font-size:13px">\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445</div>';return;}
   const maxTotal=pts[0].total;
   el.innerHTML=pts.map(function(p,i){
-    const pct=maxTotal>0?p.total/maxTotal*100:0,clr=i===0?'#f46bb4':i<3?'#f28d29':'#ffdf00';
+    const pct=maxTotal>0?p.total/maxTotal*100:0,clr=i===0?'#f46bb4':i<3?'#f28d29':'#FFB800';
     return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'
       +'<div style="width:140px;font-size:11px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0">'+p.name.replace(/ склад$/i,'')+'</div>'
       +'<div style="flex:1;height:16px;background:var(--surf);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+clr+';border-radius:3px"></div></div>'
@@ -6055,3 +6055,4 @@ if(sessionPassword){
 </script>
 </body>
 </html>
+
