@@ -5007,6 +5007,75 @@ function applyStopsData(data) {
   renderStops();
 }
 
+// ── Toast notifications ──────────────────────────────────────────────────────
+function _showToast(msg, type, dur){
+  let wrap = document.getElementById('toast-wrap');
+  if(!wrap){
+    wrap = document.createElement('div');
+    wrap.id = 'toast-wrap';
+    wrap.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none';
+    document.body.appendChild(wrap);
+  }
+  const t = document.createElement('div');
+  const bg = type==='success'?'var(--grn)':type==='error'?'var(--red)':type==='info'?'var(--acc)':'var(--txt3)';
+  t.style.cssText = 'background:'+bg+';color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-family:Manrope,sans-serif;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.3);opacity:0;transition:opacity .2s';
+  t.textContent = msg;
+  wrap.appendChild(t);
+  requestAnimationFrame(()=>{ t.style.opacity='1'; });
+  if(dur !== 30000) setTimeout(()=>_hideToast(t), dur||3500);
+  return t;
+}
+function _hideToast(t){ if(!t) return; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }
+
+// Expand compact period format to full format
+function expandPeriod(p){
+  return {
+    period: p.p,
+    total_stops: p.n, total_points: p.pts,
+    total_products: p.prods, avg_duration: p.avg,
+    by_date: (p.dates||[]).map(d=>({date:d.d, dow:d.dow, count:d.n})),
+    all_points: p.all_pts||[],
+    active: (p.active||[]).map(a=>({point:a.pt,product:a.pr,since:a.s,dur:a.d})),
+    by_point: (p.by_pt||[]).map(pt=>({name:pt.name,count:pt.n,avg_dur:pt.avg,total_dur:pt.tot,top_products:pt.top})),
+    top_products: (p.top||[]).map(t=>({name:t.name,count:t.n,avg_dur:t.avg,points:t.pts}))
+  };
+}
+
+function loadStopsDay(isoDate){
+  if(!STOPS_DATA||!STOPS_DATA.days[isoDate]) return;
+  const dayData = expandPeriod(STOPS_DATA.days[isoDate]);
+  const idx = STOPS_PERIODS.findIndex(p=>p.period===dayData.period);
+  if(idx>=0) STOPS_PERIODS[idx]=dayData;
+  else STOPS_PERIODS.unshift(dayData);
+  stopsIdx=0;
+  renderStopsContent();
+}
+
+async function runDiag(){
+  const out=document.getElementById('diag-out');
+  out.style.display='block';out.textContent='Проверяем...\n';
+  const log=s=>{out.textContent+=s+'\n';};
+  try{const r=await fetch('/health');const j=await r.json();log('✅ /health: '+JSON.stringify(j));}catch(e){log('❌ /health: '+e.message);}
+  try{const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});log('auth (no pw): HTTP '+r.status);}catch(e){log('❌ auth: '+e.message);}
+  const pw=document.getElementById('lpw').value.trim();
+  if(pw){try{const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json','X-View-Password':pw,'X-Admin-Password':pw},body:JSON.stringify({password:pw})});const t=await r.text();log('auth (с паролем): HTTP '+r.status+' → '+t);}catch(e){log('❌ '+e.message);}}
+  else{log('ℹ️ Введите пароль выше для полной проверки');}
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────────────
+function toggleSidebar(){
+  const col=document.body.classList.toggle('sb-col');
+  const btn=document.getElementById('sidebar-toggle');
+  if(btn)btn.textContent=col?'›':'‹';
+  localStorage.setItem('sidebarCollapsed',col?'1':'0');
+}
+
+// ── LOGOUT ────────────────────────────────────────────────────────────────────
+function doLogout(){
+  sessionStorage.removeItem('dash_pw');
+  location.reload();
+}
+
 // ── TAB VISIBILITY ────────────────────────────────────────────────────────────
 const TABS_META=[
   {key:'overview',icon:'🏠',label:'Сводка'},
