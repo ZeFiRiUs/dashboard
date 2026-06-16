@@ -2409,7 +2409,6 @@ async function uploadSebesMerge(e){
         if(msg)msg.innerHTML='<div class="success-msg">✅ Добавлено · '+j.periods.length+' периодов · '+j.items+' позиций</div>';
         // Перезагружаем данные с сервера
         await loadSebesFromServer();
-        renderAdminSections();
         setTimeout(function(){if(msg)msg.innerHTML='';},4000);
       } else throw new Error(j.error);
     }catch(err){alert('❌ '+err.message);}
@@ -4549,9 +4548,8 @@ function renderSourcesList() {
     const sheetsHtml = sec.multi && available.length
       ? '<div style="margin-top:8px"><div style="font-size:11px;color:var(--txt3);margin-bottom:4px">Активные листы:</div>'
         + available.map(function(sh){
-            const esc = sh.replace(/'/g,"\'").replace(/"/g,'&quot;');
             return '<div class="src-sheet-item"><input type="checkbox"'+(active.includes(sh)?' checked':'')
-              +' onchange="onSheetToggle(''+sec.key+'',''+esc+'',this.checked)"><span>'+sh+'</span></div>';
+              +' data-section="'+sec.key+'" data-sheet="'+sh.replace(/"/g,'&quot;')+'"><span>'+sh+'</span></div>';
           }).join('')
         + '</div>' : '';
     return '<div class="src-card">'
@@ -4559,12 +4557,19 @@ function renderSourcesList() {
       +'<span id="src-status-'+sec.key+'">'+statusHtml+'</span></div>'
       +'<div class="src-url-row">'
       +'<input class="src-url-input" id="src-url-'+sec.key+'" placeholder="https://docs.google.com/spreadsheets/d/..." value="'+url.replace(/"/g,'&quot;')+'">'
-      +'<button class="btn" onclick="testSource(''+sec.key+'')" style="white-space:nowrap;flex-shrink:0;font-size:12px">Проверить</button>'
+      +'<button class="btn" data-srckey="'+sec.key+'" style="white-space:nowrap;flex-shrink:0;font-size:12px">Проверить</button>'
       +'</div>'
       +'<div id="src-msg-'+sec.key+'" style="font-size:11px;min-height:16px;margin-bottom:4px;color:var(--txt3)"></div>'
       +'<div id="src-sheets-'+sec.key+'">'+sheetsHtml+'</div>'
       +'</div>';
   }).join('');
+  // Attach handlers via delegation (avoids inline onclick quoting issues)
+  el.querySelectorAll('[data-srckey]').forEach(function(btn){
+    btn.addEventListener('click', function(){ testSource(this.dataset.srckey); });
+  });
+  el.querySelectorAll('input[data-section]').forEach(function(cb){
+    cb.addEventListener('change', function(){ onSheetToggle(this.dataset.section, this.dataset.sheet, this.checked); });
+  });
 }
 
 async function testSource(key) {
@@ -5123,11 +5128,8 @@ function openAdmin(){
   if(adminPw){
     document.getElementById('apw').style.display='none';
     document.getElementById('apc').style.display='block';
-    renderAdminList();
-    renderAdminSections();
+    renderSourcesList();
     renderTabVisibilityList();
-    loadSebesSheetsList();
-    loadWoSheetsList();
   } else {
     document.getElementById('apw').style.display='block';
     document.getElementById('apc').style.display='none';
