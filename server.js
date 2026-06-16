@@ -1,4 +1,4 @@
-﻿const express = require('express');
+﻿﻿const express = require('express');
 const multer  = require('multer');
 const fs      = require('fs');
 const path    = require('path');
@@ -1530,68 +1530,7 @@ app.get('/api/sebes/csv', async (req, res) => {
 
     if (!sheetData.length) throw new Error('Не удалось загрузить ни одного листа');
 
-    // Последний лист — текущий период, остальные — история
-    const latest = sheetData[sheetData.length - 1];
-    const allNames = new Set();
-    sheetData.forEach(s => Object.keys(s.map).forEach(n => allNames.add(n)));
-
-    const items = [];
-    for (const name of allNames) {
-      const latestEntry = latest.map[name];
-      const cost = latestEntry ? latestEntry.cost : null;
-
-      // История от старого к новому
-      const history = sheetData
-        .map(s => s.map[name] ? { period: s.label, cost: s.map[name].cost } : null)
-        .filter(Boolean);
-
-      // Diff — сравниваем последний с предпоследним
-      let diff = null, diff_pct = null, trend = 'same';
-      if (history.length >= 2) {
-        const prev = history[history.length - 2].cost;
-        const curr = history[history.length - 1].cost;
-        if (prev !== null && curr !== null) {
-          diff = Math.round((curr - prev) * 100) / 100;
-          diff_pct = prev !== 0 ? Math.round((curr - prev) / prev * 1000) / 10 : null;
-          trend = diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
-        }
-      }
-
-      // Категория и единица — из последнего листа где есть позиция
-      let cat = 'Прочее', unit = 'порц';
-      for (let si = sheetData.length - 1; si >= 0; si--) {
-        const entry = sheetData[si].map[name];
-        if (entry) { cat = entry.cat || 'Прочее'; unit = entry.unit || 'порц'; break; }
-      }
-
-      items.push({ name, cat, unit, cost, price: null, markup: null,
-                   trend, diff, diff_pct, total_diff: diff, total_diff_pct: diff_pct,
-                   history });
-    }
-
-    // Топы
-    const withDiff = items.filter(i => i.diff !== null);
-    const top_growth = [...withDiff].sort((a,b) => b.diff - a.diff).slice(0, 10);
-    const top_drop   = [...withDiff].sort((a,b) => a.diff - b.diff).slice(0, 10);
-    const periods    = sheetData.map(s => s.label);
-    const allCats    = [...new Set(items.map(i => i.cat).filter(Boolean))].sort();
-
-    const result = {
-      meta: {
-        source: 'Себес парс (Google Sheets)',
-        periods,
-        total_items: items.length,
-        total_cats: allCats.length,
-        with_history: items.filter(i => i.history.length > 1).length,
-        growth_count: items.filter(i => i.trend === 'up').length,
-        drop_count: items.filter(i => i.trend === 'down').length,
-        all_cats: allCats, avg_markup: null,
-        no_cost: items.filter(i => !i.cost).length,
-        created_at: new Date().toISOString().slice(0, 10),
-      },
-      top_growth, top_drop, top_margin: [], low_margin: [],
-      all_items: items,
-    };
+    const result = buildSebesResult(sheetData);
 
     _sebesCsvCache = result;
     _sebesCsvCacheTs = now;
@@ -1602,6 +1541,76 @@ app.get('/api/sebes/csv', async (req, res) => {
     res.status(502).json({ error: 'Не удалось получить данные: ' + e.message });
   }
 });
+
+// ── Общая сборка результата себестоимости из набора листов ───────────────────
+function buildSebesResult(sheetData) {
+  const latest = sheetData[sheetData.length - 1];
+  const allNames = new Set();
+  sheetData.forEach(s => Object.keys(s.map).forEach(n => allNames.add(n)));
+
+  const items = [];
+  for (const name of allNames) {
+    const latestEntry = latest.map[name];
+    const cost = latestEntry ? latestEntry.cost : null;
+
+    const history = sheetData
+      .map(s => s.map[name] ? { period: s.label, cost: s.map[name].cost } : null)
+      .filter(Boolean);
+
+    // diff — предпоследний → последний период
+    let diff = null, diff_pct = null, trend = 'same';
+    if (history.length >= 2) {
+      const prev = history[history.length - 2].cost;
+      const curr = history[history.length - 1].cost;
+      if (prev !== null && curr !== null) {
+        diff     = Math.round((curr - prev) * 100) / 100;
+        diff_pct = prev !== 0 ? Math.round((curr - prev) / prev * 1000) / 10 : null;
+        trend    = diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
+      }
+    }
+
+    // total_diff — первый → последний период (не дублирует diff)
+    let total_diff = null, total_diff_pct = null;
+    const costsWithValue = history.map(h => h.cost).filter(c => c !== null);
+    if (costsWithValue.length >= 2) {
+      const first = costsWithValue[0];
+      const last  = costsWithValue[costsWithValue.length - 1];
+      total_diff     = Math.round((last - first) * 100) / 100;
+      total_diff_pct = first !== 0 ? Math.round((last - first) / first * 1000) / 10 : null;
+    }
+
+    let cat = 'Прочее', unit = 'порц';
+    for (let si = sheetData.length - 1; si >= 0; si--) {
+      const entry = sheetData[si].map[name];
+      if (entry) { cat = entry.cat || 'Прочее'; unit = entry.unit || 'порц'; break; }
+    }
+
+    items.push({ name, cat, unit, cost, price: null, markup: null,
+                 trend, diff, diff_pct, total_diff, total_diff_pct, history });
+  }
+
+  const withDiff = items.filter(i => i.diff !== null && i.diff_pct !== null);
+  const allCats  = [...new Set(items.map(i => i.cat).filter(Boolean))].sort();
+
+  return {
+    meta: {
+      source:       'Себес парс (Google Sheets)',
+      periods:      sheetData.map(s => s.label),
+      total_items:  items.length,
+      total_cats:   allCats.length,
+      with_history: items.filter(i => i.history.length > 1).length,
+      growth_count: items.filter(i => i.trend === 'up').length,
+      drop_count:   items.filter(i => i.trend === 'down').length,
+      all_cats: allCats, avg_markup: null,
+      no_cost:  items.filter(i => !i.cost).length,
+      created_at: new Date().toISOString().slice(0, 10),
+    },
+    top_growth: [...withDiff].sort((a,b) => b.diff_pct - a.diff_pct).slice(0, 10),
+    top_drop:   [...withDiff].sort((a,b) => a.diff_pct - b.diff_pct).slice(0, 10),
+    top_margin: [], low_margin: [],
+    all_items: items,
+  };
+}
 
 // ── POST /api/sebes/sync — синхронизация из Google Sheets ────────────────────
 app.post('/api/sebes/sync', async (req, res) => {
@@ -1632,53 +1641,7 @@ app.post('/api/sebes/sync', async (req, res) => {
     if (!sheetData.length) return res.status(502).json({ error: 'Не удалось загрузить данные листов' });
     console.log(`Sebes sync: загружено ${sheetData.length} листов:`, sheetData.map(s => `${s.label}(${Object.keys(s.map).length}поз)`).join(', '));
 
-    // Строим итоговый JSON (та же логика что в GET /api/sebes/csv)
-    const latest = sheetData[sheetData.length - 1];
-    const allNames = new Set();
-    sheetData.forEach(s => Object.keys(s.map).forEach(n => allNames.add(n)));
-
-    const items = [];
-    for (const name of allNames) {
-      const latestEntry = latest.map[name];
-      const cost = latestEntry ? latestEntry.cost : null;
-      const history = sheetData.map(s => s.map[name] ? { period: s.label, cost: s.map[name].cost } : null).filter(Boolean);
-      let diff = null, diff_pct = null, trend = 'same';
-      if (history.length >= 2) {
-        const prev = history[history.length - 2].cost;
-        const curr = history[history.length - 1].cost;
-        if (prev !== null && curr !== null) {
-          diff = Math.round((curr - prev) * 100) / 100;
-          diff_pct = prev !== 0 ? Math.round((curr - prev) / prev * 1000) / 10 : null;
-          trend = diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
-        }
-      }
-      let cat = 'Прочее', unit = 'порц';
-      for (let si = sheetData.length - 1; si >= 0; si--) {
-        const e = sheetData[si].map[name];
-        if (e) { cat = e.cat || 'Прочее'; unit = e.unit || 'порц'; break; }
-      }
-      items.push({ name, cat, unit, cost, price: null, markup: null,
-                   trend, diff, diff_pct, total_diff: diff, total_diff_pct: diff_pct, history });
-    }
-
-    const withDiff = items.filter(i => i.diff !== null && i.diff_pct !== null);
-    const allCats = [...new Set(items.map(i => i.cat).filter(Boolean))].sort();
-    const result = {
-      meta: {
-        source: 'Себес парс (Google Sheets)',
-        periods: sheetData.map(s => s.label),
-        total_items: items.length, total_cats: allCats.length,
-        with_history: items.filter(i => i.history.length > 1).length,
-        growth_count: items.filter(i => i.trend === 'up').length,
-        drop_count: items.filter(i => i.trend === 'down').length,
-        all_cats: allCats, avg_markup: null,
-        no_cost: items.filter(i => !i.cost).length,
-        created_at: new Date().toISOString().slice(0, 10),
-      },
-      top_growth: [...withDiff].sort((a,b) => b.diff_pct - a.diff_pct).slice(0, 10),
-      top_drop:   [...withDiff].sort((a,b) => a.diff_pct - b.diff_pct).slice(0, 10),
-      top_margin: [], low_margin: [], all_items: items,
-    };
+    const result = buildSebesResult(sheetData);
 
     // Обновляем GET-кэш тоже
     _sebesCsvCache = result;
@@ -1688,7 +1651,7 @@ app.post('/api/sebes/sync', async (req, res) => {
     const dest = await writeSebes(result, sha);
 
     res.json({ ok: true, sheets: sheetData.length, periods: result.meta.periods,
-               items: items.length, saved_to: dest });
+               items: result.all_items.length, saved_to: dest });
   } catch(e) {
     console.error('Sebes sync error:', e.message);
     res.status(500).json({ error: e.message });
@@ -2574,5 +2537,6 @@ app.listen(PORT, async () => {
 
 process.on('uncaughtException', err => { console.error('uncaughtException:', err.message); });
 process.on('unhandledRejection', err => { console.error('unhandledRejection:', err?.message || err); });
+
 
 
