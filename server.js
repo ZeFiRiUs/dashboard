@@ -35,10 +35,10 @@ if (!fs.existsSync(LOCAL_STOPS_FILE)) fs.writeFileSync(LOCAL_STOPS_FILE, JSON.st
 // При старте — пробуем загрузить данные из GitHub если токен есть
 async function initFromGitHub() {
   if (!GH_TOKEN || !GH_OWNER) {
-    console.log('GitHub не настроен — данные только локальные');
+    console.log('[INFO] GitHub не настроен — данные только локальные');
     return;
   }
-  console.log('Загружаем данные из GitHub...');
+  console.log('[INFO] Загружаем данные из GitHub...');
   const files = [
     { path: DATA_PATH,       local: LOCAL_DATA_FILE,  def: '[]' },
     { path: 'data/stops_full.json', local: path.join(LOCAL_DATA_DIR,'stops_full.json'), def: 'null' },
@@ -51,9 +51,9 @@ async function initFromGitHub() {
       const r = await ghRead(f.path);
       if (r && r.content) {
         fs.writeFileSync(f.local, JSON.stringify(r.content));
-        console.log('✓', f.path);
+        console.log('[INFO] ✓', f.path);
       }
-    } catch(e) { console.log('✗', f.path, e.message); }
+    } catch(e) { console.error('[ERROR] ✗', f.path, e.message); }
   }
 }
 
@@ -118,6 +118,22 @@ async function ghWrite(filePath, data, sha, message) {
   });
 }
 
+async function ghWriteSafe(filePath, data, message, retries = 3) {
+  let delay = 300;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const current = await ghRead(filePath);
+    const result = await ghWrite(filePath, data, current?.sha, message);
+    if (result.status === 200 || result.status === 201) return result;
+    if (result.status === 422 && attempt < retries - 1) {
+      console.warn(`[ghWriteSafe] SHA conflict on ${filePath}, retry ${attempt + 1}/${retries}...`);
+      await new Promise(r => setTimeout(r, delay));
+      delay *= 2;
+      continue;
+    }
+    throw new Error(`GitHub write failed: HTTP ${result.status} on ${filePath}`);
+  }
+}
+
 // ── Read/Write with GitHub fallback to local ─────────────────────────────────
 async function readPeriods() {
   // Try GitHub first
@@ -144,12 +160,7 @@ async function writePeriods(data, sha) {
   // Try GitHub
   if (GH_TOKEN && GH_OWNER) {
     try {
-      let currentSha = sha;
-      if (!currentSha) {
-        const r = await ghRead(DATA_PATH);
-        currentSha = r?.sha;
-      }
-      await ghWrite(DATA_PATH, data, currentSha, `Update periods (${data.length} total)`);
+      await ghWriteSafe(DATA_PATH, data, `Update periods (${data.length} total)`);
       return 'github';
     } catch(e) { console.error('GitHub write error:', e.message); }
   }
@@ -238,9 +249,7 @@ async function writeStops(data, sha) {
   fs.writeFileSync(LOCAL_STOPS_FULL, JSON.stringify(data));
   if (GH_TOKEN && GH_OWNER) {
     try {
-      let currentSha = sha;
-      if (!currentSha) { const r = await ghRead(STOPS_FILE_PATH); currentSha = r?.sha; }
-      await ghWrite(STOPS_FILE_PATH, data, currentSha, 'Update stops data');
+      await ghWriteSafe(STOPS_FILE_PATH, data, 'Update stops data');
       return 'github';
     } catch(e) { console.error('Stops GitHub write error:', e.message); }
   }
@@ -291,8 +300,7 @@ async function writeDeliveries(data, sha) {
   fs.writeFileSync(LOCAL_DEL_FILE, JSON.stringify(data));
   if (GH_TOKEN && GH_OWNER) {
     try {
-      let s = sha; if (!s) { const r = await ghRead(DEL_FILE_PATH); s = r?.sha; }
-      await ghWrite(DEL_FILE_PATH, data, s, 'Update deliveries');
+      await ghWriteSafe(DEL_FILE_PATH, data, 'Update deliveries');
       return 'github';
     } catch(e) { console.error('Del GitHub write:', e.message); }
   }
@@ -324,7 +332,7 @@ app.post('/api/deliveries', upload.single('file'), async (req, res) => {
 //     WH_HEADER: col0=название склада, col1-col5 пустые
 //     DATA: col0=товар, col1=ед, col2=статья(корреспонденция), col3=кол-во, col4=цена, col5=сумма
 const WO_INDEX_FILE  = path.join(LOCAL_DATA_DIR, 'writeoffs_index.json');
-const WRITEOFFS_SHEET_ID = '1Xn7t2kazUNEjG4ZRkc00Im4DIWLlBtZSlIPXglciLUQ';
+const WRITEOFFS_SHEET_ID = process.env.WRITEOFFS_SHEET_ID || '1Xn7t2kazUNEjG4ZRkc00Im4DIWLlBtZSlIPXglciLUQ';
 
 const _woSheetCache = {};
 const WO_SHEET_TTL  = 10 * 60 * 1000;
@@ -825,7 +833,7 @@ app.get('/api/data/writeoffs_by_point', async (req, res) => {
 // ── Production (Производство) ─────────────────────────────────────────────────
 const PROD_FILE_PATH   = 'data/production.json';
 const LOCAL_PROD_FILE  = path.join(LOCAL_DATA_DIR, 'production.json');
-const PROD_SHEET_ID    = '1CLLbWhTVlnEEeouJx5TtXpoaM-cmFokcpQke9p7PQy8';
+const PROD_SHEET_ID    = process.env.PROD_SHEET_ID    || '1CLLbWhTVlnEEeouJx5TtXpoaM-cmFokcpQke9p7PQy8';
 const PROD_GID         = '1';
 if (!fs.existsSync(LOCAL_PROD_FILE)) fs.writeFileSync(LOCAL_PROD_FILE, 'null');
 
@@ -854,8 +862,7 @@ async function writeProduction(data, sha) {
   fs.writeFileSync(LOCAL_PROD_FILE, JSON.stringify(data));
   if (GH_TOKEN && GH_OWNER) {
     try {
-      let s = sha; if (!s) { const r = await ghRead(PROD_FILE_PATH); s = r?.sha; }
-      await ghWrite(PROD_FILE_PATH, data, s, 'Update production');
+      await ghWriteSafe(PROD_FILE_PATH, data, 'Update production');
       return 'github';
     } catch(e) { console.error('Prod GitHub write:', e.message); }
   }
@@ -1291,8 +1298,7 @@ async function writeSebes(data, sha) {
   fs.writeFileSync(LOCAL_SEBES_FILE, JSON.stringify(data));
   if (GH_TOKEN && GH_OWNER) {
     try {
-      let s = sha; if (!s) { const r = await ghRead(SEBES_FILE_PATH); s = r?.sha; }
-      await ghWrite(SEBES_FILE_PATH, data, s, 'Update sebes');
+      await ghWriteSafe(SEBES_FILE_PATH, data, 'Update sebes');
       return 'github';
     } catch(e) { console.error('Sebes GitHub write:', e.message); }
   }
@@ -1306,7 +1312,7 @@ app.get('/api/sebes', async (req, res) => {
 });
 
 // ── Sebes CSV proxy (Google Sheets) ──────────────────────────────────────────
-const SEBES_SHEET_ID = '1gsS8IhZvNLrPojda-3uCJM_5VtcdlQ-f4V-g9w7DYqg';
+const SEBES_SHEET_ID = process.env.SEBES_SHEET_ID || '1gsS8IhZvNLrPojda-3uCJM_5VtcdlQ-f4V-g9w7DYqg';
 // Листы: название → gid. Ключ используется как метка периода.
 // Формат названия листа: DD.MM или DD.MM.YYYY → сортируем по дате
 // ── Список листов себестоимости — хранится в файле, управляется через UI ──────
@@ -1862,7 +1868,7 @@ function parseDeliveriesCsvServer(csv) {
 }
 
 // ── Stops CSV proxy (Google Sheets) ──────────────────────────────────────────
-const STOPS_SHEET_ID = '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY';
+const STOPS_SHEET_ID = process.env.STOPS_SHEET_ID || '1ew1ZCPFCCDOPbC1Jk0vv9_1yvftH_0mxlO9v2oRGTiY';
 let _stopsCsvCache = null;
 let _stopsCsvCacheTs = 0;
 const STOPS_CSV_CACHE_TTL = 5 * 60 * 1000;
@@ -1953,7 +1959,7 @@ app.get('/api/stops/active-csv', async (req, res) => {
 });
 
 // ── Supply CSV proxy (Google Sheets) ─────────────────────────────────────────
-const SUPPLY_SHEET_ID = '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
+const SUPPLY_SHEET_ID = process.env.SUPPLY_SHEET_ID || '1MsTbV1p0mB3UKvweNKQnYQQZB5ou8jIAP0sFUx9hDSA';
 let _supplyCache = null;
 let _supplyCacheTs = 0;
 const SUPPLY_CACHE_TTL = 5 * 60 * 1000;
@@ -2401,8 +2407,7 @@ app.post('/api/writeoffs/xlsx', upload.single('file'), async (req, res) => {
     rebuildWriteoffsIndex();
     if (GH_TOKEN && GH_OWNER) {
       try {
-        const r = await ghRead(DATA_PATH);
-        await ghWrite(DATA_PATH, existing, r?.sha, 'Add writeoffs period via xlsx');
+        await ghWriteSafe(DATA_PATH, existing, 'Add writeoffs period via xlsx');
       } catch(e) { console.error('GH write wo:', e.message); }
     }
     res.json({ ok:true, warehouses:data.warehouses.length, grand_total:data.grand_total, period:data.period });
@@ -2438,10 +2443,7 @@ app.delete('/api/data/:key', async (req, res) => {
     }
     if (GH_TOKEN && GH_OWNER) {
       try {
-        const r = await ghRead(file.gh);
-        if (r && r.sha) {
-          await ghWrite(file.gh, JSON.parse(file.empty), r.sha, 'Delete ' + key + ' data');
-        }
+        await ghWriteSafe(file.gh, JSON.parse(file.empty), 'Delete ' + key + ' data');
       } catch(e) { console.error('GitHub delete error:', e.message); }
     }
     console.log('Deleted:', key);
@@ -2540,14 +2542,14 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, async () => {
-  console.log(`Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
+  console.log(`[INFO] Dashboard on :${PORT} | GitHub: ${GH_OWNER?'✓':'✗'}`);
   await initFromGitHub();
   await rebuildWriteoffsIndex();
   await rebuildProductionIndex();
 });
 
-process.on('uncaughtException', err => { console.error('uncaughtException:', err.message); });
-process.on('unhandledRejection', err => { console.error('unhandledRejection:', err?.message || err); });
+process.on('uncaughtException', err => { console.error('[FATAL] uncaughtException:', err.message); });
+process.on('unhandledRejection', err => { console.error('[FATAL] unhandledRejection:', err?.message || err); });
 
 
 
