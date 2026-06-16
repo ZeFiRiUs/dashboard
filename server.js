@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const multer  = require('multer');
 const fs      = require('fs');
 const path    = require('path');
@@ -1444,8 +1444,21 @@ function parseSebesSheet(csv, periodLabel) {
 }
 
 function parseSebesGviz(gviz, periodLabel) {
+  const cols = (gviz.table && gviz.table.cols) || [];
   const rows = (gviz.table && gviz.table.rows) || [];
   const SKIP = new Set(['итого', '', 'nan', 'наименование', 'номенклатура']);
+
+  // Определяем индексы колонок по меткам — gviz объединяет строки заголовка в label колонки
+  let iCat  = cols.findIndex(c => c.label && c.label.toLowerCase().includes('катег'));
+  let iCost = cols.findIndex(c => c.label && (c.label.toLowerCase().includes('стоим') || c.label.toLowerCase().includes('себест')));
+  // Запасной вариант для себестоимости: последняя числовая колонка
+  if (iCost < 0) {
+    for (let ci = cols.length - 1; ci >= 0; ci--) {
+      if (cols[ci].type === 'number') { iCost = ci; break; }
+    }
+  }
+  console.log(`[SEBES] gviz ${periodLabel}: cols=${cols.map((c,i)=>`[${i}]${c.label||'?'}(${c.type})`).join(', ')} → iCat=${iCat} iCost=${iCost}`);
+
   const map = {};
   for (const row of rows) {
     const c = row.c || [];
@@ -1453,9 +1466,9 @@ function parseSebesGviz(gviz, periodLabel) {
     if (!rawCell || rawCell.v === null || rawCell.v === undefined) continue;
     const raw = String(rawCell.f != null ? rawCell.f : rawCell.v).trim();
     if (!raw || SKIP.has(raw.toLowerCase())) continue;
-    const catCell = c[1];
+    const catCell = iCat >= 0 ? c[iCat] : null;
     const cat = catCell && catCell.v ? String(catCell.f != null ? catCell.f : catCell.v).trim() || 'Прочее' : 'Прочее';
-    const costCell = c[2];
+    const costCell = iCost >= 0 ? c[iCost] : null;
     let cost = null;
     if (costCell && costCell.v !== null && costCell.v !== undefined) {
       const v = typeof costCell.v === 'number' ? costCell.v : parseFloat(String(costCell.f ?? costCell.v).replace(',','.').replace(/\s/g,''));
@@ -2561,4 +2574,5 @@ app.listen(PORT, async () => {
 
 process.on('uncaughtException', err => { console.error('uncaughtException:', err.message); });
 process.on('unhandledRejection', err => { console.error('unhandledRejection:', err?.message || err); });
+
 
