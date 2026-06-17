@@ -1,4 +1,4 @@
-﻿﻿<!DOCTYPE html>
+﻿﻿﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -3998,6 +3998,17 @@ function _renderOverviewSections(){
         {label:'Период',value:p.period}
       ],
       badge:crit.length>0?{text:crit.length+' критичных',color:'var(--red)'}:null});
+  } else if(window._OV&&_OV.writeoffs){
+    const wo=_OV.writeoffs;
+    const crit=wo.critical_points||0;
+    sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:false,
+      lines:[
+        {label:'Итого по всем листам',value:wo.total.toLocaleString('ru-RU')+' ₽',bold:true},
+        {label:'Периодов',value:wo.sheets_count},
+        {label:'Точек',value:wo.points_count},
+        {label:'Последний',value:wo.last_sheet}
+      ],
+      badge:crit>0?{text:crit+' критичных',color:'var(--red)'}:null});
   } else sections.push({icon:'📊',title:'Списания',tab:'wo',rgb:'255,223,0',empty:true});
 
   // ── Стоп-листы ────────────────────────────────────────────────────────────
@@ -4156,11 +4167,13 @@ function _renderOverviewCharts(){
   const woEl = document.getElementById('overview-wo-chart');
   const woSub = document.getElementById('overview-wo-sub');
   const woPoints = (window.WO_SUMMARY&&WO_SUMMARY.by_point&&WO_SUMMARY.by_point.length) ? WO_SUMMARY.by_point
-    : (periods&&periods.length&&periods[0].warehouses&&periods[0].warehouses.length) ? periods[0].warehouses : null;
+    : (periods&&periods.length&&periods[0].warehouses&&periods[0].warehouses.length) ? periods[0].warehouses
+    : (window._OV&&_OV.writeoffs&&_OV.writeoffs.by_point&&_OV.writeoffs.by_point.length) ? _OV.writeoffs.by_point : null;
   if(woEl && woPoints){
     const top = woPoints.slice(0,8);
     const maxT = top[0].total;
-    if(woSub) woSub.textContent = 'Топ точек · '+woPoints.length+' всего';
+    const woTotalPts = (window._OV&&_OV.writeoffs&&_OV.writeoffs.points_count) ? _OV.writeoffs.points_count : woPoints.length;
+    if(woSub) woSub.textContent = 'Топ точек · '+woTotalPts+' всего';
     woEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:5px;width:100%">'
       +top.map(function(p,i){
         const w = Math.max(6, Math.round(p.total/maxT*100));
