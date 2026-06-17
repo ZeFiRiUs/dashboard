@@ -2423,6 +2423,117 @@ app.post('/api/settings', express.json(), (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Overview (Сводка) ─────────────────────────────────────────────────────────
+app.get('/api/overview', async (req, res) => {
+  if (!checkView(req, res)) return;
+  try {
+    const ov = {};
+
+    // Writeoffs — из индексного файла
+    try {
+      if (fs.existsSync(WO_INDEX_FILE)) {
+        const idx = JSON.parse(fs.readFileSync(WO_INDEX_FILE, 'utf8'));
+        if (idx && idx.meta) {
+          const bySheet = idx.by_sheet || [];
+          const byPoint = idx.by_point || [];
+          ov.writeoffs = {
+            total: idx.meta.total,
+            sheets_count: bySheet.length,
+            points_count: byPoint.length,
+            critical_points: byPoint.filter(p => p.total > 100000).length,
+            last_sheet: bySheet.length ? bySheet[bySheet.length - 1].name : '—',
+          };
+        }
+      }
+    } catch(e) { console.error('[overview] wo:', e.message); }
+
+    // Deliveries — из сохранённого файла, группировка по ссылке
+    try {
+      const del = JSON.parse(fs.readFileSync(LOCAL_DEL_FILE, 'utf8'));
+      if (del && del.rows) {
+        const rows = del.rows;
+        const msgKeys = new Set(), guiltyKeys = new Set(), dovozyKeys = new Set();
+        rows.forEach(r => {
+          const key = (r.link && r.link.length > 5) ? r.link : `__${r.iso}_${r.time}_${r.point}_${r.type}`;
+          msgKeys.add(key);
+          if (r.guilty && r.guilty.length > 0) guiltyKeys.add(key);
+          if (r.type === '#довоз') dovozyKeys.add(key);
+        });
+        ov.deliveries = {
+          messages: msgKeys.size,
+          rows: rows.length,
+          with_guilty: guiltyKeys.size,
+          no_guilty: msgKeys.size - guiltyKeys.size,
+          dovozy: dovozyKeys.size,
+          min: del.meta && del.meta.min,
+          max: del.meta && del.meta.max,
+        };
+      }
+    } catch(e) { console.error('[overview] del:', e.message); }
+
+    // Production — из индексного файла (все листы)
+    try {
+      if (fs.existsSync(PROD_INDEX_FILE)) {
+        const idx = JSON.parse(fs.readFileSync(PROD_INDEX_FILE, 'utf8'));
+        if (idx && idx.meta && idx.meta.sheets_count > 0) {
+          const bySheet = idx.by_sheet || [];
+          const totalUnits = bySheet.reduce((s, sh) => s + (sh.total_units || 0), 0);
+          ov.production = {
+            total_fot: idx.meta.total_fot,
+            sheets_count: bySheet.length,
+            latest_sheet: bySheet.length ? bySheet[bySheet.length - 1].name : '—',
+            total_units: Math.round(totalUnits * 100) / 100,
+          };
+        }
+      }
+    } catch(e) { console.error('[overview] prod:', e.message); }
+
+    // Sebes — из файла листов + кеша последнего листа
+    try {
+      const sheets = fs.existsSync(SEBES_SHEETS_FILE) ? JSON.parse(fs.readFileSync(SEBES_SHEETS_FILE, 'utf8')) : null;
+      if (sheets && sheets.length) {
+        const latestName = sheets[sheets.length - 1].name;
+        const cached = _sebesSheetCache[latestName];
+        ov.sebes = {
+          sheets_count: sheets.length,
+          latest: latestName,
+          total_items: cached ? cached.data.meta.total_items : null,
+          growth_count: cached ? cached.data.meta.growth_count : null,
+          drop_count: cached ? cached.data.meta.drop_count : null,
+        };
+      }
+    } catch(e) { console.error('[overview] sebes:', e.message); }
+
+    // Stops — разбираем активный CSV-кеш
+    if (_stopsActiveCsvCache) {
+      try {
+        const csvLines = _stopsActiveCsvCache.split('\n');
+        let activeCount = 0, currentPoint = '';
+        const pointsWithActive = new Set();
+        for (const raw of csvLines.slice(1)) {
+          const line = raw.replace(/\r$/, '');
+          if (!line.trim()) continue;
+          if (!line.startsWith(',')) {
+            currentPoint = line.split(',')[0].trim();
+          } else {
+            const cols = line.split(',');
+            const excluded = (cols[3] || '').trim();
+            if (!excluded) {
+              activeCount++;
+              if (currentPoint) pointsWithActive.add(currentPoint);
+            }
+          }
+        }
+        ov.stops = { active_count: activeCount, points_with_active: pointsWithActive.size };
+      } catch(e) { console.error('[overview] stops:', e.message); }
+    }
+
+    res.json(ov);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
