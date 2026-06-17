@@ -1920,15 +1920,18 @@ function parseDeliveriesCsvServer(csv) {
     return idx >= 0 ? idx : fallback;
   };
   const C = {
-    date:   col(['столб','дат'], 0),
-    point:  col(['точк'], 1),
-    dept:   col(['подразд'], 2),
-    type:   col(['довоз','добав'], 3),
-    guilty: col(['фио','виновн'], 4),
-    items:  col(['список','пояснен'], 5),
-    reason: col(['причин'], 6),
-    cost:   col(['стоим'], 7),
-    reg:    col(['реестр','внесен'], 8),
+    date:      col(['дат','столб'], 0),
+    time:      col(['врем'], 1),
+    sender:    col(['отправ'], 2),
+    point:     col(['точк'], 3),
+    type:      col(['тип','довоз','добав'], 4),
+    items:     col(['товар','список','пояснен'], 5),
+    qty:       col(['кол','количест'], 6),
+    remainder: col(['остат'], 7),
+    reason:    col(['причин'], 8),
+    guilty:    col(['виновн','фио'], 9),
+    link:      col(['ссылк','сообщ'], 10),
+    cost:      col(['стоим','себест'], 11),
   };
   const DOW = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
   const fmtD = d => { const [y,mo,day] = d.split('-'); return `${day}.${mo}.${y}`; };
@@ -1951,13 +1954,22 @@ function parseDeliveriesCsvServer(csv) {
     const point = (r[C.point] || '').trim();
     if (!iso || !point) continue;
     allPoints.add(point);
-    const cost = parseCost(r[C.cost] || '');
-    rowsList.push({ iso, date: iso, point, dept: (r[C.dept]||'').trim(),
-      type: (r[C.type]||'').trim(), guilty: (r[C.guilty]||'').trim(),
-      items: (r[C.items]||'').trim(), reason: (r[C.reason]||'').trim(),
-      cost, registered: (r[C.reg]||'').trim().toLowerCase().includes('внесено') });
-    if (!byDate[iso]) byDate[iso] = { n: 0, cost: 0 };
-    byDate[iso].n++; byDate[iso].cost += cost;
+    const link    = (r[C.link] || '').trim();
+    const time    = (r[C.time] || '').trim();
+    const type    = (r[C.type] || '').trim();
+    const cost    = parseCost(r[C.cost] || '');
+    rowsList.push({
+      iso, date: iso, time, sender: (r[C.sender]||'').trim(),
+      point, type, guilty: (r[C.guilty]||'').trim(),
+      items: (r[C.items]||'').trim(), qty: (r[C.qty]||'').trim(),
+      remainder: (r[C.remainder]||'').trim(), reason: (r[C.reason]||'').trim(),
+      link, cost,
+    });
+    if (!byDate[iso]) byDate[iso] = { keys: new Set(), cost: 0 };
+    // группировка по ссылке: одно сообщение = один довоз
+    const groupKey = link.length > 5 ? link : `__${iso}_${time}_${point}_${type}`;
+    byDate[iso].keys.add(groupKey);
+    byDate[iso].cost += cost;
   }
   if (!rowsList.length) return { data: null };
   const dates = Object.keys(byDate).sort();
@@ -1967,7 +1979,8 @@ function parseDeliveriesCsvServer(csv) {
       total: rowsList.length,
       total_cost: Math.round(rowsList.reduce((s,r)=>s+r.cost,0)),
       min: dates[0], max: dates[dates.length-1],
-      all_dates: dates.map(d => ({ iso:d, d:fmtD(d), dow:DOW[new Date(d).getDay()], n:byDate[d].n, cost:Math.round(byDate[d].cost) })),
+      all_dates: dates.map(d => ({ iso:d, d:fmtD(d), dow:DOW[new Date(d).getDay()],
+        n: byDate[d].keys.size, rows: byDate[d].keys.size, cost:Math.round(byDate[d].cost) })),
       all_points: [...allPoints].sort(),
     },
     rows: rowsList,
