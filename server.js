@@ -1,4 +1,4 @@
-﻿const express = require('express');
+﻿﻿const express = require('express');
 const multer  = require('multer');
 const fs      = require('fs');
 const path    = require('path');
@@ -2442,6 +2442,7 @@ app.get('/api/overview', async (req, res) => {
             points_count: byPoint.length,
             critical_points: byPoint.filter(p => p.total > 100000).length,
             last_sheet: bySheet.length ? bySheet[bySheet.length - 1].name : '—',
+            by_point: byPoint.slice(0, 10).map(p => ({ name: p.name, total: p.total })),
           };
         }
       }
