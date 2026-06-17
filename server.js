@@ -1344,11 +1344,11 @@ app.get('/api/production/csv', async (req, res) => {
     return res.json(_prodCsvCache);
   }
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('production')}/export?format=csv&gid=${PROD_GID}`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
-    const csv = await r.text();
-    const result = parseProductionCsv(csv);
+    const sheets = await fetchProdSheetList();
+    if (!sheets || !sheets.length) throw new Error('Нет листов производства');
+    const sheet = sheets[sheets.length - 1];
+    const result = await fetchProdSheetData(sheet.name, noCache);
+    if (!result) throw new Error('Нет данных на листе ' + sheet.name);
     _prodCsvCache = result; _prodCsvCacheTs = now;
     res.json(result);
   } catch(e) {
@@ -1362,15 +1362,17 @@ app.post('/api/production/sync', async (req, res) => {
   if (!checkAdmin(req, res)) return;
   try {
     _prodCsvCache = null; _prodCsvCacheTs = 0;
-    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('production')}/export?format=csv&gid=${PROD_GID}`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
-    const csv = await r.text();
-    const result = parseProductionCsv(csv);
+    Object.keys(_prodSheetCache).forEach(k => delete _prodSheetCache[k]);
+    _prodSheetListCache = null; _prodSheetListTs = 0;
+    const sheets = await fetchProdSheetList();
+    if (!sheets || !sheets.length) throw new Error('Нет листов производства');
+    const sheet = sheets[sheets.length - 1];
+    const result = await fetchProdSheetData(sheet.name, true);
+    if (!result) throw new Error('Нет данных на листе ' + sheet.name);
     _prodCsvCache = result; _prodCsvCacheTs = Date.now();
     const { sha } = await readProduction();
     const dest = await writeProduction(result, sha);
-    res.json({ ok: true, depts: result.depts.length, total_fot: result.meta.total_fot, saved_to: dest });
+    res.json({ ok: true, sheet: sheet.name, depts: result.depts.length, total_fot: result.meta.total_fot, saved_to: dest });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
@@ -2413,6 +2415,47 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(d) { const [y,m,day]=d.split('-'); return `${day}.${m}.${y}`; }
 
+// ── Auto-sync helpers ─────────────────────────────────────────────────────────
+async function runDeliveriesSync() {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('deliveries')}/export?format=csv&gid=0`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    _delCsvCache = csv; _delCsvCacheTs = Date.now();
+    const { data, rows } = parseDeliveriesCsvServer(csv);
+    if (!data || !rows) { console.warn('[AUTO-SYNC] Deliveries: пустые данные'); return; }
+    const { sha } = await readDeliveries();
+    await writeDeliveries(data, sha);
+    console.log(`[AUTO-SYNC] Deliveries OK: ${rows} строк`);
+  } catch(e) {
+    console.error('[AUTO-SYNC] Deliveries:', e.message);
+  }
+}
+
+async function runStopsSync() {
+  try {
+    const sheets = await getStopsSheetList();
+    if (!sheets || sheets.length < 2) { console.warn('[AUTO-SYNC] Stops: второй лист не найден'); return; }
+    const sheet = sheets[1];
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    const url = `https://docs.google.com/spreadsheets/d/${getSheetId('stops')}/export?format=csv&sheet=${encodeURIComponent(sheet.name)}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error('Google Sheets HTTP ' + r.status);
+    const csv = await r.text();
+    _stopsActiveCsvCache = csv;
+    _stopsActiveCsvCacheTs = Date.now();
+    console.log(`[AUTO-SYNC] Stops OK: лист "${sheet.name}", ${csv.length} байт`);
+  } catch(e) {
+    console.error('[AUTO-SYNC] Stops:', e.message);
+  }
+}
+
 // ── Глобальный обработчик ошибок Express ──────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Express error:', err.message);
@@ -2425,10 +2468,17 @@ app.listen(PORT, async () => {
   await initFromGitHub();
   await rebuildWriteoffsIndex();
   await rebuildProductionIndex();
+  setTimeout(async () => {
+    console.log('[AUTO-SYNC] Запуск начальной синхронизации...');
+    await Promise.allSettled([runDeliveriesSync(), runStopsSync()]);
+  }, 3000);
+  setInterval(runDeliveriesSync, 15 * 60 * 1000);
+  setInterval(runStopsSync, 15 * 60 * 1000);
 });
 
 process.on('uncaughtException', err => { console.error('[FATAL] uncaughtException:', err.message); });
 process.on('unhandledRejection', err => { console.error('[FATAL] unhandledRejection:', err?.message || err); });
+
 
 
 
